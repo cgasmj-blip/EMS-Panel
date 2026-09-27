@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Trash2 } from 'lucide-react'
+import { CalendarClock, ListPlus, Trash2 } from 'lucide-react'
 import { supabase, type Appointment, type AppointmentTypeRow, type Staff, type SousGrade, type Affiliation } from '@/lib/supabase'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -7,6 +7,8 @@ import { Input } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/Badge'
 import { EligibilitySelector, type Eligibility } from '@/components/ui/EligibilitySelector'
 import { AnimatedList, AnimatedListItem } from '@/components/ui/AnimatedList'
+import { Tile } from '@/components/ui/Tile'
+import { SectionHeader } from '@/components/ui/SectionHeader'
 
 const EMPTY_ELIG: Eligibility = { grade: [], sous_grade_id: '', affiliation_id: '' }
 
@@ -15,6 +17,7 @@ function formatDateTime(iso: string) {
 }
 
 export function RdvSection() {
+  const [view, setView] = useState<'home' | 'types' | 'upcoming'>('home')
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [staffList, setStaffList] = useState<Staff[]>([])
   const [types, setTypes] = useState<AppointmentTypeRow[]>([])
@@ -101,9 +104,39 @@ export function RdvSection() {
 
   const staffById = new Map(staffList.map((s) => [s.id, s]))
   const typeLabel = (id: string) => types.find((t) => t.id === id)?.label ?? id
+  const upcomingAppointments = appointments.filter((a) => new Date(a.scheduled_at).getTime() >= Date.now())
+
+  if (view === 'home') {
+    return (
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <Tile
+          icon={ListPlus}
+          label="Types de rendez-vous"
+          stat={`${types.length}`}
+          color="var(--tile-prestations)"
+          onClick={() => setView('types')}
+        />
+        <Tile
+          icon={CalendarClock}
+          label="Prochains rendez-vous"
+          stat={`${upcomingAppointments.length}`}
+          color="var(--tile-rdv)"
+          onClick={() => setView('upcoming')}
+        />
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-col gap-6">
+      <SectionHeader
+        label={view === 'types' ? 'Types de rendez-vous' : 'Prochains rendez-vous'}
+        icon={view === 'types' ? ListPlus : CalendarClock}
+        color={view === 'types' ? 'var(--tile-prestations)' : 'var(--tile-rdv)'}
+        onBack={() => setView('home')}
+      />
+
+      {view === 'types' && (
       <Card className="p-5">
         <h2 className="text-[var(--ink)] font-bold text-sm mb-4">Types de rendez-vous</h2>
         <AnimatedList className="flex flex-col gap-2 mb-4">
@@ -137,11 +170,13 @@ export function RdvSection() {
           <Button size="sm" onClick={addType}>Ajouter</Button>
         </div>
       </Card>
+      )}
 
+      {view === 'upcoming' && (
       <Card className="p-5" delay={0.06}>
-        <h2 className="text-[var(--ink)] font-bold text-sm mb-4">Tous les rendez-vous</h2>
+        <h2 className="text-[var(--ink)] font-bold text-sm mb-4">Prochains rendez-vous</h2>
         <AnimatedList className="flex flex-col gap-2">
-          {appointments.map((a) => (
+          {upcomingAppointments.map((a) => (
             <AnimatedListItem key={a.id} className="flex items-center justify-between rounded-xl border border-[var(--ink)]/8 bg-[var(--ink)]/[0.02] px-3.5 py-2.5">
               <div>
                 <div className="flex items-center gap-2 mb-1">
@@ -157,9 +192,10 @@ export function RdvSection() {
               </Button>
             </AnimatedListItem>
           ))}
-          {appointments.length === 0 && <p className="text-[var(--ink)]/30 text-sm text-center py-4">Aucun rendez-vous.</p>}
+          {upcomingAppointments.length === 0 && <p className="text-[var(--ink)]/30 text-sm text-center py-4">Aucun rendez-vous à venir.</p>}
         </AnimatedList>
       </Card>
+      )}
     </div>
   )
 }
