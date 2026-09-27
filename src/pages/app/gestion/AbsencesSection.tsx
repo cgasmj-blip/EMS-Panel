@@ -29,6 +29,19 @@ export function AbsencesSection() {
 
   useEffect(() => {
     fetchAll()
+
+    const timer = window.setInterval(fetchAll, 25_000)
+    const channel = supabase
+      .channel('gestion-absences-live')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'absences' }, () => {
+        fetchAll()
+      })
+      .subscribe()
+
+    return () => {
+      window.clearInterval(timer)
+      supabase.removeChannel(channel)
+    }
   }, [fetchAll])
 
   async function setAbsenceStatus(id: number, status: 'validee' | 'refusee') {
