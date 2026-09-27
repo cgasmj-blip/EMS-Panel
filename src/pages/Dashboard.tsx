@@ -156,7 +156,7 @@ export function Dashboard() {
                   onBack={() => setView('home')}
                 />
               )}
-              {effectiveView === 'dossier' ? <DossierTraumatoTab onBack={() => setView('home')} /> : TAB_CONTENT[effectiveView]}
+              {effectiveView === 'dossier' ? <DossierTraumatoTab /> : TAB_CONTENT[effectiveView]}
             </motion.div>
           )}
         </AnimatePresence>
