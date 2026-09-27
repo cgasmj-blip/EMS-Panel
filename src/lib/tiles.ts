@@ -1,6 +1,6 @@
-import { Siren, UserX, Receipt, CalendarClock, HelpCircle, History, ShieldCheck, Stethoscope, type LucideIcon } from 'lucide-react'
+import { Siren, UserX, Receipt, CalendarClock, HelpCircle, History, ShieldCheck, Stethoscope, FileHeart, type LucideIcon } from 'lucide-react'
 
-export type TabKey = 'services' | 'absence' | 'prestations' | 'agenda' | 'dossier' | 'aide' | 'historique' | 'gestion'
+export type TabKey = 'services' | 'absence' | 'prestations' | 'agenda' | 'dossier' | 'dossier_medical' | 'aide' | 'historique' | 'gestion'
 
 export interface TileSection {
   key: TabKey
@@ -16,6 +16,7 @@ export const TILE_SECTIONS: TileSection[] = [
   { key: 'prestations', label: 'Prestations', icon: Receipt, color: 'var(--tile-prestations)' },
   { key: 'agenda', label: 'Agenda', icon: CalendarClock, color: 'var(--tile-agenda)' },
   { key: 'dossier', label: 'Dossier traumatologique', icon: Stethoscope, color: 'var(--tile-services)' },
+  { key: 'dossier_medical', label: 'Dossier médical', icon: FileHeart, color: 'var(--tile-dossier)' },
   { key: 'aide', label: 'Aide', icon: HelpCircle, color: 'var(--tile-aide)' },
   { key: 'historique', label: 'Historique', icon: History, color: 'var(--tile-historique)' },
   { key: 'gestion', label: 'Gestion', icon: ShieldCheck, color: 'var(--tile-gestion)', seniorOnly: true },
