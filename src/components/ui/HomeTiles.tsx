@@ -83,7 +83,13 @@ export function HomeTiles({ tabs, onSelect }: { tabs: TabKey[]; onSelect: (key: 
             color={section.color}
             big={section.key === 'services'}
             delay={i * 0.04}
-            onClick={() => onSelect(section.key)}
+            onClick={() => {
+              if (section.key === 'dossier_medical') {
+                window.open('https://ljlife.online/admin/pages/ambulance/ems.php', '_blank', 'noopener,noreferrer')
+                return
+              }
+              onSelect(section.key)
+            }}
           />
         )
       })}
