@@ -12,7 +12,7 @@ function formatUpcoming(iso: string) {
 }
 
 export function HomeTiles({ tabs, onSelect }: { tabs: TabKey[]; onSelect: (key: TabKey) => void }) {
-  const { staff } = useAuth()
+  const { session } = useAuth()
   const [enService, setEnService] = useState(0)
   const [mesAbsencesAVenir, setMesAbsencesAVenir] = useState(0)
   const [nextAppointment, setNextAppointment] = useState<Appointment | null>(null)
@@ -26,20 +26,22 @@ export function HomeTiles({ tabs, onSelect }: { tabs: TabKey[]; onSelect: (key: 
       .eq('status', 'en_service')
       .eq('active', true)
 
-    const absenceQuery = staff
+    const userId = session?.user.id
+
+    const absenceQuery = userId
       ? supabase
           .from('absences')
           .select('id', { count: 'exact', head: true })
-          .eq('staff_id', staff.id)
+          .eq('staff_id', userId)
           .gte('end_date', today)
           .neq('status', 'refusee')
       : null
 
-    const appointmentQuery = staff
+    const appointmentQuery = userId
       ? supabase
           .from('appointments')
           .select('*')
-          .eq('staff_id', staff.id)
+          .eq('staff_id', userId)
           .gte('scheduled_at', new Date().toISOString())
           .order('scheduled_at', { ascending: true })
           .limit(1)
@@ -54,7 +56,7 @@ export function HomeTiles({ tabs, onSelect }: { tabs: TabKey[]; onSelect: (key: 
     setEnService(serviceResult.count ?? 0)
     setMesAbsencesAVenir(absenceResult.count ?? 0)
     setNextAppointment(appointmentResult.data?.[0] ?? null)
-  }, [staff])
+  }, [session?.user.id])
 
   useEffect(() => {
     refreshStats()
