@@ -5,11 +5,6 @@ import { Card } from '@/components/ui/Card'
 const DOSSIER_URL = 'https://dossier-traumatologique-ems-los-santos.ketchup-arya.chatgpt.site/'
 
 export function DossierTraumatoTab({ onBack }: { onBack: () => void }) {
-  function handleSave() {
-    const win = window.open(DOSSIER_URL, '_blank', 'noopener,noreferrer')
-    if (!win) return
-  }
-
   return (
     <div className="flex flex-col gap-4">
       <Card className="p-4 flex flex-wrap items-center justify-between gap-3">
@@ -25,9 +20,11 @@ export function DossierTraumatoTab({ onBack }: { onBack: () => void }) {
               <ExternalLink size={14} /> Ouvrir
             </Button>
           </a>
-          <Button type="button" variant="ghost" size="sm" onClick={handleSave} title="Ouvre le dossier pour l'enregistrer ou l'imprimer en PDF depuis le navigateur">
-            <Download size={14} /> Télécharger
-          </Button>
+          <a href={`${import.meta.env.BASE_URL}dossier-traumatologique.html`} download="dossier-traumatologique-EMS.html">
+            <Button type="button" variant="ghost" size="sm">
+              <Download size={14} /> Télécharger
+            </Button>
+          </a>
         </div>
       </Card>
 
