@@ -57,7 +57,7 @@ Deno.serve(async (req) => {
 
     const { data: roleMap, error: mapErr } = await admin
       .from('discord_role_map')
-      .select('role_id, staff_role, is_gate, priority')
+      .select('role_id, staff_role, is_gate, priority, sous_grade_id, affiliation_id')
       .in('role_id', roleIds.length > 0 ? roleIds : ['0'])
 
     if (mapErr) {
@@ -76,9 +76,8 @@ Deno.serve(async (req) => {
     const sorted = [...(roleMap ?? [])].sort((a, b) => (a.priority ?? 999) - (b.priority ?? 999))
 
     const newRole = sorted.find((r) => r.staff_role)?.staff_role ?? 'membre'
-    // Sous-grade and affiliation are no longer read from Discord: Direction
-    // sets them by hand in Gestion > Utilisateurs, so they're left untouched
-    // here.
+    const sousGradeIds = [...new Set((roleMap ?? []).map((r) => r.sous_grade_id).filter(Boolean))]
+    const affiliationIds = [...new Set((roleMap ?? []).map((r) => r.affiliation_id).filter(Boolean))]
 
     const meta = userData.user.user_metadata
     // Prefer the per-server nickname (member.nick) over the global Discord
@@ -98,7 +97,53 @@ Deno.serve(async (req) => {
       return json({ authorized: false, reason: 'server_error' })
     }
 
-    return json({ authorized: true, role: newRole })
+    // Keep habilitations and affiliations in sync with Discord role IDs.
+    // Each successful Discord sync replaces the current mappings with the
+    // roles actually present on the Discord member.
+    const { error: clearSgErr } = await admin
+      .from('staff_sous_grades')
+      .delete()
+      .eq('staff_id', userData.user.id)
+    if (clearSgErr) {
+      console.error('staff_sous_grades clear failed', clearSgErr.message)
+      return json({ authorized: false, reason: 'server_error' })
+    }
+
+    if (sousGradeIds.length > 0) {
+      const { error: insertSgErr } = await admin
+        .from('staff_sous_grades')
+        .insert(sousGradeIds.map((sous_grade_id) => ({ staff_id: userData.user.id, sous_grade_id })))
+      if (insertSgErr) {
+        console.error('staff_sous_grades insert failed', insertSgErr.message)
+        return json({ authorized: false, reason: 'server_error' })
+      }
+    }
+
+    const { error: clearAffErr } = await admin
+      .from('staff_affiliations')
+      .delete()
+      .eq('staff_id', userData.user.id)
+    if (clearAffErr) {
+      console.error('staff_affiliations clear failed', clearAffErr.message)
+      return json({ authorized: false, reason: 'server_error' })
+    }
+
+    if (affiliationIds.length > 0) {
+      const { error: insertAffErr } = await admin
+        .from('staff_affiliations')
+        .insert(affiliationIds.map((affiliation_id) => ({ staff_id: userData.user.id, affiliation_id })))
+      if (insertAffErr) {
+        console.error('staff_affiliations insert failed', insertAffErr.message)
+        return json({ authorized: false, reason: 'server_error' })
+      }
+    }
+
+    return json({
+      authorized: true,
+      role: newRole,
+      sous_grade_ids: sousGradeIds,
+      affiliation_ids: affiliationIds,
+    })
   } catch (e) {
     console.error('verify-discord-member crashed', e)
     return json({ authorized: false, reason: 'server_error', message: e instanceof Error ? e.message : String(e) })
