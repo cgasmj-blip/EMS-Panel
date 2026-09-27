@@ -1,7 +1,7 @@
-import { useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useAuth } from '@/auth/AuthContext'
-import { isDirection } from '@/lib/supabase'
+import { isDirection, supabase, type Appointment } from '@/lib/supabase'
 import { GESTION_SECTIONS, type GestionKey } from '@/lib/gestionTiles'
 import { SectionHeader } from '@/components/ui/SectionHeader'
 import { Tile } from '@/components/ui/Tile'
@@ -41,9 +41,52 @@ function getStoredView(): GestionKey | 'home' {
   return (stored as GestionKey | 'home') || 'home'
 }
 
+function formatUpcoming(iso: string) {
+  const d = new Date(iso)
+  const day = d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })
+  const time = d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+  return `${day} · ${time}`
+}
+
 export function GestionTab() {
   const { staff } = useAuth()
   const [view, setViewState] = useState<GestionKey | 'home'>(getStoredView)
+  const [absenceCount, setAbsenceCount] = useState(0)
+  const [nextAppointment, setNextAppointment] = useState<Appointment | null>(null)
+
+  const refreshManagementStats = useCallback(async () => {
+    if (!isDirection(staff?.role)) {
+      setAbsenceCount(0)
+      setNextAppointment(null)
+      return
+    }
+
+    const today = new Date().toISOString().slice(0, 10)
+    const now = new Date().toISOString()
+
+    const [{ count }, { data }] = await Promise.all([
+      supabase
+        .from('absences')
+        .select('id', { count: 'exact', head: true })
+        .gte('end_date', today)
+        .neq('status', 'refusee'),
+      supabase
+        .from('appointments')
+        .select('*')
+        .gte('scheduled_at', now)
+        .order('scheduled_at', { ascending: true })
+        .limit(1),
+    ])
+
+    setAbsenceCount(count ?? 0)
+    setNextAppointment(data?.[0] ?? null)
+  }, [staff?.role])
+
+  useEffect(() => {
+    refreshManagementStats()
+    const timer = window.setInterval(refreshManagementStats, 25_000)
+    return () => window.clearInterval(timer)
+  }, [refreshManagementStats])
 
   function setView(next: GestionKey | 'home') {
     setViewState(next)
@@ -65,9 +108,23 @@ export function GestionTab() {
           transition={{ duration: 0.25 }}
           className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4"
         >
-          {sections.map((s, i) => (
-            <Tile key={s.key} icon={s.icon} label={s.label} color={s.color} delay={i * 0.04} onClick={() => setView(s.key)} />
-          ))}
+          {sections.map((s, i) => {
+            let stat: string | null = null
+            if (s.key === 'absences') stat = `${absenceCount}`
+            if (s.key === 'rdv') stat = nextAppointment ? formatUpcoming(nextAppointment.scheduled_at) : 'Aucun RDV'
+
+            return (
+              <Tile
+                key={s.key}
+                icon={s.icon}
+                label={s.label}
+                stat={stat}
+                color={s.color}
+                delay={i * 0.04}
+                onClick={() => setView(s.key)}
+              />
+            )
+          })}
         </motion.div>
       ) : (
         <motion.div
