@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { supabase, type Appointment } from '@/lib/supabase'
+import { useAuth } from '@/auth/AuthContext'
 import { TILE_SECTIONS, type TabKey } from '@/lib/tiles'
 import { Tile } from '@/components/ui/Tile'
 
@@ -11,31 +12,55 @@ function formatUpcoming(iso: string) {
 }
 
 export function HomeTiles({ tabs, onSelect }: { tabs: TabKey[]; onSelect: (key: TabKey) => void }) {
+  const { staff } = useAuth()
   const [enService, setEnService] = useState(0)
-  const [absencesEnAttente, setAbsencesEnAttente] = useState(0)
+  const [mesAbsencesAVenir, setMesAbsencesAVenir] = useState(0)
   const [nextAppointment, setNextAppointment] = useState<Appointment | null>(null)
 
-  useEffect(() => {
-    supabase
+  const refreshStats = useCallback(async () => {
+    const today = new Date().toISOString().slice(0, 10)
+
+    const serviceQuery = supabase
       .from('staff')
       .select('id', { count: 'exact', head: true })
       .eq('status', 'en_service')
       .eq('active', true)
-      .neq('role', 'membre')
-      .then(({ count }) => setEnService(count ?? 0))
-    supabase
-      .from('absences')
-      .select('id', { count: 'exact', head: true })
-      .eq('status', 'en_attente')
-      .then(({ count }) => setAbsencesEnAttente(count ?? 0))
-    supabase
-      .from('appointments')
-      .select('*')
-      .gte('scheduled_at', new Date().toISOString())
-      .order('scheduled_at', { ascending: true })
-      .limit(1)
-      .then(({ data }) => setNextAppointment(data?.[0] ?? null))
-  }, [])
+
+    const absenceQuery = staff
+      ? supabase
+          .from('absences')
+          .select('id', { count: 'exact', head: true })
+          .eq('staff_id', staff.id)
+          .gte('end_date', today)
+          .neq('status', 'refusee')
+      : null
+
+    const appointmentQuery = staff
+      ? supabase
+          .from('appointments')
+          .select('*')
+          .eq('staff_id', staff.id)
+          .gte('scheduled_at', new Date().toISOString())
+          .order('scheduled_at', { ascending: true })
+          .limit(1)
+      : null
+
+    const [serviceResult, absenceResult, appointmentResult] = await Promise.all([
+      serviceQuery,
+      absenceQuery ?? Promise.resolve({ count: 0 }),
+      appointmentQuery ?? Promise.resolve({ data: [] as Appointment[] }),
+    ])
+
+    setEnService(serviceResult.count ?? 0)
+    setMesAbsencesAVenir(absenceResult.count ?? 0)
+    setNextAppointment(appointmentResult.data?.[0] ?? null)
+  }, [staff])
+
+  useEffect(() => {
+    refreshStats()
+    const timer = window.setInterval(refreshStats, 25_000)
+    return () => window.clearInterval(timer)
+  }, [refreshStats])
 
   const sections = TILE_SECTIONS.filter((s) => tabs.includes(s.key))
 
@@ -44,7 +69,7 @@ export function HomeTiles({ tabs, onSelect }: { tabs: TabKey[]; onSelect: (key: 
       {sections.map((section, i) => {
         let stat: string | null = null
         if (section.key === 'services') stat = `${enService}`
-        if (section.key === 'absence') stat = `${absencesEnAttente}`
+        if (section.key === 'absence') stat = `${mesAbsencesAVenir}`
         if (section.key === 'agenda') stat = nextAppointment ? formatUpcoming(nextAppointment.scheduled_at) : 'Aucun RDV'
 
         return (
