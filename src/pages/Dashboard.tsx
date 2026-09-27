@@ -14,6 +14,7 @@ import { ServicesTab } from './app/ServicesTab'
 import { AbsenceTab } from './app/AbsenceTab'
 import { PrestationsTab } from './app/PrestationsTab'
 import { AgendaTab } from './app/AgendaTab'
+import { DossierTraumatoTab } from './app/DossierTraumatoTab'
 import { HistoriqueTab } from './app/HistoriqueTab'
 import { GestionTab } from './app/GestionTab'
 import { AideTab } from './app/AideTab'
@@ -23,6 +24,7 @@ const TAB_CONTENT: Record<TabKey, ReactNode> = {
   absence: <AbsenceTab />,
   prestations: <PrestationsTab />,
   agenda: <AgendaTab />,
+  dossier: null,
   aide: <AideTab />,
   historique: <HistoriqueTab />,
   gestion: <GestionTab />,
@@ -154,7 +156,7 @@ export function Dashboard() {
                   onBack={() => setView('home')}
                 />
               )}
-              {TAB_CONTENT[effectiveView]}
+              {effectiveView === 'dossier' ? <DossierTraumatoTab onBack={() => setView('home')} /> : TAB_CONTENT[effectiveView]}
             </motion.div>
           )}
         </AnimatePresence>
