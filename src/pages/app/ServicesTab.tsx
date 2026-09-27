@@ -64,7 +64,7 @@ export function ServicesTab() {
   const [error, setError] = useState<string | null>(null)
 
   const [newUnitName, setNewUnitName] = useState('')
-  const [newUnitLieu, setNewUnitLieu] = useState('')
+  const [newUnitLieu, setNewUnitLieu] = useState('Nord')
 
   const [vehicule, setVehicule] = useState('')
   const [commentaire, setCommentaire] = useState('')
@@ -169,10 +169,11 @@ export function ServicesTab() {
       let unitName = staff.unit_id ? unitsById.get(staff.unit_id)?.name ?? null : null
       let unitSector = staff.unit_id ? unitsById.get(staff.unit_id)?.sector ?? null : null
 
-      if (newUnitName.trim()) {
+      if (!unitId) {
+        const fallbackName = newUnitName.trim() || `Unité de ${staff.full_name}`
         const { data, error: unitErr } = await supabase
           .from('units')
-          .insert({ name: newUnitName.trim(), status: 'en_service', sector: newUnitLieu.trim() || null })
+          .insert({ name: fallbackName, status: 'en_service', sector: newUnitLieu })
           .select()
           .single()
         if (unitErr || !data) throw new Error(unitErr?.message ?? "Création d'unité impossible")
@@ -180,8 +181,6 @@ export function ServicesTab() {
         unitName = data.name
         unitSector = data.sector
       }
-
-      if (!unitId) throw new Error("Donne un nom d'unité, ou rejoins un service actif ci-dessous.")
 
       const isNewShift = !staff.shift_started_at
       const startedAt = staff.shift_started_at ?? new Date().toISOString()
@@ -209,7 +208,7 @@ export function ServicesTab() {
       }
 
       setNewUnitName('')
-      setNewUnitLieu('')
+      setNewUnitLieu('Nord')
       await Promise.all([refreshStaff(), fetchAll()])
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
@@ -334,19 +333,19 @@ export function ServicesTab() {
           </Button>
         </div>
         {error && <p className="text-red-300 text-xs mb-3">{error}</p>}
-        <div className="mb-4">
-          <Field label="Nom d'unité (créer)">
-            <Input placeholder="Unité Alpha" value={newUnitName} onChange={(e) => setNewUnitName(e.target.value)} />
+        <div className="grid sm:grid-cols-2 gap-4 mb-4">
+          <Field label="Nom d'unité (optionnel)">
+            <Input value={newUnitName} onChange={(e) => setNewUnitName(e.target.value)} />
+          </Field>
+          <Field label="Lieu">
+            <Select value={newUnitLieu} onChange={(e) => setNewUnitLieu(e.target.value)}>
+              <option value="Nord">Nord</option>
+              <option value="Sud">Sud</option>
+              <option value="Nord-Sud">Nord-Sud</option>
+            </Select>
           </Field>
         </div>
-        <p className="text-[var(--ink)]/30 text-xs mb-4">Pour rejoindre un service déjà actif, utilise le bouton "Rejoindre" ci-dessous plutôt que de créer une unité.</p>
-        {newUnitName.trim() && (
-          <div className="mb-4">
-            <Field label="Lieu">
-              <Input placeholder="ex: Pillbox, Sandy Shores..." value={newUnitLieu} onChange={(e) => setNewUnitLieu(e.target.value)} />
-            </Field>
-          </div>
-        )}
+        <p className="text-[var(--ink)]/30 text-xs mb-4">Le nom d'unité est facultatif. Pour rejoindre un service déjà actif, utilise le bouton "Rejoindre" ci-dessous.</p>
         {staff.unit_id && staff.status === 'en_service' && (
           <div className="mb-4">
             <p className="text-xs uppercase tracking-[1.5px] text-[var(--ink)]/40 font-semibold mb-1.5">Code d'urgence</p>
@@ -399,9 +398,8 @@ export function ServicesTab() {
                 </Select>
               </Field>
             </div>
-            <Field label="Commentaire">
+            <Field label="Commentaires">
               <Input
-                placeholder="ex: Code 3, RDV Psy..."
                 value={commentaire}
                 onChange={(e) => {
                   setCommentaire(e.target.value)
