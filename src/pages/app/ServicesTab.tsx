@@ -5,9 +5,7 @@ import {
   supabase,
   displayRoleLabel,
   staffMatchesEligibility,
-  mapStaffRow,
   shortLabel,
-  STAFF_SELECT_WITH_GRADES,
   STATUS_LABELS,
   type Staff,
   type Unit,
@@ -88,11 +86,42 @@ export function ServicesTab() {
   }
 
   const fetchAll = useCallback(async () => {
-    const [{ data: staffData }, { data: unitData }] = await Promise.all([
-      supabase.from('staff').select(STAFF_SELECT_WITH_GRADES).eq('active', true).order('full_name'),
+    const [{ data: staffData, error: staffError }, { data: unitData }] = await Promise.all([
+      supabase.from('staff').select('*').eq('active', true).order('full_name'),
       supabase.from('units').select('*').order('created_at', { ascending: false }),
     ])
-    if (staffData) setRoster(staffData.map(mapStaffRow))
+    if (staffError) {
+      console.error('Chargement effectif impossible', staffError)
+      setError('Impossible de charger tout l’effectif.')
+    }
+    if (staffData) {
+      const baseRoster = staffData.map((row) => ({
+        ...row,
+        sous_grade_ids: [] as string[],
+        affiliation_ids: [] as string[],
+      })) as Staff[]
+
+      const ids = baseRoster.map((s) => s.id)
+      if (ids.length > 0) {
+        const [{ data: sgLinks }, { data: affLinks }] = await Promise.all([
+          supabase.from('staff_sous_grades').select('staff_id,sous_grade_id').in('staff_id', ids),
+          supabase.from('staff_affiliations').select('staff_id,affiliation_id').in('staff_id', ids),
+        ])
+        const sgByStaff = new Map<string, string[]>()
+        const affByStaff = new Map<string, string[]>()
+        for (const link of sgLinks ?? []) {
+          sgByStaff.set(link.staff_id, [...(sgByStaff.get(link.staff_id) ?? []), link.sous_grade_id])
+        }
+        for (const link of affLinks ?? []) {
+          affByStaff.set(link.staff_id, [...(affByStaff.get(link.staff_id) ?? []), link.affiliation_id])
+        }
+        for (const member of baseRoster) {
+          member.sous_grade_ids = sgByStaff.get(member.id) ?? []
+          member.affiliation_ids = affByStaff.get(member.id) ?? []
+        }
+      }
+      setRoster(baseRoster)
+    }
     if (unitData) setUnits(unitData)
   }, [])
 
