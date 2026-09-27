@@ -339,9 +339,9 @@ export function ServicesTab() {
           </Field>
           <Field label="Lieu">
             <Select value={newUnitLieu} onChange={(e) => setNewUnitLieu(e.target.value)}>
-              <option value="Nord">Nord</option>
-              <option value="Sud">Sud</option>
-              <option value="Nord-Sud">Nord-Sud</option>
+              <option value="Nord">⬆️ Nord</option>
+              <option value="Sud">⬇️ Sud</option>
+              <option value="Nord-Sud">↕️ Nord-Sud</option>
             </Select>
           </Field>
         </div>
