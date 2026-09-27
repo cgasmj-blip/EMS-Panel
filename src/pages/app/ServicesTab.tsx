@@ -89,7 +89,7 @@ export function ServicesTab() {
 
   const fetchAll = useCallback(async () => {
     const [{ data: staffData }, { data: unitData }] = await Promise.all([
-      supabase.from('staff').select(STAFF_SELECT_WITH_GRADES).eq('active', true).neq('role', 'membre').order('full_name'),
+      supabase.from('staff').select(STAFF_SELECT_WITH_GRADES).eq('active', true).order('full_name'),
       supabase.from('units').select('*').order('created_at', { ascending: false }),
     ])
     if (staffData) setRoster(staffData.map(mapStaffRow))
