@@ -1,0 +1,128 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-display: 'Space Grotesk', 'Inter', sans-serif;
+  --color-ems-navy: #101a2b;
+  --color-red: #e11d2e;
+  --color-red-light: #ff5566;
+  --color-cyan: #22d3ee;
+  --color-green: #22c55e;
+  --color-amber: #f59e0b;
+  --color-slate: #64748b;
+}
+
+/* Theme tokens: dark is the default, light overrides via [data-theme="light"]
+   on <html>. --ink is the "foreground overlay" color used everywhere via
+   Tailwind's arbitrary-value + opacity-modifier classes (text-[var(--ink)]/40,
+   bg-[var(--ink)]/5, border-[var(--ink)]/10, ...) so the whole white-on-dark
+   palette flips to dark-on-light with a single variable swap. */
+:root {
+  --bg: #1c2027;
+  --sidebar-bg: #16191f;
+  --ink: #ffffff;
+  --surface: #262b34;
+  --surface-soft: #20242c;
+  --card-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.24);
+  --login-grad-1: #14171d;
+  --login-grad-2: #191d24;
+  --login-grad-3: #1c2027;
+  --select-bg: #20242c;
+  --select-fg: #ffffff;
+  --neon-red-color: #ff5566;
+  --neon-red-shadow: none;
+
+  --tile-services: #2f6fd1;
+  --tile-absence: #0f9db0;
+  --tile-registre: #22a55e;
+  --tile-prestations: #e8a72e;
+  --tile-agenda: #7c5cd1;
+  --tile-dossier: #e0622c;
+  --tile-aide: #5b6bd8;
+  --tile-historique: #64748b;
+  --tile-gestion: #d1263b;
+  --tile-payes: #c2478a;
+  --tile-rdv: #1f8fce;
+  --tile-archive: #8b6f47;
+  --tile-vehicles: #3a8f7a;
+  --tile-hierarchy: #9c5fc9;
+}
+
+:root[data-theme="light"] {
+  --bg: #eef1f7;
+  --sidebar-bg: #ffffff;
+  --ink: #101a2b;
+  --surface: #ffffff;
+  --surface-soft: #f5f7fb;
+  --card-shadow: 0 1px 2px rgba(16, 26, 43, 0.06), 0 8px 24px rgba(16, 26, 43, 0.08);
+  --login-grad-1: #dfe5f0;
+  --login-grad-2: #e9edf5;
+  --login-grad-3: #f4f6fb;
+  --select-bg: #ffffff;
+  --select-fg: #101a2b;
+  --neon-red-color: #c31527;
+  --neon-red-shadow: none;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+/* Native <select> popups ignore most CSS, but background/color on <option>
+   is respected — without this the dropdown list renders with the OS's
+   light theme and is unreadable against the rest of the dark UI. */
+select option {
+  background-color: var(--select-bg);
+  color: var(--select-fg);
+}
+html { scroll-behavior: smooth; }
+html, body, #root { min-height: 100%; margin: 0; padding: 0; }
+body {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  background: var(--bg);
+  color: var(--ink);
+  overflow-x: hidden;
+  transition: background-color .3s ease, color .3s ease;
+}
+
+::selection { background: rgba(225,29,46,0.35); color: #fff; }
+
+::-webkit-scrollbar { width: 10px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: linear-gradient(#e11d2e,#7a1019); border-radius: 8px; }
+
+.font-display { font-family: var(--font-display); }
+
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-up { animation: fade-in-up .5s cubic-bezier(.22,.61,.36,1) both; }
+
+@keyframes status-dot-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(34,197,94,0.5); }
+  50%      { box-shadow: 0 0 0 6px rgba(34,197,94,0); }
+}
+.animate-status-pulse { animation: status-dot-pulse 1.8s ease-in-out infinite; }
+
+@keyframes pop-in {
+  0%   { opacity: 0; transform: scale(.85); }
+  60%  { opacity: 1; transform: scale(1.03); }
+  100% { transform: scale(1); }
+}
+.animate-pop-in { animation: pop-in .4s cubic-bezier(.22,1.2,.4,1) both; }
+
+.text-neon-red {
+  color: var(--neon-red-color);
+  text-shadow: var(--neon-red-shadow);
+}
+
+@keyframes ecg-scroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+.animate-ecg-scroll { animation: ecg-scroll 4s linear infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+  html { scroll-behavior: auto; }
+}
