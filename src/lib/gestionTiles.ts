@@ -48,7 +48,7 @@ export const GESTION_SECTIONS: GestionSection[] = [
   { key: 'aide', label: 'Aide', icon: HelpCircle, color: 'var(--tile-aide)' },
   { key: 'payes', label: 'Gestion des payes', icon: Banknote, color: 'var(--tile-payes)' },
   { key: 'archive', label: 'Archive', icon: Archive, color: 'var(--tile-archive)', directionOnly: true },
-  { key: 'rdv', label: 'RDV', icon: CalendarClock, color: 'var(--tile-rdv)', directionOnly: true },
+  { key: 'rdv', label: 'Rendez-vous', icon: CalendarClock, color: 'var(--tile-rdv)', directionOnly: true },
   { key: 'vehicles', label: 'Véhicules', icon: Car, color: 'var(--tile-vehicles)', directionOnly: true },
   { key: 'historique', label: 'Historique', icon: History, color: 'var(--tile-historique)' },
   { key: 'hierarchy', label: 'Habilitations & Affiliations', icon: Network, color: 'var(--tile-hierarchy)', directionOnly: true },
