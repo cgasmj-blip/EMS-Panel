@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import {
   supabase,
   displayRoleLabel,
+  ROLE_LABELS,
   mapStaffRow,
   shortLabel,
   STAFF_SELECT_WITH_GRADES,
@@ -25,11 +26,22 @@ export function UsersSection() {
 
   const fetchAll = useCallback(async () => {
     const [{ data: s }, { data: sg }, { data: aff }] = await Promise.all([
-      supabase.from('staff').select(STAFF_SELECT_WITH_GRADES).neq('role', 'membre').order('full_name'),
+      supabase.from('staff').select(STAFF_SELECT_WITH_GRADES).neq('role', 'membre'),
       supabase.from('sous_grades').select('*').order('position'),
       supabase.from('affiliations').select('*').order('position'),
     ])
-    if (s) setStaffList(s.map(mapStaffRow))
+    if (s) {
+      const roleOrder = Object.keys(ROLE_LABELS)
+      setStaffList(
+        s
+          .map(mapStaffRow)
+          .sort(
+            (a, b) =>
+              roleOrder.indexOf(a.role) - roleOrder.indexOf(b.role) ||
+              a.full_name.localeCompare(b.full_name, 'fr'),
+          ),
+      )
+    }
     if (sg) setSousGrades(sg)
     if (aff) setAffiliations(aff)
   }, [])
