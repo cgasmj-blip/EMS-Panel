@@ -51,7 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // sign-in, since that's the only time Supabase exposes the Discord token.
   const verifyDiscordMembership = useCallback(async (currentSession: Session) => {
     const providerToken = currentSession.provider_token
-    if (!providerToken) return true // session restore, not a fresh login — trust the cached rank
+    if (!providerToken) return { authorized: true as const } // session restore: keep the cached verified profile
 
     try {
       const { data, error } = await withTimeout(
@@ -60,15 +60,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }),
         15000,
       )
-      if (error || !data?.authorized) {
-        setDenialReason(data?.reason ?? 'server_error')
-        return false
+
+      if (!error && data?.authorized) {
+        setDenialReason(null)
+        return { authorized: true as const }
       }
-      setDenialReason(null)
-      return true
+
+      const reason = data?.reason ?? 'server_error'
+      // Discord rate limits and temporary server errors must never kick an
+      // already authenticated EMS user out of the panel. Keep the last
+      // successfully synced profile and retry on a later explicit sync.
+      if (reason === 'discord_error' || reason === 'server_error') {
+        setDenialReason(null)
+        return { authorized: true as const, transient: true as const }
+      }
+
+      setDenialReason(reason)
+      return { authorized: false as const, reason }
     } catch {
-      setDenialReason('server_error')
-      return false
+      setDenialReason(null)
+      return { authorized: true as const, transient: true as const }
     }
   }, [])
 
@@ -89,8 +100,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const { data: subscription } = supabase.auth.onAuthStateChange(async (event, newSession) => {
       if (event === 'SIGNED_IN' && newSession) {
-        const authorized = await verifyDiscordMembership(newSession)
-        if (!authorized) {
+        const verification = await verifyDiscordMembership(newSession)
+        if (!verification.authorized) {
           setSession(null)
           setStaff(null)
           await supabase.auth.signOut({ scope: 'local' })
