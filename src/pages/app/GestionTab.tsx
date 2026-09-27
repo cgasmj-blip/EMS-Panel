@@ -37,12 +37,12 @@ const SECTION_CONTENT: Record<GestionKey, ReactNode> = {
 type GestionView = GestionKey | 'home' | 'employees' | 'hospital'
 
 const EMPLOYEE_KEYS: GestionKey[] = [
-  'users',
+  'rdv',
   'services',
   'absences',
+  'users',
   'payes',
   'archive',
-  'rdv',
   'historique',
 ]
 
@@ -70,6 +70,8 @@ export function GestionTab() {
   const [view, setViewState] = useState<GestionView>(getStoredView)
   const [absenceCount, setAbsenceCount] = useState(0)
   const [nextAppointment, setNextAppointment] = useState<Appointment | null>(null)
+  const [inServiceCount, setInServiceCount] = useState(0)
+  const [inPauseCount, setInPauseCount] = useState(0)
 
   const refreshManagementStats = useCallback(async () => {
     if (!isDirection(staff?.role)) {
@@ -81,7 +83,7 @@ export function GestionTab() {
     const today = new Date().toISOString().slice(0, 10)
     const now = new Date().toISOString()
 
-    const [{ count }, { data }] = await Promise.all([
+    const [{ count }, { data }, { count: serviceCount }, { count: pauseCount }] = await Promise.all([
       supabase
         .from('absences')
         .select('id', { count: 'exact', head: true })
@@ -93,10 +95,22 @@ export function GestionTab() {
         .gte('scheduled_at', now)
         .order('scheduled_at', { ascending: true })
         .limit(1),
+      supabase
+        .from('staff')
+        .select('id', { count: 'exact', head: true })
+        .eq('active', true)
+        .eq('status', 'en_service'),
+      supabase
+        .from('staff')
+        .select('id', { count: 'exact', head: true })
+        .eq('active', true)
+        .eq('status', 'en_pause'),
     ])
 
     setAbsenceCount(count ?? 0)
     setNextAppointment(data?.[0] ?? null)
+    setInServiceCount(serviceCount ?? 0)
+    setInPauseCount(pauseCount ?? 0)
   }, [staff?.role])
 
   useEffect(() => {
@@ -112,7 +126,7 @@ export function GestionTab() {
 
   const sections = GESTION_SECTIONS.filter((s) => !s.directionOnly || isDirection(staff?.role))
   const validSectionKeys = sections.map((s) => s.key)
-  const employeeSections = sections.filter((s) => EMPLOYEE_KEYS.includes(s.key))
+  const employeeSections = EMPLOYEE_KEYS.map((key) => sections.find((s) => s.key === key)).filter(Boolean) as typeof sections
   const hospitalSections = sections.filter((s) => HOSPITAL_KEYS.includes(s.key))
 
   const effectiveView: GestionView =
@@ -137,7 +151,8 @@ export function GestionTab() {
       {items.map((s, i) => {
         let stat: string | null = null
         if (s.key === 'absences') stat = `${absenceCount}`
-        if (s.key === 'rdv') stat = nextAppointment ? formatUpcoming(nextAppointment.scheduled_at) : 'Aucun RDV'
+        if (s.key === 'services') stat = `${inServiceCount} service · ${inPauseCount} pause`
+        if (s.key === 'rdv') stat = nextAppointment ? formatUpcoming(nextAppointment.scheduled_at) : 'Aucun rendez-vous'
 
         return (
           <Tile
