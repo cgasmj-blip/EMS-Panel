@@ -42,7 +42,7 @@ export interface GestionSection {
 export const GESTION_SECTIONS: GestionSection[] = [
   { key: 'users', label: 'Utilisateurs', icon: Users, color: 'var(--tile-services)' },
   { key: 'services', label: 'Services', icon: Siren, color: 'var(--tile-absence)' },
-  { key: 'absences', label: 'Absences', icon: CalendarOff, color: 'var(--tile-registre)' },
+  { key: 'absences', label: 'Absences', icon: CalendarOff, color: 'var(--tile-registre)', directionOnly: true },
   { key: 'tarifs', label: 'Tarifs prestations', icon: Wallet, color: 'var(--tile-prestations)', directionOnly: true },
   { key: 'codes', label: 'Codes & interventions', icon: SlidersHorizontal, color: 'var(--tile-dossier)', directionOnly: true },
   { key: 'aide', label: 'Aide', icon: HelpCircle, color: 'var(--tile-aide)' },
