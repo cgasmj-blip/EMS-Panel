@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Trash2 } from 'lucide-react'
 import { useAuth } from '@/auth/AuthContext'
-import { supabase, isDirection, staffMatchesEligibility, type Appointment, type AppointmentTypeRow, type Staff } from '@/lib/supabase'
+import { supabase, staffMatchesEligibility, type Appointment, type AppointmentTypeRow } from '@/lib/supabase'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Field } from '@/components/ui/Field'
@@ -21,18 +21,16 @@ export function AgendaTab() {
   const [title, setTitle] = useState('')
   const [scheduledAt, setScheduledAt] = useState('')
   const [appointments, setAppointments] = useState<Appointment[]>([])
-  const [staffList, setStaffList] = useState<Staff[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const fetchAll = useCallback(async () => {
-    const [{ data: a }, { data: s }, { data: t }] = await Promise.all([
-      supabase.from('appointments').select('*').order('scheduled_at', { ascending: true }),
-      supabase.from('staff').select('*'),
+    if (!staff) return
+    const [{ data: a }, { data: t }] = await Promise.all([
+      supabase.from('appointments').select('*').eq('staff_id', staff.id).order('scheduled_at', { ascending: true }),
       supabase.from('appointment_types').select('*').order('position'),
     ])
     if (a) setAppointments(a)
-    if (s) setStaffList(s)
     if (t) {
       setTypes(t)
       const eligible = staff ? t.filter((ty) => staffMatchesEligibility(staff, ty)) : t
@@ -80,7 +78,6 @@ export function AgendaTab() {
     await fetchAll()
   }
 
-  const staffById = new Map(staffList.map((s) => [s.id, s]))
   const typeLabel = (id: string) => types.find((t) => t.id === id)?.label ?? id
   const upcoming = appointments.filter((a) => new Date(a.scheduled_at).getTime() >= Date.now() - 3600_000)
   const eligibleTypes = staff ? types.filter((t) => staffMatchesEligibility(staff, t)) : types
@@ -118,7 +115,6 @@ export function AgendaTab() {
         <h2 className="text-[var(--ink)]/60 text-xs uppercase tracking-[2px] font-bold mb-4">Rendez-vous à venir</h2>
         <AnimatedList className="flex flex-col gap-2">
           {upcoming.map((a) => {
-            const canDelete = a.staff_id === staff?.id || isDirection(staff?.role)
             return (
               <AnimatedListItem
                 key={a.id}
@@ -129,15 +125,11 @@ export function AgendaTab() {
                     <Badge variant="cyan">{typeLabel(a.type)}</Badge>
                     <p className="text-[var(--ink)] text-sm font-semibold">{formatDateTime(a.scheduled_at)}</p>
                   </div>
-                  <p className="text-[var(--ink)]/40 text-xs">
-                    {staffById.get(a.staff_id)?.full_name ?? 'Agent'} {a.title ? `· ${a.title}` : ''}
-                  </p>
+                  {a.title && <p className="text-[var(--ink)]/40 text-xs">{a.title}</p>}
                 </div>
-                {canDelete && (
-                  <Button size="sm" variant="ghost" onClick={() => handleDelete(a.id)}>
-                    <Trash2 size={13} />
-                  </Button>
-                )}
+                <Button size="sm" variant="ghost" onClick={() => handleDelete(a.id)}>
+                  <Trash2 size={13} />
+                </Button>
               </AnimatedListItem>
             )
           })}
