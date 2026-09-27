@@ -46,9 +46,13 @@ const EMPLOYEE_KEYS: GestionKey[] = [
   'historique',
 ]
 
-const HOSPITAL_KEYS: GestionKey[] = GESTION_SECTIONS
-  .map((section) => section.key)
-  .filter((key) => !EMPLOYEE_KEYS.includes(key))
+const HOSPITAL_KEYS: GestionKey[] = [
+  'tarifs',
+  'codes',
+  'hierarchy',
+  'vehicles',
+  'aide',
+]
 
 const VIEW_STORAGE_KEY = 'ems-gestion-view'
 
@@ -127,7 +131,7 @@ export function GestionTab() {
   const sections = GESTION_SECTIONS.filter((s) => !s.directionOnly || isDirection(staff?.role))
   const validSectionKeys = sections.map((s) => s.key)
   const employeeSections = EMPLOYEE_KEYS.map((key) => sections.find((s) => s.key === key)).filter(Boolean) as typeof sections
-  const hospitalSections = sections.filter((s) => HOSPITAL_KEYS.includes(s.key))
+  const hospitalSections = HOSPITAL_KEYS.map((key) => sections.find((s) => s.key === key)).filter(Boolean) as typeof sections
 
   const effectiveView: GestionView =
     view === 'home' || view === 'employees' || view === 'hospital' || validSectionKeys.includes(view as GestionKey)
