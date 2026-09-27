@@ -72,7 +72,7 @@ export function HomeTiles({ tabs, onSelect }: { tabs: TabKey[]; onSelect: (key: 
         let stat: string | null = null
         if (section.key === 'services') stat = `${enService}`
         if (section.key === 'absence') stat = `${mesAbsencesAVenir}`
-        if (section.key === 'agenda') stat = nextAppointment ? formatUpcoming(nextAppointment.scheduled_at) : 'Aucun RDV'
+        if (section.key === 'agenda') stat = nextAppointment ? formatUpcoming(nextAppointment.scheduled_at) : 'Aucun rendez-vous'
 
         return (
           <Tile
