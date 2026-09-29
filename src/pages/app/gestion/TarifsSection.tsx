@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { Trash2 } from 'lucide-react'
 import { supabase, slugify, type PrestationType, type SousGrade, type Affiliation } from '@/lib/supabase'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -28,6 +29,7 @@ export function TarifsSection() {
   const [newTypeTarif, setNewTypeTarif] = useState(0)
   const [newTypeTarifPublic, setNewTypeTarifPublic] = useState(0)
   const [newElig, setNewElig] = useState<Eligibility>(EMPTY)
+  const [error, setError] = useState<string | null>(null)
 
   const fetchAll = useCallback(async () => {
     const [{ data: t }, { data: sg }, { data: aff }] = await Promise.all([
@@ -87,6 +89,16 @@ export function TarifsSection() {
     await fetchAll()
   }
 
+  async function deletePrestationType(id: string) {
+    setError(null)
+    const { error: err } = await supabase.from('prestation_types').delete().eq('id', id)
+    if (err) {
+      setError("Impossible de supprimer ce tarif s'il est déjà utilisé dans l'historique des prestations.")
+      return
+    }
+    await fetchAll()
+  }
+
   async function addPrestationType() {
     if (!newTypeLabel.trim()) return
     const id = uniqueSlug(newTypeLabel, prestationTypes.map((t) => t.id))
@@ -109,6 +121,7 @@ export function TarifsSection() {
   return (
     <Card className="p-5">
       <h2 className="text-[var(--ink)] font-bold text-sm mb-4">Tarifs prestations</h2>
+      {error && <p className="text-red-300 text-xs mb-3">{error}</p>}
       <AnimatedList className="flex flex-col gap-3 mb-4">
         {prestationTypes.map((t) => (
           <AnimatedListItem key={t.id} className="rounded-lg border border-[var(--ink)]/8 bg-[var(--ink)]/[0.02] p-3 flex flex-col gap-2">
@@ -135,6 +148,9 @@ export function TarifsSection() {
               />
               <Button size="sm" variant="ghost" onClick={() => saveTarif(t.id)}>
                 OK
+              </Button>
+              <Button size="sm" variant="ghost" title="Supprimer" onClick={() => deletePrestationType(t.id)}>
+                <Trash2 size={13} />
               </Button>
             </div>
             <p className="text-[var(--ink)]/30 text-[11px]">Tarif normal · Tarif service public</p>
