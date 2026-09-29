@@ -1,46 +1,37 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { AlertTriangle, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/Button'
 
-type StockItem = { key: string; label: string }
+type StockItem = { key: string; label: string; icon: string }
 
-const ITEM_ICONS: Record<string, string> = {
-  bandage: '🩹',
-  creme_brulures: '🧴',
-  defibrillateur: '⚡',
-  kit_de_nettoyage: '🧼',
-  kit_de_reparation: '🧰',
-  kit_de_suture: '🪡',
-  medicaments: '💊',
-  methadone: '💊',
-  morceaux_de_tissus: '🧻',
-  morphine_30mg: '💉',
-  percocet_10mg: '💊',
-  percocet_30mg: '💊',
-  percocet_5mg: '💊',
-  pince_a_epiler: '🩺',
-  poche_de_glace: '🧊',
-  produit_chimique: '🧪',
-  sedatif: '💉',
-  trousse_de_soin: '🧰',
-  vicodin_5mg: '💊',
-}
+const STOCK_ALERT_ITEMS: StockItem[] = [
+  { key: 'pseudoephedrine', label: 'Pseudoéphédrine', icon: '💊' },
+  { key: 'antibiotique', label: 'Antibiotique', icon: '💊' },
+  { key: 'pommade_antiseptique', label: 'Pommade antiseptique', icon: '🧴' },
+  { key: 'defibrillateur', label: 'Défibrillateur', icon: '⚡' },
+  { key: 'bequille', label: 'Béquille', icon: '🩼' },
+  { key: 'chaise_roulante', label: 'Chaise roulante', icon: '♿' },
+  { key: 'medicament', label: 'Médicament', icon: '💊' },
+  { key: 'methadone', label: 'Méthadone', icon: '💊' },
+  { key: 'bandage', label: 'Bandage', icon: '🩹' },
+  { key: 'medkit', label: 'Medkit', icon: '🧰' },
+  { key: 'masque_a_gaz', label: 'Masque à gaz', icon: '😷' },
+  { key: 'poche_sang_a_pos', label: 'Poche de sang A+', icon: '🩸' },
+  { key: 'poche_sang_a_neg', label: 'Poche de sang A-', icon: '🩸' },
+  { key: 'poche_sang_b_pos', label: 'Poche de sang B+', icon: '🩸' },
+  { key: 'poche_sang_b_neg', label: 'Poche de sang B-', icon: '🩸' },
+  { key: 'poche_sang_ab_pos', label: 'Poche de sang AB+', icon: '🩸' },
+  { key: 'poche_sang_ab_neg', label: 'Poche de sang AB-', icon: '🩸' },
+  { key: 'poche_sang_o_pos', label: 'Poche de sang O+', icon: '🩸' },
+  { key: 'poche_sang_o_neg', label: 'Poche de sang O-', icon: '🩸' },
+  { key: 'morceaux_de_tissu', label: 'Morceaux de tissu', icon: '🧻' },
+]
 
 export function StockAlertButton() {
   const [open, setOpen] = useState(false)
-  const [items, setItems] = useState<StockItem[]>([])
   const [sending, setSending] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (!open || items.length > 0) return
-    supabase
-      .from('stock_items')
-      .select('key,label')
-      .order('label')
-      .then(({ data }) => setItems((data ?? []) as StockItem[]))
-  }, [open, items.length])
 
   async function sendAlert(item: StockItem) {
     if (sending) return
@@ -95,7 +86,7 @@ export function StockAlertButton() {
 
             <div className="p-4 overflow-y-auto max-h-[65vh]">
               <div className="grid sm:grid-cols-2 gap-2">
-                {items.map((item) => (
+                {STOCK_ALERT_ITEMS.map((item) => (
                   <button
                     key={item.key}
                     type="button"
@@ -104,16 +95,12 @@ export function StockAlertButton() {
                     className="flex items-center gap-3 rounded-xl border border-[var(--ink)]/8 bg-[var(--ink)]/[0.02] px-3 py-3 text-left hover:bg-[var(--ink)]/[0.06] transition-colors cursor-pointer disabled:opacity-50"
                   >
                     <span className="w-9 h-9 shrink-0 rounded-lg bg-[var(--ink)]/5 flex items-center justify-center text-xl">
-                      {ITEM_ICONS[item.key] ?? '📦'}
+                      {item.icon}
                     </span>
                     <span className="text-[var(--ink)] text-sm font-semibold">{item.label}</span>
                   </button>
                 ))}
               </div>
-
-              {items.length === 0 && (
-                <p className="text-[var(--ink)]/35 text-sm text-center py-8">Chargement du stock…</p>
-              )}
 
               {message && (
                 <p className="mt-4 rounded-lg border border-[var(--ink)]/8 bg-[var(--ink)]/[0.03] p-3 text-[var(--ink)]/65 text-xs">
