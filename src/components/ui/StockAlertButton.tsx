@@ -15,7 +15,7 @@ const STOCK_ALERT_ITEMS: StockItem[] = [
   { key: 'medicament', label: 'Médicament', icon: '💊' },
   { key: 'methadone', label: 'Méthadone', icon: '💊' },
   { key: 'bandage', label: 'Bandage', icon: '🩹' },
-  { key: 'medkit', label: 'Medkit', icon: '🧰' },
+  { key: 'trousse_de_soin', label: 'Trousse de soin', icon: '🧰' },
   { key: 'masque_a_gaz', label: 'Masque à gaz', icon: '😷' },
   { key: 'poche_sang_a_pos', label: 'Poche de sang A+', icon: '🩸' },
   { key: 'poche_sang_a_neg', label: 'Poche de sang A-', icon: '🩸' },
