@@ -30,8 +30,11 @@ Deno.serve(async (req) => {
     const { data: userData, error: userErr } = await caller.auth.getUser()
     if (userErr || !userData.user) return json({ ok: false, message: 'Session invalide.' }, 401)
 
-    const { itemKey } = await req.json()
+    const { itemKey, quantityRemaining, note } = await req.json()
     if (!itemKey || typeof itemKey !== 'string') return json({ ok: false, message: 'Matériel invalide.' }, 400)
+    if (!Number.isInteger(quantityRemaining) || quantityRemaining < 0) {
+      return json({ ok: false, message: 'La quantité restante doit être un nombre positif ou nul.' }, 400)
+    }
 
     const admin = createClient(supabaseUrl, serviceKey)
     const [{ data: staff }, { data: item }] = await Promise.all([
@@ -58,6 +61,8 @@ Deno.serve(async (req) => {
     const { error: insertErr } = await admin.from('stock_alerts').insert({
       staff_id: userData.user.id,
       item_key: itemKey,
+      quantity_remaining: quantityRemaining,
+      note: typeof note === 'string' && note.trim() ? note.trim() : null,
     })
     if (insertErr) return json({ ok: false, message: 'Impossible d’enregistrer le signalement.' }, 500)
 
@@ -66,18 +71,32 @@ Deno.serve(async (req) => {
       return json({ ok: false, message: 'La notification Discord doit encore être configurée par la Direction.' }, 503)
     }
 
+    const level =
+      quantityRemaining <= 0
+        ? { label: 'Rupture', color: 0xff0000 }
+        : quantityRemaining <= 2
+          ? { label: 'Critique', color: 0xcc0000 }
+          : quantityRemaining <= 5
+            ? { label: 'Faible', color: 0xff9900 }
+            : { label: 'Surveillance', color: 0xffcc00 }
+
     const discordRes = await fetch(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         username: 'EMS • Stock',
+        content: '@everyone',
+        allowed_mentions: { parse: ['everyone'] },
         embeds: [{
-          title: '⚠️ Stock bas signalé',
+          title: '🚨 Alerte stock bas',
           description: `**${item.label}** a été signalé comme stock bas.`,
-          color: 15158332,
+          color: level.color,
           fields: [
-            { name: 'Signalé par', value: staff.full_name || 'Agent EMS', inline: true },
             { name: 'Matériel', value: item.label, inline: true },
+            { name: 'Quantité restante', value: String(quantityRemaining), inline: true },
+            { name: 'Niveau d’alerte', value: level.label, inline: true },
+            { name: 'Signalé par', value: staff.full_name || 'Agent EMS', inline: true },
+            { name: 'Commentaire', value: typeof note === 'string' && note.trim() ? note.trim() : 'Aucun', inline: false },
           ],
           timestamp: new Date().toISOString(),
         }],
