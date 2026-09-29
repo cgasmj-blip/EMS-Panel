@@ -8,6 +8,7 @@ import { ThemeToggle } from '@/components/ui/ThemeToggle'
 import { HomeTiles } from '@/components/ui/HomeTiles'
 import { SectionHeader } from '@/components/ui/SectionHeader'
 import { VitalsBar } from '@/components/ui/VitalsBar'
+import { StockAlertButton } from '@/components/ui/StockAlertButton'
 import { cn } from '@/lib/utils'
 import logo from '@/assets/logo.webp'
 import { ServicesTab } from './app/ServicesTab'
@@ -139,6 +140,7 @@ export function Dashboard() {
                   {displayRoleLabel(staff.role) && <p className="text-[var(--ink)]/40 text-sm">{displayRoleLabel(staff.role)}</p>}
                 </div>
               </div>
+              <StockAlertButton />
               <HomeTiles tabs={visibleTabs} onSelect={(key) => setView(key)} />
             </motion.div>
           ) : (
