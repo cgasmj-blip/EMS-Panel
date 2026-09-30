@@ -9,6 +9,7 @@ import { HomeTiles } from '@/components/ui/HomeTiles'
 import { SectionHeader } from '@/components/ui/SectionHeader'
 import { VitalsBar } from '@/components/ui/VitalsBar'
 import { StockAlertButton } from '@/components/ui/StockAlertButton'
+import { CodeBlancAlertButton } from '@/components/ui/CodeBlancAlertButton'
 import { cn } from '@/lib/utils'
 import logo from '@/assets/logo.webp'
 import { ServicesTab } from './app/ServicesTab'
@@ -109,6 +110,8 @@ export function Dashboard() {
         </button>
 
         <ThemeToggle />
+
+        <CodeBlancAlertButton />
 
         <button
           type="button"
