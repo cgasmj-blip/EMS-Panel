@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, ExternalLink, FolderOpen, Image as ImageIcon } from 'lucide-react'
+import { ArrowLeft, ChevronLeft, ChevronRight, ExternalLink, FolderOpen, Image as ImageIcon } from 'lucide-react'
 import { supabase, type TrainingDocument, type TrainingFolder } from '@/lib/supabase'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -99,6 +99,33 @@ export function DossiersFormationTab() {
     () => documents.filter((doc) => !doc.mime_type || doc.mime_type.startsWith('image/')),
     [documents],
   )
+
+  const previewIndex = preview ? imageDocs.findIndex((doc) => doc.id === preview.id) : -1
+
+  const showPreviousImage = useCallback(() => {
+    if (imageDocs.length === 0 || previewIndex < 0) return
+    const nextIndex = (previewIndex - 1 + imageDocs.length) % imageDocs.length
+    setPreview(imageDocs[nextIndex])
+  }, [imageDocs, previewIndex])
+
+  const showNextImage = useCallback(() => {
+    if (imageDocs.length === 0 || previewIndex < 0) return
+    const nextIndex = (previewIndex + 1) % imageDocs.length
+    setPreview(imageDocs[nextIndex])
+  }, [imageDocs, previewIndex])
+
+  useEffect(() => {
+    if (!preview) return
+
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === 'ArrowLeft') showPreviousImage()
+      if (event.key === 'ArrowRight') showNextImage()
+      if (event.key === 'Escape') setPreview(null)
+    }
+
+    window.addEventListener('keydown', handleKey)
+    return () => window.removeEventListener('keydown', handleKey)
+  }, [preview, showPreviousImage, showNextImage])
 
   function openFolder(folder: TrainingFolder) {
     if (folder.external_url) {
@@ -202,6 +229,33 @@ export function DossiersFormationTab() {
           >
             ×
           </button>
+
+          {imageDocs.length > 1 && (
+            <>
+              <button
+                type="button"
+                aria-label="Image précédente"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  showPreviousImage()
+                }}
+                className="absolute left-3 sm:left-6 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/10 text-white hover:bg-white/20 flex items-center justify-center cursor-pointer"
+              >
+                <ChevronLeft size={26} />
+              </button>
+              <button
+                type="button"
+                aria-label="Image suivante"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  showNextImage()
+                }}
+                className="absolute right-3 sm:right-6 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/10 text-white hover:bg-white/20 flex items-center justify-center cursor-pointer"
+              >
+                <ChevronRight size={26} />
+              </button>
+            </>
+          )}
           <div
             className="max-w-[95vw] max-h-[92vh] flex flex-col items-center gap-3"
             onClick={(e) => e.stopPropagation()}
@@ -211,7 +265,14 @@ export function DossiersFormationTab() {
               alt={preview.title}
               className="max-w-full max-h-[85vh] object-contain rounded-xl shadow-2xl"
             />
-            <p className="text-white/80 text-sm font-semibold">{preview.title}</p>
+            <div className="text-center">
+              <p className="text-white/80 text-sm font-semibold">{preview.title}</p>
+              {imageDocs.length > 1 && (
+                <p className="text-white/45 text-xs mt-1">
+                  {previewIndex + 1} / {imageDocs.length}
+                </p>
+              )}
+            </div>
           </div>
         </div>
       )}
