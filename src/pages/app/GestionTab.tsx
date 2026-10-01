@@ -18,6 +18,7 @@ import { RdvSection } from './gestion/RdvSection'
 import { VehiclesSection } from './gestion/VehiclesSection'
 import { HistoriqueSection } from './gestion/HistoriqueSection'
 import { HierarchySection } from './gestion/HierarchySection'
+import { TrainingFoldersSection } from './gestion/TrainingFoldersSection'
 
 const SECTION_CONTENT: Record<GestionKey, ReactNode> = {
   users: <UsersSection />,
@@ -32,6 +33,7 @@ const SECTION_CONTENT: Record<GestionKey, ReactNode> = {
   vehicles: <VehiclesSection />,
   historique: <HistoriqueSection />,
   hierarchy: <HierarchySection />,
+  training: <TrainingFoldersSection />,
 }
 
 type GestionView = GestionKey | 'home' | 'employees' | 'hospital'
@@ -52,6 +54,7 @@ const HOSPITAL_KEYS: GestionKey[] = [
   'hierarchy',
   'vehicles',
   'aide',
+  'training',
 ]
 
 const VIEW_STORAGE_KEY = 'ems-gestion-view'
