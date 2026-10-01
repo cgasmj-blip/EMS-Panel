@@ -26,7 +26,7 @@ export function UsersSection() {
 
   const fetchAll = useCallback(async () => {
     const [{ data: s }, { data: sg }, { data: aff }] = await Promise.all([
-      supabase.from('staff').select(STAFF_SELECT_WITH_GRADES).neq('role', 'membre'),
+      supabase.from('staff').select(STAFF_SELECT_WITH_GRADES),
       supabase.from('sous_grades').select('*').order('position'),
       supabase.from('affiliations').select('*').order('position'),
     ])
@@ -97,7 +97,7 @@ export function UsersSection() {
     <Card className="p-5">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-[var(--ink)] font-bold text-sm">Utilisateurs</h2>
-        <p className="text-[var(--ink)]/30 text-xs">Grade lu automatiquement depuis Discord · habilitations et affiliations à définir manuellement (plusieurs possibles)</p>
+        <p className="text-[var(--ink)]/30 text-xs">Grade, habilitations et affiliations détectés automatiquement depuis les rôles Discord configurés.</p>
       </div>
       <AnimatedList className="flex flex-col gap-2">
         {staffList.map((s) => (
@@ -107,7 +107,11 @@ export function UsersSection() {
                 <p className="text-[var(--ink)] text-sm font-semibold truncate">{s.full_name}</p>
                 <p className="text-[var(--ink)]/40 text-xs">{s.discord_id ?? '—'}</p>
               </div>
-              {displayRoleLabel(s.role) && <Badge variant="gray">{displayRoleLabel(s.role)}</Badge>}
+              {displayRoleLabel(s.role) ? (
+                <Badge variant="gray">{displayRoleLabel(s.role)}</Badge>
+              ) : (
+                <Badge variant="amber">Grade Discord non détecté</Badge>
+              )}
               <Badge variant={s.status === 'en_service' ? 'green' : s.status === 'en_pause' ? 'amber' : 'gray'}>
                 {STATUS_LABELS[s.status]}
               </Badge>
