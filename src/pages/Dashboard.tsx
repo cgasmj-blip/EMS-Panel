@@ -21,6 +21,7 @@ import { DossierMedicalTab } from './app/DossierMedicalTab'
 import { HistoriqueTab } from './app/HistoriqueTab'
 import { GestionTab } from './app/GestionTab'
 import { AideTab } from './app/AideTab'
+import { DossiersFormationTab } from './app/DossiersFormationTab'
 
 const TAB_CONTENT: Record<TabKey, ReactNode> = {
   services: <ServicesTab />,
@@ -29,6 +30,7 @@ const TAB_CONTENT: Record<TabKey, ReactNode> = {
   agenda: <AgendaTab />,
   dossier: null,
   dossier_medical: <DossierMedicalTab />,
+  formations: <DossiersFormationTab />,
   aide: <AideTab />,
   historique: <HistoriqueTab />,
   gestion: <GestionTab />,
