@@ -12,6 +12,7 @@ export function DossiersFormationTab() {
   const [folderStack, setFolderStack] = useState<TrainingFolder[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [preview, setPreview] = useState<ImageDoc | null>(null)
 
   const currentFolder = folderStack[folderStack.length - 1] ?? null
   const currentParentId = currentFolder?.id ?? null
@@ -155,12 +156,19 @@ export function DossiersFormationTab() {
           {imageDocs.map((doc, index) => (
             <Card key={doc.id} className="overflow-hidden p-0 w-full max-w-3xl">
               {doc.signedUrl ? (
-                <img
-                  src={doc.signedUrl}
-                  alt={doc.title}
-                  className="w-full max-h-[420px] object-contain bg-black/5"
-                  loading={index < 2 ? 'eager' : 'lazy'}
-                />
+                <button
+                  type="button"
+                  onClick={() => setPreview(doc)}
+                  className="block w-full cursor-zoom-in"
+                  title="Agrandir l'image"
+                >
+                  <img
+                    src={doc.signedUrl}
+                    alt={doc.title}
+                    className="w-full max-h-[420px] object-contain bg-black/5"
+                    loading={index < 2 ? 'eager' : 'lazy'}
+                  />
+                </button>
               ) : (
                 <div className="p-8 flex items-center justify-center text-[var(--ink)]/35">
                   <ImageIcon size={24} />
@@ -181,6 +189,33 @@ export function DossiersFormationTab() {
           </p>
         </Card>
       )}
+      {preview?.signedUrl && (
+        <div
+          className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 sm:p-8"
+          onClick={() => setPreview(null)}
+        >
+          <button
+            type="button"
+            aria-label="Fermer l'image"
+            onClick={() => setPreview(null)}
+            className="absolute top-4 right-4 w-10 h-10 rounded-xl bg-white/10 text-white text-xl hover:bg-white/15 cursor-pointer"
+          >
+            ×
+          </button>
+          <div
+            className="max-w-[95vw] max-h-[92vh] flex flex-col items-center gap-3"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img
+              src={preview.signedUrl}
+              alt={preview.title}
+              className="max-w-full max-h-[85vh] object-contain rounded-xl shadow-2xl"
+            />
+            <p className="text-white/80 text-sm font-semibold">{preview.title}</p>
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }
