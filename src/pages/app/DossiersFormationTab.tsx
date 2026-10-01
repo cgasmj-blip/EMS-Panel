@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, FolderOpen, Image as ImageIcon } from 'lucide-react'
+import { ArrowLeft, ExternalLink, FolderOpen, Image as ImageIcon } from 'lucide-react'
 import { supabase, type TrainingDocument, type TrainingFolder } from '@/lib/supabase'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -92,11 +92,17 @@ export function DossiersFormationTab() {
             <button
               key={folder.id}
               type="button"
-              onClick={() => setSelected(folder)}
+              onClick={() => {
+                if (folder.external_url) {
+                  window.open(folder.external_url, '_blank', 'noopener,noreferrer')
+                  return
+                }
+                setSelected(folder)
+              }}
               className="rounded-2xl border border-[var(--ink)]/8 bg-[var(--ink)]/[0.02] p-4 text-left hover:bg-[var(--ink)]/[0.06] transition-colors cursor-pointer"
             >
               <span className="w-11 h-11 rounded-xl bg-[var(--ink)]/5 flex items-center justify-center mb-3 text-[var(--ink)]/60">
-                <FolderOpen size={20} />
+                {folder.external_url ? <ExternalLink size={20} /> : <FolderOpen size={20} />}
               </span>
               <p className="text-[var(--ink)] font-bold text-sm">{folder.name}</p>
               {folder.description && (
