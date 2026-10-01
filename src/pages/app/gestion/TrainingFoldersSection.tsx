@@ -126,6 +126,7 @@ export function TrainingFoldersSection() {
   const [newName, setNewName] = useState('')
   const [newDescription, setNewDescription] = useState('')
   const [newExternalUrl, setNewExternalUrl] = useState('')
+  const [newCover, setNewCover] = useState<File | null>(null)
   const [newParentId, setNewParentId] = useState<number | null>(null)
   const [newSousGrades, setNewSousGrades] = useState<string[]>([])
   const [newAffiliations, setNewAffiliations] = useState<string[]>([])
@@ -190,25 +191,49 @@ export function TrainingFoldersSection() {
     if (!newName.trim()) return
     setError(null)
 
-    const { error: err } = await supabase.from('training_folders').insert({
+    const { data: created, error: err } = await supabase.from('training_folders').insert({
       name: newName.trim(),
       description: newDescription.trim() || null,
       external_url: newExternalUrl.trim() || null,
       parent_id: newParentId,
+      cover_image_path: null,
       allowed_roles: null,
       allowed_sous_grade_ids: newSousGrades.length > 0 ? newSousGrades : null,
       allowed_affiliation_ids: newAffiliations.length > 0 ? newAffiliations : null,
       position: folders.length,
-    })
+    }).select('id').single()
 
-    if (err) {
-      setError(err.message)
+    if (err || !created) {
+      setError(err?.message ?? 'Impossible de créer le dossier.')
       return
+    }
+
+    if (newCover) {
+      const coverPath = `${created.id}/cover-${Date.now()}-${cleanFileName(newCover.name)}`
+      const { error: uploadError } = await supabase.storage
+        .from('training-documents')
+        .upload(coverPath, newCover, { contentType: newCover.type, upsert: false })
+
+      if (uploadError) {
+        setError(uploadError.message)
+        return
+      }
+
+      const { error: coverError } = await supabase
+        .from('training_folders')
+        .update({ cover_image_path: coverPath })
+        .eq('id', created.id)
+
+      if (coverError) {
+        setError(coverError.message)
+        return
+      }
     }
 
     setNewName('')
     setNewDescription('')
     setNewExternalUrl('')
+    setNewCover(null)
     setNewParentId(null)
     setNewSousGrades([])
     setNewAffiliations([])
@@ -263,7 +288,10 @@ export function TrainingFoldersSection() {
   async function deleteFolder(folder: TrainingFolder) {
     setError(null)
     const ids = descendantIds(folder.id)
-    const paths = documents.filter((doc) => ids.includes(doc.folder_id)).map((doc) => doc.storage_path)
+    const paths = [
+      ...documents.filter((doc) => ids.includes(doc.folder_id)).map((doc) => doc.storage_path),
+      ...folders.filter((item) => ids.includes(item.id) && item.cover_image_path).map((item) => item.cover_image_path as string),
+    ]
 
     if (paths.length > 0) {
       const { error: storageError } = await supabase.storage.from('training-documents').remove(paths)
@@ -327,6 +355,62 @@ export function TrainingFoldersSection() {
     await fetchAll()
   }
 
+  async function setCoverImage(folder: TrainingFolder, file: File) {
+    setError(null)
+
+    if (folder.cover_image_path) {
+      await supabase.storage.from('training-documents').remove([folder.cover_image_path])
+    }
+
+    const path = `${folder.id}/cover-${Date.now()}-${cleanFileName(file.name)}`
+    const { error: uploadError } = await supabase.storage
+      .from('training-documents')
+      .upload(path, file, { contentType: file.type, upsert: false })
+
+    if (uploadError) {
+      setError(uploadError.message)
+      return
+    }
+
+    const { error: updateError } = await supabase
+      .from('training_folders')
+      .update({ cover_image_path: path })
+      .eq('id', folder.id)
+
+    if (updateError) {
+      setError(updateError.message)
+      return
+    }
+
+    await fetchAll()
+  }
+
+  async function removeCoverImage(folder: TrainingFolder) {
+    if (!folder.cover_image_path) return
+    setError(null)
+
+    const { error: storageError } = await supabase.storage
+      .from('training-documents')
+      .remove([folder.cover_image_path])
+
+    if (storageError) {
+      setError(storageError.message)
+      return
+    }
+
+    const { error: updateError } = await supabase
+      .from('training_folders')
+      .update({ cover_image_path: null })
+      .eq('id', folder.id)
+
+    if (updateError) {
+      setError(updateError.message)
+      return
+    }
+
+    await fetchAll()
+  }
+
   async function deleteImage(doc: TrainingDocument) {
     setError(null)
 
@@ -366,6 +450,16 @@ export function TrainingFoldersSection() {
             value={newExternalUrl}
             onChange={(e) => setNewExternalUrl(e.target.value)}
           />
+          <label className="inline-flex items-center gap-2 rounded-xl border border-[var(--ink)]/10 bg-[var(--ink)]/[0.02] px-3 py-2.5 text-sm text-[var(--ink)]/55 cursor-pointer hover:bg-[var(--ink)]/[0.05]">
+            <ImagePlus size={15} />
+            {newCover ? newCover.name : 'Image du dossier (optionnelle)'}
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => setNewCover(e.target.files?.[0] ?? null)}
+            />
+          </label>
           <select
             value={newParentId ?? ''}
             onChange={(e) => setNewParentId(e.target.value ? Number(e.target.value) : null)}
@@ -467,6 +561,28 @@ export function TrainingFoldersSection() {
                       <Trash2 size={14} />
                     </Button>
                   </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <label className="inline-flex items-center gap-2 rounded-lg bg-[var(--ink)]/5 px-3 py-2 text-[var(--ink)]/60 text-xs font-semibold hover:bg-[var(--ink)]/10 cursor-pointer">
+                    <ImagePlus size={14} />
+                    {folder.cover_image_path ? 'Changer l’image du dossier' : 'Ajouter une image au dossier'}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        if (file) setCoverImage(folder, file)
+                        e.currentTarget.value = ''
+                      }}
+                    />
+                  </label>
+                  {folder.cover_image_path && (
+                    <Button size="sm" variant="ghost" onClick={() => removeCoverImage(folder)}>
+                      Retirer l’image
+                    </Button>
+                  )}
                 </div>
 
                 <AccessSelector
