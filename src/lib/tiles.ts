@@ -17,7 +17,7 @@ export const TILE_SECTIONS: TileSection[] = [
   { key: 'agenda', label: 'Agenda', icon: CalendarClock, color: 'var(--tile-agenda)' },
   { key: 'dossier', label: 'Dossier traumatologique', icon: Stethoscope, color: 'var(--tile-services)' },
   { key: 'dossier_medical', label: 'Dossier médical', icon: FileHeart, color: 'var(--tile-dossier)' },
-  { key: 'formations', label: 'Dossiers de formation', icon: FolderOpen, color: 'var(--tile-hierarchy)' },
+  { key: 'formations', label: 'Documents', icon: FolderOpen, color: 'var(--tile-hierarchy)' },
   { key: 'aide', label: 'Aide', icon: HelpCircle, color: 'var(--tile-aide)' },
   { key: 'historique', label: 'Historique', icon: History, color: 'var(--tile-historique)' },
   { key: 'gestion', label: 'Gestion', icon: ShieldCheck, color: 'var(--tile-gestion)', seniorOnly: true },
