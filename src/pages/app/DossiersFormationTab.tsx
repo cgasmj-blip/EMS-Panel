@@ -5,9 +5,10 @@ import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 
 type ImageDoc = TrainingDocument & { signedUrl?: string }
+type FolderWithCover = TrainingFolder & { coverUrl?: string }
 
 export function DossiersFormationTab() {
-  const [folders, setFolders] = useState<TrainingFolder[]>([])
+  const [folders, setFolders] = useState<FolderWithCover[]>([])
   const [documents, setDocuments] = useState<ImageDoc[]>([])
   const [folderStack, setFolderStack] = useState<TrainingFolder[]>([])
   const [loading, setLoading] = useState(true)
@@ -27,8 +28,24 @@ export function DossiersFormationTab() {
       .order('position')
       .order('name')
 
-    if (err) setError(err.message)
-    else setFolders((data ?? []) as TrainingFolder[])
+    if (err) {
+      setError(err.message)
+    } else {
+      const rows = (data ?? []) as TrainingFolder[]
+      const withCovers = await Promise.all(
+        rows.map(async (folder) => {
+          if (!folder.cover_image_path) return folder
+          const { data: blob, error: coverError } = await supabase.storage
+            .from('training-documents')
+            .download(folder.cover_image_path)
+          return {
+            ...folder,
+            coverUrl: !coverError && blob ? URL.createObjectURL(blob) : undefined,
+          }
+        }),
+      )
+      setFolders(withCovers)
+    }
 
     setLoading(false)
   }, [])
@@ -166,9 +183,17 @@ export function DossiersFormationTab() {
               onClick={() => openFolder(folder)}
               className="rounded-2xl border border-[var(--ink)]/8 bg-[var(--ink)]/[0.02] p-4 text-left hover:bg-[var(--ink)]/[0.06] transition-colors cursor-pointer"
             >
-              <span className="w-11 h-11 rounded-xl bg-[var(--ink)]/5 flex items-center justify-center mb-3 text-[var(--ink)]/60">
-                {folder.external_url ? <ExternalLink size={20} /> : <FolderOpen size={20} />}
-              </span>
+              {folder.coverUrl ? (
+                <img
+                  src={folder.coverUrl}
+                  alt=""
+                  className="w-full h-28 rounded-xl object-cover mb-3"
+                />
+              ) : (
+                <span className="w-11 h-11 rounded-xl bg-[var(--ink)]/5 flex items-center justify-center mb-3 text-[var(--ink)]/60">
+                  {folder.external_url ? <ExternalLink size={20} /> : <FolderOpen size={20} />}
+                </span>
+              )}
               <p className="text-[var(--ink)] font-bold text-sm">{folder.name}</p>
               {folder.description && (
                 <p className="text-[var(--ink)]/40 text-xs mt-1 line-clamp-2">{folder.description}</p>
