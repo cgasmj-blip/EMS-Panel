@@ -293,3 +293,24 @@ export interface HelpArticle {
   position: number
   created_at: string
 }
+
+
+export interface TrainingFolder {
+  id: number
+  name: string
+  description: string | null
+  allowed_roles: StaffRole[] | null
+  position: number
+  created_at: string
+}
+
+export interface TrainingDocument {
+  id: number
+  folder_id: number
+  title: string
+  storage_path: string
+  file_name: string
+  mime_type: string | null
+  position: number
+  created_at: string
+}
