@@ -126,6 +126,7 @@ export function TrainingFoldersSection() {
   const [newName, setNewName] = useState('')
   const [newDescription, setNewDescription] = useState('')
   const [newExternalUrl, setNewExternalUrl] = useState('')
+  const [newParentId, setNewParentId] = useState<number | null>(null)
   const [newSousGrades, setNewSousGrades] = useState<string[]>([])
   const [newAffiliations, setNewAffiliations] = useState<string[]>([])
   const [uploadingFolder, setUploadingFolder] = useState<number | null>(null)
@@ -161,6 +162,20 @@ export function TrainingFoldersSection() {
     return map
   }, [documents])
 
+  const folderRows = useMemo(() => {
+    const rows: { folder: TrainingFolder; depth: number }[] = []
+    const visit = (parentId: number | null, depth: number) => {
+      folders
+        .filter((folder) => folder.parent_id === parentId)
+        .forEach((folder) => {
+          rows.push({ folder, depth })
+          visit(folder.id, depth + 1)
+        })
+    }
+    visit(null, 0)
+    return rows
+  }, [folders])
+
   function editOf(folder: TrainingFolder): FolderEdit {
     return edits[folder.id] ?? {
       name: folder.name,
@@ -179,6 +194,7 @@ export function TrainingFoldersSection() {
       name: newName.trim(),
       description: newDescription.trim() || null,
       external_url: newExternalUrl.trim() || null,
+      parent_id: newParentId,
       allowed_roles: null,
       allowed_sous_grade_ids: newSousGrades.length > 0 ? newSousGrades : null,
       allowed_affiliation_ids: newAffiliations.length > 0 ? newAffiliations : null,
@@ -193,6 +209,7 @@ export function TrainingFoldersSection() {
     setNewName('')
     setNewDescription('')
     setNewExternalUrl('')
+    setNewParentId(null)
     setNewSousGrades([])
     setNewAffiliations([])
     await fetchAll()
@@ -228,10 +245,25 @@ export function TrainingFoldersSection() {
     await fetchAll()
   }
 
+  function descendantIds(folderId: number) {
+    const ids = [folderId]
+    let changed = true
+    while (changed) {
+      changed = false
+      for (const folder of folders) {
+        if (folder.parent_id && ids.includes(folder.parent_id) && !ids.includes(folder.id)) {
+          ids.push(folder.id)
+          changed = true
+        }
+      }
+    }
+    return ids
+  }
+
   async function deleteFolder(folder: TrainingFolder) {
     setError(null)
-    const folderDocs = docsByFolder.get(folder.id) ?? []
-    const paths = folderDocs.map((doc) => doc.storage_path)
+    const ids = descendantIds(folder.id)
+    const paths = documents.filter((doc) => ids.includes(doc.folder_id)).map((doc) => doc.storage_path)
 
     if (paths.length > 0) {
       const { error: storageError } = await supabase.storage.from('training-documents').remove(paths)
@@ -334,6 +366,18 @@ export function TrainingFoldersSection() {
             value={newExternalUrl}
             onChange={(e) => setNewExternalUrl(e.target.value)}
           />
+          <select
+            value={newParentId ?? ''}
+            onChange={(e) => setNewParentId(e.target.value ? Number(e.target.value) : null)}
+            className="w-full rounded-xl border border-[var(--ink)]/10 bg-[var(--bg)] px-3 py-2.5 text-sm text-[var(--ink)] outline-none"
+          >
+            <option value="">Dossier racine</option>
+            {folders.map((folder) => (
+              <option key={folder.id} value={folder.id}>
+                Dans : {folder.name}
+              </option>
+            ))}
+          </select>
           <AccessSelector
             sousGrades={sousGrades}
             affiliations={affiliations}
@@ -348,14 +392,15 @@ export function TrainingFoldersSection() {
         </div>
       </Card>
 
-      {folders.map((folder) => {
+      {folderRows.map(({ folder, depth }) => {
         const edit = editOf(folder)
         const folderDocs = docsByFolder.get(folder.id) ?? []
         const expanded = expandedFolders.includes(folder.id)
         const isDirectLink = !!edit.external_url.trim()
 
         return (
-          <Card key={folder.id} className="p-0 overflow-hidden">
+          <div key={folder.id} style={{ marginLeft: Math.min(depth, 5) * 18 }}>
+          <Card className="p-0 overflow-hidden">
             <button
               type="button"
               onClick={() =>
@@ -497,6 +542,7 @@ export function TrainingFoldersSection() {
               </div>
             )}
           </Card>
+          </div>
         )
       })}
 
