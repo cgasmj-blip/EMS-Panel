@@ -120,15 +120,13 @@ export function DossiersFormationTab() {
   const previewIndex = preview ? imageDocs.findIndex((doc) => doc.id === preview.id) : -1
 
   const showPreviousImage = useCallback(() => {
-    if (imageDocs.length === 0 || previewIndex < 0) return
-    const nextIndex = (previewIndex - 1 + imageDocs.length) % imageDocs.length
-    setPreview(imageDocs[nextIndex])
+    if (previewIndex <= 0) return
+    setPreview(imageDocs[previewIndex - 1])
   }, [imageDocs, previewIndex])
 
   const showNextImage = useCallback(() => {
-    if (imageDocs.length === 0 || previewIndex < 0) return
-    const nextIndex = (previewIndex + 1) % imageDocs.length
-    setPreview(imageDocs[nextIndex])
+    if (previewIndex < 0 || previewIndex >= imageDocs.length - 1) return
+    setPreview(imageDocs[previewIndex + 1])
   }, [imageDocs, previewIndex])
 
   useEffect(() => {
@@ -253,31 +251,32 @@ export function DossiersFormationTab() {
             ×
           </button>
 
-          {imageDocs.length > 1 && (
-            <>
-              <button
-                type="button"
-                aria-label="Image précédente"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  showPreviousImage()
-                }}
-                className="absolute left-3 sm:left-6 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/10 text-white hover:bg-white/20 flex items-center justify-center cursor-pointer"
-              >
-                <ChevronLeft size={26} />
-              </button>
-              <button
-                type="button"
-                aria-label="Image suivante"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  showNextImage()
-                }}
-                className="absolute right-3 sm:right-6 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/10 text-white hover:bg-white/20 flex items-center justify-center cursor-pointer"
-              >
-                <ChevronRight size={26} />
-              </button>
-            </>
+          {imageDocs.length > 1 && previewIndex > 0 && (
+            <button
+              type="button"
+              aria-label="Image précédente"
+              onClick={(e) => {
+                e.stopPropagation()
+                showPreviousImage()
+              }}
+              className="absolute left-3 sm:left-6 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/10 text-white hover:bg-white/20 flex items-center justify-center cursor-pointer"
+            >
+              <ChevronLeft size={26} />
+            </button>
+          )}
+
+          {imageDocs.length > 1 && previewIndex < imageDocs.length - 1 && (
+            <button
+              type="button"
+              aria-label="Image suivante"
+              onClick={(e) => {
+                e.stopPropagation()
+                showNextImage()
+              }}
+              className="absolute right-3 sm:right-6 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/10 text-white hover:bg-white/20 flex items-center justify-center cursor-pointer"
+            >
+              <ChevronRight size={26} />
+            </button>
           )}
           <div
             className="max-w-[95vw] max-h-[92vh] flex flex-col items-center gap-3"
