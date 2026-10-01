@@ -140,7 +140,7 @@ export function DossiersFormationTab() {
               <img
                 src={doc.signedUrl}
                 alt={doc.title}
-                className="w-full h-auto object-contain bg-black/5"
+                className="w-full max-h-[520px] object-contain bg-black/5"
                 loading={index < 2 ? 'eager' : 'lazy'}
               />
             ) : (
