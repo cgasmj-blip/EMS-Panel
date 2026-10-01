@@ -54,5 +54,5 @@ export const GESTION_SECTIONS: GestionSection[] = [
   { key: 'vehicles', label: 'Véhicules', icon: Car, color: 'var(--tile-vehicles)', directionOnly: true },
   { key: 'historique', label: 'Historique', icon: History, color: 'var(--tile-historique)' },
   { key: 'hierarchy', label: 'Habilitations & Affiliations', icon: Network, color: 'var(--tile-hierarchy)', directionOnly: true },
-  { key: 'training', label: 'Dossiers de formation', icon: FolderCog, color: 'var(--tile-hierarchy)', directionOnly: true },
+  { key: 'training', label: 'Documents', icon: FolderCog, color: 'var(--tile-hierarchy)', directionOnly: true },
 ]
