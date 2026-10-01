@@ -300,6 +300,8 @@ export interface TrainingFolder {
   name: string
   description: string | null
   allowed_roles: StaffRole[] | null
+  allowed_sous_grade_ids: string[] | null
+  allowed_affiliation_ids: string[] | null
   position: number
   created_at: string
 }
