@@ -48,10 +48,13 @@ export function DossiersFormationTab() {
     const docs = (data ?? []) as TrainingDocument[]
     const withUrls = await Promise.all(
       docs.map(async (doc) => {
-        const { data: signed } = await supabase.storage
+        const { data: blob, error: downloadError } = await supabase.storage
           .from('training-documents')
-          .createSignedUrl(doc.storage_path, 60 * 30)
-        return { ...doc, signedUrl: signed?.signedUrl }
+          .download(doc.storage_path)
+        return {
+          ...doc,
+          signedUrl: !downloadError && blob ? URL.createObjectURL(blob) : undefined,
+        }
       }),
     )
 
@@ -133,14 +136,14 @@ export function DossiersFormationTab() {
 
       {error && <p className="text-red-300 text-xs">{error}</p>}
 
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-4 items-center">
         {imageDocs.map((doc, index) => (
-          <Card key={doc.id} className="overflow-hidden p-0">
+          <Card key={doc.id} className="overflow-hidden p-0 w-full max-w-3xl">
             {doc.signedUrl ? (
               <img
                 src={doc.signedUrl}
                 alt={doc.title}
-                className="w-full max-h-[520px] object-contain bg-black/5"
+                className="w-full max-h-[420px] object-contain bg-black/5"
                 loading={index < 2 ? 'eager' : 'lazy'}
               />
             ) : (
