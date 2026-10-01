@@ -226,9 +226,7 @@ export function DossiersFormationTab() {
                   <ImageIcon size={24} />
                 </div>
               )}
-              <div className="px-4 py-3 border-t border-[var(--ink)]/8">
-                <p className="text-[var(--ink)] text-sm font-semibold">{doc.title}</p>
-              </div>
+
             </Card>
           ))}
         </div>
@@ -290,14 +288,11 @@ export function DossiersFormationTab() {
               alt={preview.title}
               className="max-w-full max-h-[85vh] object-contain rounded-xl shadow-2xl"
             />
-            <div className="text-center">
-              <p className="text-white/80 text-sm font-semibold">{preview.title}</p>
-              {imageDocs.length > 1 && (
-                <p className="text-white/45 text-xs mt-1">
-                  {previewIndex + 1} / {imageDocs.length}
-                </p>
-              )}
-            </div>
+            {imageDocs.length > 1 && (
+              <p className="text-white/45 text-xs">
+                {previewIndex + 1} / {imageDocs.length}
+              </p>
+            )}
           </div>
         </div>
       )}
