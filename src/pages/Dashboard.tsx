@@ -187,8 +187,8 @@ export function Dashboard() {
   const activeSection = effectiveView === 'home' ? null : TILE_SECTIONS.find((s) => s.key === effectiveView) ?? null
 
   return (
-    <div className={cn('flex bg-[var(--bg)]', effectiveView === 'messages' ? 'h-screen overflow-hidden' : 'min-h-screen')}>
-      <aside className="w-16 sm:w-20 shrink-0 flex flex-col items-center py-4 gap-3 bg-[var(--sidebar-bg)] border-r border-[var(--ink)]/8">
+    <div className={cn('bg-[var(--bg)]', effectiveView === 'messages' ? 'h-screen overflow-hidden' : 'min-h-screen')}>
+      <aside className="fixed inset-y-0 left-0 z-40 w-16 sm:w-20 flex flex-col items-center py-4 gap-3 bg-[var(--sidebar-bg)] border-r border-[var(--ink)]/8 overflow-hidden">
         <img src={logo} alt="EMS" className="w-10 h-10 rounded-full object-cover" />
 
         <CodeBlancAlertButton />
@@ -334,8 +334,8 @@ export function Dashboard() {
 
       <main
         className={cn(
-          'flex-1 min-w-0 px-4 py-6 sm:px-8 sm:py-8 flex flex-col gap-6',
-          effectiveView === 'messages' ? 'h-screen overflow-hidden' : 'overflow-y-auto',
+          'ml-16 sm:ml-20 min-w-0 px-4 py-6 sm:px-8 sm:py-8 flex flex-col gap-6',
+          effectiveView === 'messages' ? 'h-screen overflow-hidden' : 'min-h-screen',
         )}
       >
         <AnimatePresence mode="wait">
