@@ -16,6 +16,7 @@ export function HomeTiles({ tabs, onSelect }: { tabs: TabKey[]; onSelect: (key: 
   const [enService, setEnService] = useState(0)
   const [mesAbsencesAVenir, setMesAbsencesAVenir] = useState(0)
   const [nextAppointment, setNextAppointment] = useState<Appointment | null>(null)
+  const [unreadMessages, setUnreadMessages] = useState(0)
 
   const refreshStats = useCallback(async () => {
     const today = new Date().toISOString().slice(0, 10)
@@ -47,15 +48,25 @@ export function HomeTiles({ tabs, onSelect }: { tabs: TabKey[]; onSelect: (key: 
           .limit(1)
       : null
 
-    const [serviceResult, absenceResult, appointmentResult] = await Promise.all([
+    const unreadQuery = userId
+      ? supabase
+          .from('internal_messages')
+          .select('id', { count: 'exact', head: true })
+          .eq('recipient_id', userId)
+          .is('read_at', null)
+      : null
+
+    const [serviceResult, absenceResult, appointmentResult, unreadResult] = await Promise.all([
       serviceQuery,
       absenceQuery ?? Promise.resolve({ count: 0 }),
       appointmentQuery ?? Promise.resolve({ data: [] as Appointment[] }),
+      unreadQuery ?? Promise.resolve({ count: 0 }),
     ])
 
     setEnService(serviceResult.count ?? 0)
     setMesAbsencesAVenir(absenceResult.count ?? 0)
     setNextAppointment(appointmentResult.data?.[0] ?? null)
+    setUnreadMessages(unreadResult.count ?? 0)
   }, [session?.user.id])
 
   useEffect(() => {
@@ -73,6 +84,7 @@ export function HomeTiles({ tabs, onSelect }: { tabs: TabKey[]; onSelect: (key: 
         if (section.key === 'services') stat = `${enService}`
         if (section.key === 'absence') stat = `${mesAbsencesAVenir}`
         if (section.key === 'agenda') stat = nextAppointment ? formatUpcoming(nextAppointment.scheduled_at) : 'Aucun rendez-vous'
+        if (section.key === 'messages') stat = unreadMessages > 0 ? `${unreadMessages} non lu${unreadMessages > 1 ? 's' : ''}` : 'Aucun non lu'
 
         return (
           <Tile
