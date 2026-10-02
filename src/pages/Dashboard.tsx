@@ -59,10 +59,7 @@ export function Dashboard() {
 
   const playTone = useCallback((kind: 'message' | 'announcement') => {
     try {
-      const AudioContextClass = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
-      if (!AudioContextClass) return
-
-      const ctx = new AudioContextClass()
+      const ctx = new AudioContext()
       const now = ctx.currentTime
       const gain = ctx.createGain()
       gain.connect(ctx.destination)
@@ -317,10 +314,7 @@ export function Dashboard() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.25 }}
-              className={cn(
-                'flex flex-col gap-6 max-w-5xl w-full mx-auto',
-                effectiveView === 'messages' && 'h-full min-h-0 overflow-hidden',
-              )}
+              className="flex flex-col gap-6 max-w-5xl w-full mx-auto"
             >
               <div className="relative overflow-hidden rounded-2xl">
                 <div className="absolute inset-0 h-full">
@@ -351,7 +345,10 @@ export function Dashboard() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.25 }}
-              className="flex flex-col gap-6 max-w-5xl w-full mx-auto"
+              className={cn(
+                'flex flex-col gap-6 max-w-5xl w-full mx-auto',
+                effectiveView === 'messages' && 'h-full min-h-0 overflow-hidden',
+              )}
             >
               {activeSection && (
                 <SectionHeader
