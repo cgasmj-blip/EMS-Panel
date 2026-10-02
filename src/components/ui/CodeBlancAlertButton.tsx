@@ -69,7 +69,7 @@ export function CodeBlancAlertButton() {
                 <div className="flex gap-3">
                   <AlertTriangle size={18} className="text-red-300 shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-[var(--ink)] font-semibold text-sm">Confirmer l'alerte ?</p>
+                    <p className="text-[var(--ink)] font-semibold text-sm">Es-tu sûr de vouloir déclencher un Code Blanc ?</p>
                     <p className="text-[var(--ink)]/50 text-xs mt-1 leading-relaxed">
                       Un message <strong>@everyone</strong> sera envoyé sur Discord pour demander aux EMS disponibles de prendre leur service afin d'aider.
                     </p>
