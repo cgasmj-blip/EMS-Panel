@@ -292,6 +292,7 @@ export interface HelpArticle {
   id: number
   title: string
   image_url: string | null
+  image_path: string | null
   content: string | null
   position: number
   created_at: string
