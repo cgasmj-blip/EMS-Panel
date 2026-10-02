@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { CalendarClock, History, LayoutGrid, LogOut, Megaphone, MessageCircle, RefreshCw, Search } from 'lucide-react'
+import { CalendarClock, History, LayoutGrid, LogOut, Megaphone, MessageCircle, RefreshCw, Search, ShieldCheck } from 'lucide-react'
 import { useAuth } from '@/auth/AuthContext'
 import { displayRoleLabel, isAboveChirurgien, supabase } from '@/lib/supabase'
 import { TILE_SECTIONS, type TabKey } from '@/lib/tiles'
@@ -115,7 +115,7 @@ export function Dashboard() {
 
   return (
     <div className="min-h-screen flex bg-[var(--bg)]">
-      <aside className="w-16 sm:w-20 shrink-0 flex flex-col items-center py-5 gap-4 bg-[var(--sidebar-bg)] border-r border-[var(--ink)]/8">
+      <aside className="w-16 sm:w-20 shrink-0 flex flex-col items-center py-4 gap-3 bg-[var(--sidebar-bg)] border-r border-[var(--ink)]/8">
         <img src={logo} alt="EMS" className="w-10 h-10 rounded-full object-cover" />
 
         <button
@@ -130,7 +130,11 @@ export function Dashboard() {
           <LayoutGrid size={18} />
         </button>
 
-        <div className="flex flex-col items-center gap-2">
+        <div className="flex-1" />
+
+
+
+        <div className="flex flex-col items-center gap-1.5">
           <button
             type="button"
             onClick={() => setView('agenda')}
@@ -189,9 +193,22 @@ export function Dashboard() {
           </button>
 
           <StockAlertButton compact />
-        </div>
 
-        <div className="flex-1" />
+          {isAboveChirurgien(staff.role) && (
+            <button
+              type="button"
+              onClick={() => setView('gestion')}
+              aria-label="Gestion"
+              title="Gestion"
+              className={cn(
+                'w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer transition-colors',
+                effectiveView === 'gestion' ? 'bg-red text-white' : 'bg-[var(--ink)]/5 text-[var(--ink)]/60 hover:bg-[var(--ink)]/10 hover:text-[var(--ink)]',
+              )}
+            >
+              <ShieldCheck size={17} />
+            </button>
+          )}
+        </div>
 
         {staff.avatar_url ? (
           <img src={staff.avatar_url} alt="" className="w-9 h-9 rounded-full border border-[var(--ink)]/15" />
