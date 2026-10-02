@@ -302,6 +302,7 @@ export interface TrainingFolder {
   external_url: string | null
   parent_id: number | null
   cover_image_path: string | null
+  section_title: string | null
   allowed_roles: StaffRole[] | null
   allowed_sous_grade_ids: string[] | null
   allowed_affiliation_ids: string[] | null
