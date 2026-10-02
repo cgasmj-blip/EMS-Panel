@@ -1,8 +1,8 @@
-import { useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { LayoutGrid, LogOut, RefreshCw } from 'lucide-react'
+import { CalendarClock, History, LayoutGrid, LogOut, Megaphone, MessageCircle, RefreshCw, Search } from 'lucide-react'
 import { useAuth } from '@/auth/AuthContext'
-import { displayRoleLabel, isAboveChirurgien } from '@/lib/supabase'
+import { displayRoleLabel, isAboveChirurgien, supabase } from '@/lib/supabase'
 import { TILE_SECTIONS, type TabKey } from '@/lib/tiles'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
 import { HomeTiles } from '@/components/ui/HomeTiles'
@@ -49,9 +49,43 @@ function getStoredView(): TabKey | 'home' {
 }
 
 export function Dashboard() {
-  const { staff, signOut, signInWithDiscord } = useAuth()
+  const { staff, session, signOut, signInWithDiscord } = useAuth()
   const [view, setViewState] = useState<TabKey | 'home'>(getStoredView)
   const [resyncing, setResyncing] = useState(false)
+  const [unreadMessages, setUnreadMessages] = useState(0)
+  const [latestAnnouncement, setLatestAnnouncement] = useState<{ title: string; body: string } | null>(null)
+
+  const refreshSidebarData = useCallback(async () => {
+    const userId = session?.user.id
+    if (!userId) {
+      setUnreadMessages(0)
+      setLatestAnnouncement(null)
+      return
+    }
+
+    const [{ count }, { data: announcement }] = await Promise.all([
+      supabase
+        .from('internal_messages')
+        .select('id', { count: 'exact', head: true })
+        .eq('recipient_id', userId)
+        .is('read_at', null),
+      supabase
+        .from('internal_announcements')
+        .select('title,body')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ])
+
+    setUnreadMessages(count ?? 0)
+    setLatestAnnouncement(announcement ?? null)
+  }, [session?.user.id])
+
+  useEffect(() => {
+    refreshSidebarData()
+    const timer = window.setInterval(refreshSidebarData, 5000)
+    return () => window.clearInterval(timer)
+  }, [refreshSidebarData])
 
   async function handleResync() {
     setResyncing(true)
@@ -95,6 +129,67 @@ export function Dashboard() {
         >
           <LayoutGrid size={18} />
         </button>
+
+        <div className="flex flex-col items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setView('agenda')}
+            aria-label="Agenda"
+            title="Agenda"
+            className={cn(
+              'w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer transition-colors',
+              effectiveView === 'agenda' ? 'bg-red text-white' : 'bg-[var(--ink)]/5 text-[var(--ink)]/60 hover:bg-[var(--ink)]/10 hover:text-[var(--ink)]',
+            )}
+          >
+            <CalendarClock size={17} />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setView('recherche')}
+            aria-label="Recherche globale"
+            title="Recherche globale"
+            className={cn(
+              'w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer transition-colors',
+              effectiveView === 'recherche' ? 'bg-red text-white' : 'bg-[var(--ink)]/5 text-[var(--ink)]/60 hover:bg-[var(--ink)]/10 hover:text-[var(--ink)]',
+            )}
+          >
+            <Search size={17} />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setView('messages')}
+            aria-label="Messages"
+            title="Messages"
+            className={cn(
+              'relative w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer transition-colors',
+              effectiveView === 'messages' ? 'bg-red text-white' : 'bg-[var(--ink)]/5 text-[var(--ink)]/60 hover:bg-[var(--ink)]/10 hover:text-[var(--ink)]',
+            )}
+          >
+            <MessageCircle size={17} />
+            {unreadMessages > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 min-w-5 h-5 px-1 rounded-full bg-red text-white text-[10px] font-bold flex items-center justify-center border-2 border-[var(--sidebar-bg)]">
+                +{unreadMessages}
+              </span>
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setView('historique')}
+            aria-label="Historique"
+            title="Historique"
+            className={cn(
+              'w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer transition-colors',
+              effectiveView === 'historique' ? 'bg-red text-white' : 'bg-[var(--ink)]/5 text-[var(--ink)]/60 hover:bg-[var(--ink)]/10 hover:text-[var(--ink)]',
+            )}
+          >
+            <History size={17} />
+          </button>
+
+          <StockAlertButton compact />
+        </div>
 
         <div className="flex-1" />
 
@@ -149,7 +244,17 @@ export function Dashboard() {
                   {displayRoleLabel(staff.role) && <p className="text-[var(--ink)]/40 text-sm">{displayRoleLabel(staff.role)}</p>}
                 </div>
               </div>
-              <StockAlertButton />
+              {latestAnnouncement && (
+                <div className="rounded-2xl border border-red/20 bg-red/10 px-4 py-3 flex items-start gap-3">
+                  <span className="w-9 h-9 rounded-xl bg-red/15 text-red-300 flex items-center justify-center shrink-0">
+                    <Megaphone size={17} />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-[var(--ink)] font-bold text-sm">{latestAnnouncement.title}</p>
+                    <p className="text-[var(--ink)]/60 text-sm mt-1 whitespace-pre-wrap line-clamp-3">{latestAnnouncement.body}</p>
+                  </div>
+                </div>
+              )}
               <HomeTiles tabs={visibleTabs} onSelect={(key) => setView(key)} />
             </motion.div>
           ) : (
