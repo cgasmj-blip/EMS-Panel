@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ChevronDown, ChevronRight, ExternalLink, FilePlus2, ImagePlus, Link2, Trash2 } from 'lucide-react'
+import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, ExternalLink, FilePlus2, ImagePlus, Link2, Trash2 } from 'lucide-react'
 import {
   supabase,
   type Affiliation,
@@ -16,6 +16,7 @@ type FolderEdit = {
   name: string
   description: string
   external_url: string
+  section_title: string
   allowed_sous_grade_ids: string[]
   allowed_affiliation_ids: string[]
 }
@@ -126,6 +127,7 @@ export function TrainingFoldersSection() {
   const [newName, setNewName] = useState('')
   const [newDescription, setNewDescription] = useState('')
   const [newExternalUrl, setNewExternalUrl] = useState('')
+  const [newSectionTitle, setNewSectionTitle] = useState('')
   const [newCover, setNewCover] = useState<File | null>(null)
   const [newParentId, setNewParentId] = useState<number | null>(null)
   const [newSousGrades, setNewSousGrades] = useState<string[]>([])
@@ -168,6 +170,7 @@ export function TrainingFoldersSection() {
     const visit = (parentId: number | null, depth: number) => {
       folders
         .filter((folder) => folder.parent_id === parentId)
+        .sort((a, b) => a.position - b.position || a.name.localeCompare(b.name, 'fr'))
         .forEach((folder) => {
           rows.push({ folder, depth })
           visit(folder.id, depth + 1)
@@ -182,6 +185,7 @@ export function TrainingFoldersSection() {
       name: folder.name,
       description: folder.description ?? '',
       external_url: folder.external_url ?? '',
+      section_title: folder.section_title ?? '',
       allowed_sous_grade_ids: folder.allowed_sous_grade_ids ?? [],
       allowed_affiliation_ids: folder.allowed_affiliation_ids ?? [],
     }
@@ -195,12 +199,13 @@ export function TrainingFoldersSection() {
       name: newName.trim(),
       description: newDescription.trim() || null,
       external_url: newExternalUrl.trim() || null,
+      section_title: newSectionTitle.trim() || null,
       parent_id: newParentId,
       cover_image_path: null,
       allowed_roles: null,
       allowed_sous_grade_ids: newSousGrades.length > 0 ? newSousGrades : null,
       allowed_affiliation_ids: newAffiliations.length > 0 ? newAffiliations : null,
-      position: folders.length,
+      position: folders.filter((folder) => folder.parent_id === newParentId).length,
     }).select('id').single()
 
     if (err || !created) {
@@ -233,6 +238,7 @@ export function TrainingFoldersSection() {
     setNewName('')
     setNewDescription('')
     setNewExternalUrl('')
+    setNewSectionTitle('')
     setNewCover(null)
     setNewParentId(null)
     setNewSousGrades([])
@@ -251,6 +257,7 @@ export function TrainingFoldersSection() {
         name: edit.name.trim(),
         description: edit.description.trim() || null,
         external_url: edit.external_url.trim() || null,
+        section_title: edit.section_title.trim() || null,
         allowed_roles: null,
         allowed_sous_grade_ids: edit.allowed_sous_grade_ids.length > 0 ? edit.allowed_sous_grade_ids : null,
         allowed_affiliation_ids: edit.allowed_affiliation_ids.length > 0 ? edit.allowed_affiliation_ids : null,
@@ -355,6 +362,98 @@ export function TrainingFoldersSection() {
     await fetchAll()
   }
 
+  async function moveFolder(folder: TrainingFolder, direction: -1 | 1) {
+    const siblings = folders
+      .filter((item) => item.parent_id === folder.parent_id)
+      .sort((a, b) => a.position - b.position || a.name.localeCompare(b.name, 'fr'))
+
+    const index = siblings.findIndex((item) => item.id === folder.id)
+    const targetIndex = index + direction
+    if (index < 0 || targetIndex < 0 || targetIndex >= siblings.length) return
+
+    const target = siblings[targetIndex]
+    setError(null)
+
+    const tempPosition = Math.max(...siblings.map((item) => item.position), 0) + 1000
+    const { error: tempError } = await supabase
+      .from('training_folders')
+      .update({ position: tempPosition })
+      .eq('id', folder.id)
+
+    if (tempError) {
+      setError(tempError.message)
+      return
+    }
+
+    const { error: targetError } = await supabase
+      .from('training_folders')
+      .update({ position: folder.position })
+      .eq('id', target.id)
+
+    if (targetError) {
+      setError(targetError.message)
+      return
+    }
+
+    const { error: finalError } = await supabase
+      .from('training_folders')
+      .update({ position: target.position })
+      .eq('id', folder.id)
+
+    if (finalError) {
+      setError(finalError.message)
+      return
+    }
+
+    await fetchAll()
+  }
+
+  async function moveImage(doc: TrainingDocument, direction: -1 | 1) {
+    const folderDocs = (docsByFolder.get(doc.folder_id) ?? [])
+      .slice()
+      .sort((a, b) => a.position - b.position || a.created_at.localeCompare(b.created_at))
+
+    const index = folderDocs.findIndex((item) => item.id === doc.id)
+    const targetIndex = index + direction
+    if (index < 0 || targetIndex < 0 || targetIndex >= folderDocs.length) return
+
+    const target = folderDocs[targetIndex]
+    setError(null)
+
+    const tempPosition = Math.max(...folderDocs.map((item) => item.position), 0) + 1000
+    const { error: tempError } = await supabase
+      .from('training_documents')
+      .update({ position: tempPosition })
+      .eq('id', doc.id)
+
+    if (tempError) {
+      setError(tempError.message)
+      return
+    }
+
+    const { error: targetError } = await supabase
+      .from('training_documents')
+      .update({ position: doc.position })
+      .eq('id', target.id)
+
+    if (targetError) {
+      setError(targetError.message)
+      return
+    }
+
+    const { error: finalError } = await supabase
+      .from('training_documents')
+      .update({ position: target.position })
+      .eq('id', doc.id)
+
+    if (finalError) {
+      setError(finalError.message)
+      return
+    }
+
+    await fetchAll()
+  }
+
   async function setCoverImage(folder: TrainingFolder, file: File) {
     setError(null)
 
@@ -450,6 +549,11 @@ export function TrainingFoldersSection() {
             value={newExternalUrl}
             onChange={(e) => setNewExternalUrl(e.target.value)}
           />
+          <Input
+            placeholder="Section (optionnelle, ex : Formations, Protocoles, Administratif)"
+            value={newSectionTitle}
+            onChange={(e) => setNewSectionTitle(e.target.value)}
+          />
           <label className="inline-flex items-center gap-2 rounded-xl border border-[var(--ink)]/10 bg-[var(--ink)]/[0.02] px-3 py-2.5 text-sm text-[var(--ink)]/55 cursor-pointer hover:bg-[var(--ink)]/[0.05]">
             <ImagePlus size={15} />
             {newCover ? newCover.name : 'Image du dossier (optionnelle)'}
@@ -506,6 +610,24 @@ export function TrainingFoldersSection() {
             >
               {expanded ? <ChevronDown size={16} className="text-[var(--ink)]/45 shrink-0" /> : <ChevronRight size={16} className="text-[var(--ink)]/45 shrink-0" />}
               <span className="text-[var(--ink)] font-bold text-sm flex-1 min-w-0 truncate">{folder.name}</span>
+              <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                <button
+                  type="button"
+                  title="Monter"
+                  onClick={() => moveFolder(folder, -1)}
+                  className="w-7 h-7 rounded-lg flex items-center justify-center text-[var(--ink)]/40 hover:text-[var(--ink)] hover:bg-[var(--ink)]/5 cursor-pointer"
+                >
+                  <ArrowUp size={13} />
+                </button>
+                <button
+                  type="button"
+                  title="Descendre"
+                  onClick={() => moveFolder(folder, 1)}
+                  className="w-7 h-7 rounded-lg flex items-center justify-center text-[var(--ink)]/40 hover:text-[var(--ink)] hover:bg-[var(--ink)]/5 cursor-pointer"
+                >
+                  <ArrowDown size={13} />
+                </button>
+              </div>
               <span className="text-[var(--ink)]/35 text-[11px] shrink-0">
                 {folder.external_url ? 'Lien direct' : `${folderDocs.length} image(s)`}
               </span>
@@ -521,6 +643,16 @@ export function TrainingFoldersSection() {
                         setEdits((prev) => ({
                           ...prev,
                           [folder.id]: { ...edit, name: e.target.value },
+                        }))
+                      }
+                    />
+                    <Input
+                      placeholder="Section (optionnelle)"
+                      value={edit.section_title}
+                      onChange={(e) =>
+                        setEdits((prev) => ({
+                          ...prev,
+                          [folder.id]: { ...edit, section_title: e.target.value },
                         }))
                       }
                     />
@@ -636,9 +768,17 @@ export function TrainingFoldersSection() {
                             <p className="text-[var(--ink)] text-sm font-semibold truncate">{doc.title}</p>
                             <p className="text-[var(--ink)]/30 text-[11px] truncate">{doc.file_name}</p>
                           </div>
-                          <Button size="sm" variant="ghost" title="Supprimer l'image" onClick={() => deleteImage(doc)}>
-                            <Trash2 size={13} />
-                          </Button>
+                          <div className="flex items-center gap-1">
+                            <Button size="sm" variant="ghost" title="Monter" onClick={() => moveImage(doc, -1)}>
+                              <ArrowUp size={13} />
+                            </Button>
+                            <Button size="sm" variant="ghost" title="Descendre" onClick={() => moveImage(doc, 1)}>
+                              <ArrowDown size={13} />
+                            </Button>
+                            <Button size="sm" variant="ghost" title="Supprimer l'image" onClick={() => deleteImage(doc)}>
+                              <Trash2 size={13} />
+                            </Button>
+                          </div>
                         </div>
                       ))}
 
