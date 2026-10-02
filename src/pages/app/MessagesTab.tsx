@@ -12,7 +12,6 @@ type AnnouncementRow = {
   title: string
   body: string
   created_at: string
-  staff?: { full_name: string } | null
 }
 
 type MessageRow = {
@@ -67,7 +66,7 @@ export function MessagesTab() {
   const fetchAnnouncements = useCallback(async () => {
     const { data } = await supabase
       .from('internal_announcements')
-      .select('id,author_id,title,body,created_at,staff:author_id(full_name)')
+      .select('id,author_id,title,body,created_at')
       .order('created_at', { ascending: false })
       .limit(100)
 
@@ -233,7 +232,7 @@ export function MessagesTab() {
                     <p className="text-[var(--ink)] font-bold text-sm">{announcement.title}</p>
                     <p className="text-[var(--ink)]/65 text-sm whitespace-pre-wrap mt-2">{announcement.body}</p>
                     <p className="text-[var(--ink)]/30 text-[11px] mt-3">
-                      {announcement.staff?.full_name ?? 'Direction'} · {new Date(announcement.created_at).toLocaleString('fr-FR')}
+                      {staff.find((person) => person.id === announcement.author_id)?.full_name ?? 'Direction'} · {new Date(announcement.created_at).toLocaleString('fr-FR')}
                     </p>
                   </div>
                   {isDirection(currentStaff?.role) && (
