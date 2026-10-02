@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Megaphone, MessageCircle, Search, Send, Trash2 } from 'lucide-react'
 import { useAuth } from '@/auth/AuthContext'
 import { supabase, displayRoleLabel, isDirection, type Staff, type StaffRole } from '@/lib/supabase'
@@ -39,6 +39,7 @@ export function MessagesTab() {
   const [announcementTitle, setAnnouncementTitle] = useState('')
   const [announcementBody, setAnnouncementBody] = useState('')
   const [publishing, setPublishing] = useState(false)
+  const messagesScrollRef = useRef<HTMLDivElement | null>(null)
 
   const selected = staff.find((person) => person.id === selectedId) ?? null
 
@@ -48,6 +49,8 @@ export function MessagesTab() {
       supabase
         .from('staff')
         .select('id,full_name,avatar_url,role')
+        .eq('active', true)
+        .neq('role', 'membre')
         .neq('id', me),
       supabase
         .from('internal_messages')
@@ -132,7 +135,7 @@ export function MessagesTab() {
     const timer = window.setInterval(() => {
       fetchPeople()
       fetchAnnouncements()
-    }, 8000)
+    }, 5000)
     return () => window.clearInterval(timer)
   }, [fetchPeople, fetchAnnouncements])
 
@@ -141,6 +144,21 @@ export function MessagesTab() {
     const timer = window.setInterval(fetchConversation, 5000)
     return () => window.clearInterval(timer)
   }, [fetchConversation])
+
+  useEffect(() => {
+    if (selectedId && !staff.some((person) => person.id === selectedId)) {
+      setSelectedId(null)
+      setMessages([])
+    }
+  }, [staff, selectedId])
+
+  useEffect(() => {
+    const node = messagesScrollRef.current
+    if (!node) return
+    window.requestAnimationFrame(() => {
+      node.scrollTop = node.scrollHeight
+    })
+  }, [messages, selectedId])
 
   const visiblePeople = useMemo(() => {
     const term = filter.trim().toLocaleLowerCase('fr')
@@ -192,7 +210,7 @@ export function MessagesTab() {
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-3 flex-1 min-h-0 overflow-hidden">
       <div className="inline-flex self-start rounded-xl border border-[var(--ink)]/8 bg-[var(--ink)]/[0.02] p-1">
         <button
           type="button"
@@ -274,7 +292,7 @@ export function MessagesTab() {
           </div>
         </div>
       ) : (
-        <div className="grid md:grid-cols-[280px_1fr] gap-4 h-[calc(100vh-190px)] min-h-[520px] max-h-[760px] overflow-hidden">
+        <div className="grid md:grid-cols-[260px_1fr] gap-3 flex-1 min-h-0 overflow-hidden">
       <Card className="p-3 flex flex-col gap-3 min-h-0 overflow-hidden">
         <div className="relative">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--ink)]/35" />
@@ -343,7 +361,7 @@ export function MessagesTab() {
               </div>
             </div>
 
-            <div className="flex-1 min-h-0 overflow-y-auto p-4 pr-3 flex flex-col gap-2 bg-[var(--ink)]/[0.01]">
+            <div ref={messagesScrollRef} className="flex-1 min-h-0 overflow-y-auto p-3 pr-2 flex flex-col gap-2 bg-[var(--ink)]/[0.01]">
               {messages.map((message) => {
                 const mine = message.sender_id === me
                 return (
@@ -363,7 +381,7 @@ export function MessagesTab() {
               )}
             </div>
 
-            <div className="p-3 border-t border-[var(--ink)]/8 flex gap-2 items-end">
+            <div className="p-2.5 border-t border-[var(--ink)]/8 flex gap-2 items-end shrink-0">
               <textarea
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
