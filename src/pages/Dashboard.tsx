@@ -54,6 +54,7 @@ export function Dashboard() {
   const [resyncing, setResyncing] = useState(false)
   const [unreadMessages, setUnreadMessages] = useState(0)
   const [latestAnnouncement, setLatestAnnouncement] = useState<{ id: number; title: string; body: string } | null>(null)
+  const [nextAppointment, setNextAppointment] = useState<{ scheduled_at: string; title: string | null; type: string } | null>(null)
   const previousUnreadRef = useRef<number | null>(null)
   const previousAnnouncementIdRef = useRef<number | null>(null)
 
@@ -104,10 +105,11 @@ export function Dashboard() {
     if (!userId) {
       setUnreadMessages(0)
       setLatestAnnouncement(null)
+      setNextAppointment(null)
       return
     }
 
-    const [{ count }, { data: announcement }] = await Promise.all([
+    const [{ count }, { data: announcement }, { data: appointment }] = await Promise.all([
       supabase
         .from('internal_messages')
         .select('id', { count: 'exact', head: true })
@@ -117,6 +119,14 @@ export function Dashboard() {
         .from('internal_announcements')
         .select('id,title,body')
         .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      supabase
+        .from('appointments')
+        .select('scheduled_at,title,type')
+        .eq('staff_id', userId)
+        .gte('scheduled_at', new Date().toISOString())
+        .order('scheduled_at', { ascending: true })
         .limit(1)
         .maybeSingle(),
     ])
@@ -140,6 +150,7 @@ export function Dashboard() {
     previousAnnouncementIdRef.current = nextAnnouncement?.id ?? null
     setUnreadMessages(nextUnread)
     setLatestAnnouncement(nextAnnouncement)
+    setNextAppointment(appointment ?? null)
   }, [session?.user.id, playTone])
 
   useEffect(() => {
@@ -271,11 +282,31 @@ export function Dashboard() {
 
         <div className="flex-1" />
 
-        {staff.avatar_url ? (
-          <img src={staff.avatar_url} alt="" className="w-9 h-9 rounded-full border border-[var(--ink)]/15" />
-        ) : (
-          <div className="w-9 h-9 rounded-full bg-[var(--ink)]/10 border border-[var(--ink)]/15" />
-        )}
+        <div className="flex flex-col items-center gap-1.5">
+          {nextAppointment && (
+            <button
+              type="button"
+              onClick={() => setView('agenda')}
+              className="w-12 rounded-xl border border-[var(--ink)]/10 bg-[var(--ink)]/[0.04] px-1 py-1.5 text-center hover:bg-[var(--ink)]/[0.08] transition-colors cursor-pointer"
+              title={`Prochain rendez-vous : ${new Date(nextAppointment.scheduled_at).toLocaleString('fr-FR')} — ${nextAppointment.title || nextAppointment.type}`}
+              aria-label="Voir mon prochain rendez-vous"
+            >
+              <span className="block text-[9px] uppercase tracking-wide text-[var(--ink)]/35">RDV</span>
+              <span className="block text-[11px] font-bold text-[var(--ink)] leading-tight">
+                {new Date(nextAppointment.scheduled_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}
+              </span>
+              <span className="block text-[9px] text-[var(--ink)]/45 leading-tight mt-0.5">
+                {new Date(nextAppointment.scheduled_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+              </span>
+            </button>
+          )}
+
+          {staff.avatar_url ? (
+            <img src={staff.avatar_url} alt="" className="w-9 h-9 rounded-full border border-[var(--ink)]/15" />
+          ) : (
+            <div className="w-9 h-9 rounded-full bg-[var(--ink)]/10 border border-[var(--ink)]/15" />
+          )}
+        </div>
 
         <button
           type="button"
