@@ -17,6 +17,7 @@ export function HomeTiles({ tabs, onSelect }: { tabs: TabKey[]; onSelect: (key: 
       .select('id', { count: 'exact', head: true })
       .eq('status', 'en_service')
       .eq('active', true)
+      .neq('role', 'membre')
 
     const userId = session?.user.id
 
