@@ -87,7 +87,7 @@ export function ServicesTab() {
 
   const fetchAll = useCallback(async () => {
     const [{ data: staffData, error: staffError }, { data: unitData }] = await Promise.all([
-      supabase.from('staff').select('*').eq('active', true).order('full_name'),
+      supabase.from('staff').select('*').eq('active', true).neq('role', 'membre').order('full_name'),
       supabase.from('units').select('*').order('created_at', { ascending: false }),
     ])
     if (staffError) {
