@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { CalendarClock, History, LayoutGrid, LogOut, Megaphone, MessageCircle, RefreshCw, Search, ShieldCheck } from 'lucide-react'
 import { useAuth } from '@/auth/AuthContext'
@@ -53,7 +53,54 @@ export function Dashboard() {
   const [view, setViewState] = useState<TabKey | 'home'>(getStoredView)
   const [resyncing, setResyncing] = useState(false)
   const [unreadMessages, setUnreadMessages] = useState(0)
-  const [latestAnnouncement, setLatestAnnouncement] = useState<{ title: string; body: string } | null>(null)
+  const [latestAnnouncement, setLatestAnnouncement] = useState<{ id: number; title: string; body: string } | null>(null)
+  const previousUnreadRef = useRef<number | null>(null)
+  const previousAnnouncementIdRef = useRef<number | null>(null)
+
+  const playTone = useCallback((kind: 'message' | 'announcement') => {
+    try {
+      const AudioContextClass = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+      if (!AudioContextClass) return
+
+      const ctx = new AudioContextClass()
+      const now = ctx.currentTime
+      const gain = ctx.createGain()
+      gain.connect(ctx.destination)
+      gain.gain.setValueAtTime(0.0001, now)
+
+      if (kind === 'message') {
+        const osc = ctx.createOscillator()
+        osc.type = 'sine'
+        osc.frequency.setValueAtTime(880, now)
+        osc.connect(gain)
+        gain.gain.exponentialRampToValueAtTime(0.18, now + 0.01)
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.22)
+        osc.start(now)
+        osc.stop(now + 0.23)
+      } else {
+        const osc1 = ctx.createOscillator()
+        const osc2 = ctx.createOscillator()
+        osc1.type = 'triangle'
+        osc2.type = 'triangle'
+        osc1.frequency.setValueAtTime(520, now)
+        osc2.frequency.setValueAtTime(740, now + 0.18)
+        osc1.connect(gain)
+        osc2.connect(gain)
+        gain.gain.exponentialRampToValueAtTime(0.16, now + 0.01)
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.16)
+        gain.gain.exponentialRampToValueAtTime(0.16, now + 0.19)
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.42)
+        osc1.start(now)
+        osc1.stop(now + 0.17)
+        osc2.start(now + 0.18)
+        osc2.stop(now + 0.43)
+      }
+
+      window.setTimeout(() => ctx.close().catch(() => {}), 700)
+    } catch {
+      // Les navigateurs peuvent bloquer l'audio avant la première interaction utilisateur.
+    }
+  }, [])
 
   const refreshSidebarData = useCallback(async () => {
     const userId = session?.user.id
@@ -71,15 +118,32 @@ export function Dashboard() {
         .is('read_at', null),
       supabase
         .from('internal_announcements')
-        .select('title,body')
+        .select('id,title,body')
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle(),
     ])
 
-    setUnreadMessages(count ?? 0)
-    setLatestAnnouncement(announcement ?? null)
-  }, [session?.user.id])
+    const nextUnread = count ?? 0
+    const nextAnnouncement = announcement ?? null
+
+    if (previousUnreadRef.current !== null && nextUnread > previousUnreadRef.current) {
+      playTone('message')
+    }
+
+    if (
+      previousAnnouncementIdRef.current !== null &&
+      nextAnnouncement?.id &&
+      nextAnnouncement.id !== previousAnnouncementIdRef.current
+    ) {
+      playTone('announcement')
+    }
+
+    previousUnreadRef.current = nextUnread
+    previousAnnouncementIdRef.current = nextAnnouncement?.id ?? null
+    setUnreadMessages(nextUnread)
+    setLatestAnnouncement(nextAnnouncement)
+  }, [session?.user.id, playTone])
 
   useEffect(() => {
     refreshSidebarData()
