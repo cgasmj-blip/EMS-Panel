@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { CalendarClock, History, LayoutGrid, LogOut, Megaphone, MessageCircle, RefreshCw, Search, ShieldCheck } from 'lucide-react'
+import { HelpCircle, History, LayoutGrid, LogOut, Megaphone, MessageCircle, RefreshCw, Search, ShieldCheck } from 'lucide-react'
 import { useAuth } from '@/auth/AuthContext'
 import { displayRoleLabel, isAboveChirurgien, supabase } from '@/lib/supabase'
 import { TILE_SECTIONS, type TabKey } from '@/lib/tiles'
@@ -207,15 +207,15 @@ export function Dashboard() {
         <div className="flex flex-col items-center gap-1.5">
           <button
             type="button"
-            onClick={() => setView('agenda')}
-            aria-label="Agenda"
-            title="Agenda"
+            onClick={() => setView('aide')}
+            aria-label="Aide"
+            title="Aide"
             className={cn(
               'w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer transition-colors',
-              effectiveView === 'agenda' ? 'bg-red text-white' : 'bg-[var(--ink)]/5 text-[var(--ink)]/60 hover:bg-[var(--ink)]/10 hover:text-[var(--ink)]',
+              effectiveView === 'aide' ? 'bg-red text-white' : 'bg-[var(--ink)]/5 text-[var(--ink)]/60 hover:bg-[var(--ink)]/10 hover:text-[var(--ink)]',
             )}
           >
-            <CalendarClock size={17} />
+            <HelpCircle size={17} />
           </button>
 
           <button
