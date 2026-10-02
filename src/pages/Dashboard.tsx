@@ -71,7 +71,7 @@ export function Dashboard() {
         osc.type = 'sine'
         osc.frequency.setValueAtTime(880, now)
         osc.connect(gain)
-        gain.gain.exponentialRampToValueAtTime(0.18, now + 0.01)
+        gain.gain.exponentialRampToValueAtTime(0.32, now + 0.01)
         gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.22)
         osc.start(now)
         osc.stop(now + 0.23)
