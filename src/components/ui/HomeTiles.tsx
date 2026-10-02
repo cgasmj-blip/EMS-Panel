@@ -44,7 +44,7 @@ export function HomeTiles({ tabs, onSelect }: { tabs: TabKey[]; onSelect: (key: 
     return () => window.clearInterval(timer)
   }, [refreshStats])
 
-  const homeKeys: TabKey[] = ['services', 'absence', 'prestations', 'agenda', 'dossier', 'dossier_medical', 'formations']
+  const homeKeys: TabKey[] = ['services', 'absence', 'prestations', 'dossier', 'dossier_medical', 'formations', 'aide']
   const sections = TILE_SECTIONS.filter((s) => tabs.includes(s.key) && homeKeys.includes(s.key))
 
   return (
