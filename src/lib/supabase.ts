@@ -267,12 +267,15 @@ export interface AppointmentTypeRow {
   affiliation_id: string | null
 }
 
+export type AppointmentStatus = 'prevu' | 'effectue' | 'annule'
+
 export interface Appointment {
   id: number
   staff_id: string
   type: string
   title: string | null
   scheduled_at: string
+  status: AppointmentStatus
   created_at: string
 }
 
