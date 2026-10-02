@@ -28,7 +28,7 @@ export function ServicesSection() {
   }
 
   const unitsById = new Map(units.map((u) => [u.id, u]))
-  const activeStaff = staffList.filter((s) => s.status !== 'hors_service')
+  const activeStaff = staffList.filter((s) => s.role !== 'membre' && s.status !== 'hors_service')
 
   return (
     <Card className="p-5">
