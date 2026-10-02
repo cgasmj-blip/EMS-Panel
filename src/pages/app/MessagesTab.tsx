@@ -30,6 +30,7 @@ export function MessagesTab() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [messages, setMessages] = useState<MessageRow[]>([])
   const [unreadBySender, setUnreadBySender] = useState<Record<string, number>>({})
+  const [lastMessageAt, setLastMessageAt] = useState<Record<string, string>>({})
   const [filter, setFilter] = useState('')
   const [body, setBody] = useState('')
   const [sending, setSending] = useState(false)
@@ -43,24 +44,46 @@ export function MessagesTab() {
 
   const fetchPeople = useCallback(async () => {
     if (!me) return
-    const [{ data: people }, { data: unread }] = await Promise.all([
+    const [{ data: people }, { data: unread }, { data: recent }] = await Promise.all([
       supabase
         .from('staff')
         .select('id,full_name,avatar_url,role')
-        .eq('active', true)
-        .neq('id', me)
-        .order('full_name'),
+        .neq('id', me),
       supabase
         .from('internal_messages')
         .select('sender_id')
         .eq('recipient_id', me)
         .is('read_at', null),
+      supabase
+        .from('internal_messages')
+        .select('sender_id,recipient_id,created_at')
+        .or(`sender_id.eq.${me},recipient_id.eq.${me}`)
+        .order('created_at', { ascending: false })
+        .limit(500),
     ])
 
-    setStaff((people ?? []) as Pick<Staff, 'id' | 'full_name' | 'avatar_url' | 'role'>[])
     const counts: Record<string, number> = {}
     for (const row of unread ?? []) counts[row.sender_id] = (counts[row.sender_id] ?? 0) + 1
     setUnreadBySender(counts)
+
+    const latest: Record<string, string> = {}
+    for (const row of recent ?? []) {
+      const otherId = row.sender_id === me ? row.recipient_id : row.sender_id
+      if (!latest[otherId]) latest[otherId] = row.created_at
+    }
+    setLastMessageAt(latest)
+
+    const sortedPeople = ((people ?? []) as Pick<Staff, 'id' | 'full_name' | 'avatar_url' | 'role'>[])
+      .sort((a, b) => {
+        const aDate = latest[a.id]
+        const bDate = latest[b.id]
+        if (aDate && bDate) return new Date(bDate).getTime() - new Date(aDate).getTime()
+        if (aDate) return -1
+        if (bDate) return 1
+        return a.full_name.localeCompare(b.full_name, 'fr')
+      })
+
+    setStaff(sortedPeople)
   }, [me])
 
   const fetchAnnouncements = useCallback(async () => {
@@ -251,14 +274,14 @@ export function MessagesTab() {
           </div>
         </div>
       ) : (
-        <div className="grid md:grid-cols-[280px_1fr] gap-4 min-h-[560px]">
-      <Card className="p-3 flex flex-col gap-3 min-h-0">
+        <div className="grid md:grid-cols-[280px_1fr] gap-4 h-[calc(100vh-190px)] min-h-[520px] max-h-[760px] overflow-hidden">
+      <Card className="p-3 flex flex-col gap-3 min-h-0 overflow-hidden">
         <div className="relative">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--ink)]/35" />
           <Input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Rechercher une personne" className="pl-9" />
         </div>
 
-        <div className="flex flex-col gap-1 overflow-y-auto">
+        <div className="flex-1 min-h-0 flex flex-col gap-1 overflow-y-auto pr-1">
           {visiblePeople.map((person) => {
             const unread = unreadBySender[person.id] ?? 0
             return (
@@ -283,6 +306,9 @@ export function MessagesTab() {
                   <span className="block text-[var(--ink)] text-sm font-semibold truncate">{person.full_name}</span>
                   <span className="block text-[var(--ink)]/35 text-[11px] truncate">
                     {displayRoleLabel(person.role as StaffRole) ?? 'EMS'}
+                    {lastMessageAt[person.id]
+                      ? ` · ${new Date(lastMessageAt[person.id]).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}`
+                      : ''}
                   </span>
                 </span>
                 {unread > 0 && (
@@ -296,7 +322,7 @@ export function MessagesTab() {
         </div>
       </Card>
 
-      <Card className="p-0 overflow-hidden flex flex-col min-h-[560px]">
+      <Card className="p-0 overflow-hidden flex flex-col min-h-0 h-full">
         {!selected ? (
           <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
             <MessageCircle size={28} className="text-[var(--ink)]/25 mb-3" />
@@ -317,7 +343,7 @@ export function MessagesTab() {
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-2 bg-[var(--ink)]/[0.01]">
+            <div className="flex-1 min-h-0 overflow-y-auto p-4 pr-3 flex flex-col gap-2 bg-[var(--ink)]/[0.01]">
               {messages.map((message) => {
                 const mine = message.sender_id === me
                 return (
