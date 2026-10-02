@@ -196,10 +196,6 @@ export function Dashboard() {
           <LayoutGrid size={18} />
         </button>
 
-        <div className="flex-1" />
-
-
-
         <div className="flex flex-col items-center gap-1.5">
           <button
             type="button"
@@ -275,6 +271,8 @@ export function Dashboard() {
             </button>
           )}
         </div>
+
+        <div className="flex-1" />
 
         {staff.avatar_url ? (
           <img src={staff.avatar_url} alt="" className="w-9 h-9 rounded-full border border-[var(--ink)]/15" />
