@@ -112,6 +112,17 @@ export function DossiersFormationTab() {
     [folders, currentParentId],
   )
 
+  const folderGroups = useMemo(() => {
+    const groups = new Map<string, FolderWithCover[]>()
+    for (const folder of childFolders) {
+      const key = folder.section_title?.trim() || ''
+      const list = groups.get(key) ?? []
+      list.push(folder)
+      groups.set(key, list)
+    }
+    return Array.from(groups.entries())
+  }, [childFolders])
+
   const imageDocs = useMemo(
     () => documents.filter((doc) => !doc.mime_type || doc.mime_type.startsWith('image/')),
     [documents],
@@ -173,31 +184,53 @@ export function DossiersFormationTab() {
       {error && <p className="text-red-300 text-xs">{error}</p>}
 
       {childFolders.length > 0 && (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {childFolders.map((folder) => (
-            <button
-              key={folder.id}
-              type="button"
-              onClick={() => openFolder(folder)}
-              className="rounded-2xl border border-[var(--ink)]/8 bg-[var(--ink)]/[0.02] p-4 text-left hover:bg-[var(--ink)]/[0.06] transition-colors cursor-pointer"
-            >
-              {folder.coverUrl ? (
-                <img
-                  src={folder.coverUrl}
-                  alt=""
-                  className="w-full h-28 rounded-xl object-cover mb-3"
-                />
-              ) : (
-                <span className="w-11 h-11 rounded-xl bg-[var(--ink)]/5 flex items-center justify-center mb-3 text-[var(--ink)]/60">
-                  {folder.external_url ? <ExternalLink size={20} /> : <FolderOpen size={20} />}
-                </span>
-              )}
-              <p className="text-[var(--ink)] font-bold text-sm">{folder.name}</p>
-              {folder.description && (
-                <p className="text-[var(--ink)]/40 text-xs mt-1 line-clamp-2">{folder.description}</p>
-              )}
-            </button>
-          ))}
+        <div className="flex flex-col gap-4">
+          {folderGroups.map(([sectionTitle, sectionFolders]) => {
+            const cards = (
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {sectionFolders.map((folder) => (
+                  <button
+                    key={folder.id}
+                    type="button"
+                    onClick={() => openFolder(folder)}
+                    className="rounded-2xl border border-[var(--ink)]/8 bg-[var(--ink)]/[0.02] p-4 text-left hover:bg-[var(--ink)]/[0.06] transition-colors cursor-pointer"
+                  >
+                    {folder.coverUrl ? (
+                      <img
+                        src={folder.coverUrl}
+                        alt=""
+                        className="w-full h-28 rounded-xl object-cover mb-3"
+                      />
+                    ) : (
+                      <span className="w-11 h-11 rounded-xl bg-[var(--ink)]/5 flex items-center justify-center mb-3 text-[var(--ink)]/60">
+                        {folder.external_url ? <ExternalLink size={20} /> : <FolderOpen size={20} />}
+                      </span>
+                    )}
+                    <p className="text-[var(--ink)] font-bold text-sm">{folder.name}</p>
+                    {folder.description && (
+                      <p className="text-[var(--ink)]/40 text-xs mt-1 line-clamp-2">{folder.description}</p>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )
+
+            if (!sectionTitle) return <div key="sans-section">{cards}</div>
+
+            return (
+              <details
+                key={sectionTitle}
+                className="rounded-2xl border border-[var(--ink)]/8 bg-[var(--ink)]/[0.015] overflow-hidden"
+              >
+                <summary className="px-4 py-3.5 cursor-pointer text-[var(--ink)] font-bold text-sm select-none hover:bg-[var(--ink)]/[0.04]">
+                  {sectionTitle}
+                </summary>
+                <div className="p-3 border-t border-[var(--ink)]/8">
+                  {cards}
+                </div>
+              </details>
+            )
+          })}
         </div>
       )}
 
