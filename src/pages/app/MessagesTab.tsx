@@ -40,6 +40,30 @@ export function MessagesTab() {
   const [announcementBody, setAnnouncementBody] = useState('')
   const [publishing, setPublishing] = useState(false)
   const messagesScrollRef = useRef<HTMLDivElement | null>(null)
+  const latestIncomingIdRef = useRef<number | null>(null)
+
+  const playIncomingMessageTone = useCallback(() => {
+    try {
+      const ctx = new AudioContext()
+      const now = ctx.currentTime
+      const gain = ctx.createGain()
+      const osc = ctx.createOscillator()
+
+      gain.connect(ctx.destination)
+      osc.connect(gain)
+      osc.type = 'sine'
+      osc.frequency.setValueAtTime(880, now)
+      gain.gain.setValueAtTime(0.0001, now)
+      gain.gain.exponentialRampToValueAtTime(0.32, now + 0.01)
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.24)
+
+      osc.start(now)
+      osc.stop(now + 0.25)
+      window.setTimeout(() => ctx.close().catch(() => {}), 600)
+    } catch {
+      // L'audio peut être bloqué tant que l'utilisateur n'a pas interagi avec la page.
+    }
+  }, [])
 
   const selected = staff.find((person) => person.id === selectedId) ?? null
 
@@ -58,7 +82,7 @@ export function MessagesTab() {
         .is('read_at', null),
       supabase
         .from('internal_messages')
-        .select('sender_id,recipient_id,created_at')
+        .select('id,sender_id,recipient_id,created_at')
         .or(`sender_id.eq.${me},recipient_id.eq.${me}`)
         .order('created_at', { ascending: false })
         .limit(500),
@@ -67,6 +91,14 @@ export function MessagesTab() {
     const counts: Record<string, number> = {}
     for (const row of unread ?? []) counts[row.sender_id] = (counts[row.sender_id] ?? 0) + 1
     setUnreadBySender(counts)
+
+    const latestIncoming = (recent ?? []).find((row) => row.recipient_id === me)
+    if (latestIncoming) {
+      if (latestIncomingIdRef.current !== null && latestIncoming.id !== latestIncomingIdRef.current) {
+        playIncomingMessageTone()
+      }
+      latestIncomingIdRef.current = latestIncoming.id
+    }
 
     const latest: Record<string, string> = {}
     for (const row of recent ?? []) {
@@ -86,7 +118,7 @@ export function MessagesTab() {
       })
 
     setStaff(sortedPeople)
-  }, [me])
+  }, [me, playIncomingMessageTone])
 
   const fetchAnnouncements = useCallback(async () => {
     const { data } = await supabase
