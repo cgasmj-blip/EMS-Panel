@@ -40,7 +40,7 @@ function alertLevel(quantity: number) {
   return { label: 'Surveillance', badge: 'bg-yellow-500/10 text-yellow-300 border-yellow-500/20' }
 }
 
-export function StockAlertButton() {
+export function StockAlertButton({ compact = false }: { compact?: boolean }) {
   const [open, setOpen] = useState(false)
   const [selectedItem, setSelectedItem] = useState<StockItem | null>(null)
   const [quantity, setQuantity] = useState('')
@@ -98,9 +98,21 @@ export function StockAlertButton() {
 
   return (
     <>
-      <Button type="button" variant="red" className="w-full sm:w-auto self-start" onClick={() => setOpen(true)}>
-        <AlertTriangle size={15} /> Signaler un stock bas
-      </Button>
+      {compact ? (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-label="Signaler un stock bas"
+          title="Signaler un stock bas"
+          className="w-10 h-10 rounded-xl bg-[var(--ink)]/5 text-[var(--ink)]/60 hover:bg-[var(--ink)]/10 hover:text-[var(--ink)] transition-colors flex items-center justify-center cursor-pointer"
+        >
+          <AlertTriangle size={17} />
+        </button>
+      ) : (
+        <Button type="button" variant="red" className="w-full sm:w-auto self-start" onClick={() => setOpen(true)}>
+          <AlertTriangle size={15} /> Signaler un stock bas
+        </Button>
+      )}
 
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 backdrop-blur-sm p-4">
