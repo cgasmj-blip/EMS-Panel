@@ -50,7 +50,6 @@ export function MessagesTab() {
         .from('staff')
         .select('id,full_name,avatar_url,role')
         .eq('active', true)
-        .neq('role', 'membre')
         .neq('id', me),
       supabase
         .from('internal_messages')
