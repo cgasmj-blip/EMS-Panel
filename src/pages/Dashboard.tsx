@@ -114,9 +114,11 @@ export function Dashboard() {
   const activeSection = effectiveView === 'home' ? null : TILE_SECTIONS.find((s) => s.key === effectiveView) ?? null
 
   return (
-    <div className="min-h-screen flex bg-[var(--bg)]">
+    <div className={cn('flex bg-[var(--bg)]', effectiveView === 'messages' ? 'h-screen overflow-hidden' : 'min-h-screen')}>
       <aside className="w-16 sm:w-20 shrink-0 flex flex-col items-center py-4 gap-3 bg-[var(--sidebar-bg)] border-r border-[var(--ink)]/8">
         <img src={logo} alt="EMS" className="w-10 h-10 rounded-full object-cover" />
+
+        <CodeBlancAlertButton />
 
         <button
           type="button"
@@ -229,8 +231,6 @@ export function Dashboard() {
 
         <ThemeToggle />
 
-        <CodeBlancAlertButton />
-
         <button
           type="button"
           onClick={signOut}
@@ -241,7 +241,12 @@ export function Dashboard() {
         </button>
       </aside>
 
-      <main className="flex-1 min-w-0 px-4 py-6 sm:px-8 sm:py-8 flex flex-col gap-6 overflow-y-auto">
+      <main
+        className={cn(
+          'flex-1 min-w-0 px-4 py-6 sm:px-8 sm:py-8 flex flex-col gap-6',
+          effectiveView === 'messages' ? 'h-screen overflow-hidden' : 'overflow-y-auto',
+        )}
+      >
         <AnimatePresence mode="wait">
           {effectiveView === 'home' ? (
             <motion.div
@@ -250,7 +255,10 @@ export function Dashboard() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.25 }}
-              className="flex flex-col gap-6 max-w-5xl w-full mx-auto"
+              className={cn(
+                'flex flex-col gap-6 max-w-5xl w-full mx-auto',
+                effectiveView === 'messages' && 'h-full min-h-0 overflow-hidden',
+              )}
             >
               <div className="relative overflow-hidden rounded-2xl">
                 <div className="absolute inset-0 h-full">
