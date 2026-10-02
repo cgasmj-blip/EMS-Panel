@@ -1,10 +1,19 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { MessageCircle, Search, Send } from 'lucide-react'
+import { Megaphone, MessageCircle, Search, Send, Trash2 } from 'lucide-react'
 import { useAuth } from '@/auth/AuthContext'
-import { supabase, displayRoleLabel, type Staff, type StaffRole } from '@/lib/supabase'
+import { supabase, displayRoleLabel, isDirection, type Staff, type StaffRole } from '@/lib/supabase'
 import { Card } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
+
+type AnnouncementRow = {
+  id: number
+  author_id: string
+  title: string
+  body: string
+  created_at: string
+  staff?: { full_name: string } | null
+}
 
 type MessageRow = {
   id: number
@@ -16,7 +25,7 @@ type MessageRow = {
 }
 
 export function MessagesTab() {
-  const { session } = useAuth()
+  const { session, staff: currentStaff } = useAuth()
   const me = session?.user.id ?? ''
   const [staff, setStaff] = useState<Pick<Staff, 'id' | 'full_name' | 'avatar_url' | 'role'>[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -25,6 +34,11 @@ export function MessagesTab() {
   const [filter, setFilter] = useState('')
   const [body, setBody] = useState('')
   const [sending, setSending] = useState(false)
+  const [mode, setMode] = useState<'messages' | 'annonces'>('messages')
+  const [announcements, setAnnouncements] = useState<AnnouncementRow[]>([])
+  const [announcementTitle, setAnnouncementTitle] = useState('')
+  const [announcementBody, setAnnouncementBody] = useState('')
+  const [publishing, setPublishing] = useState(false)
 
   const selected = staff.find((person) => person.id === selectedId) ?? null
 
@@ -49,6 +63,16 @@ export function MessagesTab() {
     for (const row of unread ?? []) counts[row.sender_id] = (counts[row.sender_id] ?? 0) + 1
     setUnreadBySender(counts)
   }, [me])
+
+  const fetchAnnouncements = useCallback(async () => {
+    const { data } = await supabase
+      .from('internal_announcements')
+      .select('id,author_id,title,body,created_at,staff:author_id(full_name)')
+      .order('created_at', { ascending: false })
+      .limit(100)
+
+    setAnnouncements((data ?? []) as AnnouncementRow[])
+  }, [])
 
   const fetchConversation = useCallback(async () => {
     if (!me || !selectedId) {
@@ -82,9 +106,13 @@ export function MessagesTab() {
 
   useEffect(() => {
     fetchPeople()
-    const timer = window.setInterval(fetchPeople, 8000)
+    fetchAnnouncements()
+    const timer = window.setInterval(() => {
+      fetchPeople()
+      fetchAnnouncements()
+    }, 8000)
     return () => window.clearInterval(timer)
-  }, [fetchPeople])
+  }, [fetchPeople, fetchAnnouncements])
 
   useEffect(() => {
     fetchConversation()
@@ -116,8 +144,115 @@ export function MessagesTab() {
     setSending(false)
   }
 
+  async function publishAnnouncement() {
+    const title = announcementTitle.trim()
+    const message = announcementBody.trim()
+    if (!me || !title || !message || publishing) return
+
+    setPublishing(true)
+    const { error } = await supabase.from('internal_announcements').insert({
+      author_id: me,
+      title,
+      body: message,
+    })
+
+    if (!error) {
+      setAnnouncementTitle('')
+      setAnnouncementBody('')
+      await fetchAnnouncements()
+    }
+    setPublishing(false)
+  }
+
+  async function deleteAnnouncement(id: number) {
+    await supabase.from('internal_announcements').delete().eq('id', id)
+    await fetchAnnouncements()
+  }
+
   return (
-    <div className="grid md:grid-cols-[280px_1fr] gap-4 min-h-[560px]">
+    <div className="flex flex-col gap-4">
+      <div className="inline-flex self-start rounded-xl border border-[var(--ink)]/8 bg-[var(--ink)]/[0.02] p-1">
+        <button
+          type="button"
+          onClick={() => setMode('messages')}
+          className={mode === 'messages' ? 'rounded-lg bg-red px-3 py-2 text-white text-xs font-semibold cursor-pointer' : 'rounded-lg px-3 py-2 text-[var(--ink)]/55 text-xs font-semibold cursor-pointer'}
+        >
+          Messages privés
+        </button>
+        <button
+          type="button"
+          onClick={() => setMode('annonces')}
+          className={mode === 'annonces' ? 'rounded-lg bg-red px-3 py-2 text-white text-xs font-semibold cursor-pointer' : 'rounded-lg px-3 py-2 text-[var(--ink)]/55 text-xs font-semibold cursor-pointer'}
+        >
+          Annonces EMS
+        </button>
+      </div>
+
+      {mode === 'annonces' ? (
+        <div className="flex flex-col gap-4">
+          {isDirection(currentStaff?.role) && (
+            <Card className="p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Megaphone size={16} className="text-[var(--ink)]/50" />
+                <p className="text-[var(--ink)] font-bold text-sm">Nouvelle annonce</p>
+              </div>
+              <div className="grid gap-2">
+                <Input
+                  value={announcementTitle}
+                  onChange={(e) => setAnnouncementTitle(e.target.value)}
+                  placeholder="Titre de l’annonce"
+                  maxLength={180}
+                />
+                <textarea
+                  value={announcementBody}
+                  onChange={(e) => setAnnouncementBody(e.target.value)}
+                  placeholder="Message à afficher à tous les EMS…"
+                  rows={4}
+                  maxLength={6000}
+                  className="w-full resize-y rounded-xl border border-[var(--ink)]/10 bg-[var(--bg)] px-3 py-2.5 text-sm text-[var(--ink)] outline-none focus:border-red/35"
+                />
+                <Button
+                  size="sm"
+                  onClick={publishAnnouncement}
+                  disabled={!announcementTitle.trim() || !announcementBody.trim() || publishing}
+                >
+                  Publier l’annonce
+                </Button>
+              </div>
+            </Card>
+          )}
+
+          <div className="grid gap-3">
+            {announcements.map((announcement) => (
+              <Card key={announcement.id} className="p-4">
+                <div className="flex items-start gap-3">
+                  <span className="w-9 h-9 rounded-xl bg-[var(--ink)]/5 flex items-center justify-center text-[var(--ink)]/50 shrink-0">
+                    <Megaphone size={16} />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[var(--ink)] font-bold text-sm">{announcement.title}</p>
+                    <p className="text-[var(--ink)]/65 text-sm whitespace-pre-wrap mt-2">{announcement.body}</p>
+                    <p className="text-[var(--ink)]/30 text-[11px] mt-3">
+                      {announcement.staff?.full_name ?? 'Direction'} · {new Date(announcement.created_at).toLocaleString('fr-FR')}
+                    </p>
+                  </div>
+                  {isDirection(currentStaff?.role) && (
+                    <Button size="sm" variant="ghost" title="Supprimer l’annonce" onClick={() => deleteAnnouncement(announcement.id)}>
+                      <Trash2 size={13} />
+                    </Button>
+                  )}
+                </div>
+              </Card>
+            ))}
+            {announcements.length === 0 && (
+              <Card className="p-6 text-center">
+                <p className="text-[var(--ink)]/35 text-sm">Aucune annonce EMS.</p>
+              </Card>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="grid md:grid-cols-[280px_1fr] gap-4 min-h-[560px]">
       <Card className="p-3 flex flex-col gap-3 min-h-0">
         <div className="relative">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--ink)]/35" />
@@ -225,6 +360,8 @@ export function MessagesTab() {
           </>
         )}
       </Card>
+        </div>
+      )}
     </div>
   )
 }
