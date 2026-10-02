@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { HelpCircle, History, LayoutGrid, LogOut, Megaphone, MessageCircle, RefreshCw, Search, ShieldCheck } from 'lucide-react'
+import { CalendarClock, History, LayoutGrid, LogOut, Megaphone, MessageCircle, RefreshCw, Search, ShieldCheck } from 'lucide-react'
 import { useAuth } from '@/auth/AuthContext'
 import { displayRoleLabel, isAboveChirurgien, supabase } from '@/lib/supabase'
 import { TILE_SECTIONS, type TabKey } from '@/lib/tiles'
@@ -125,6 +125,7 @@ export function Dashboard() {
         .from('appointments')
         .select('scheduled_at,title,type')
         .eq('staff_id', userId)
+        .eq('status', 'prevu')
         .gte('scheduled_at', new Date().toISOString())
         .order('scheduled_at', { ascending: true })
         .limit(1)
@@ -207,15 +208,15 @@ export function Dashboard() {
         <div className="flex flex-col items-center gap-1.5">
           <button
             type="button"
-            onClick={() => setView('aide')}
-            aria-label="Aide"
-            title="Aide"
+            onClick={() => setView('agenda')}
+            aria-label="Agenda"
+            title="Agenda"
             className={cn(
               'w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer transition-colors',
-              effectiveView === 'aide' ? 'bg-red text-white' : 'bg-[var(--ink)]/5 text-[var(--ink)]/60 hover:bg-[var(--ink)]/10 hover:text-[var(--ink)]',
+              effectiveView === 'agenda' ? 'bg-red text-white' : 'bg-[var(--ink)]/5 text-[var(--ink)]/60 hover:bg-[var(--ink)]/10 hover:text-[var(--ink)]',
             )}
           >
-            <HelpCircle size={17} />
+            <CalendarClock size={17} />
           </button>
 
           <button
