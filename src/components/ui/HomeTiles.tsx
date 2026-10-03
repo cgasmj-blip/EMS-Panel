@@ -10,10 +10,14 @@ export function HomeTiles({
   keys,
   onSelect,
   onMove,
+  nextAppointment,
+  tileColors,
 }: {
   keys: TabKey[]
   onSelect: (key: TabKey) => void
   onMove: (key: TabKey, zone: 'home' | 'sidebar', target?: TabKey) => void
+  nextAppointment: { scheduled_at: string; title: string | null; type: string } | null
+  tileColors: Record<string, string>
 }) {
   const { session } = useAuth()
   const [enService, setEnService] = useState(0)
@@ -93,6 +97,10 @@ export function HomeTiles({
           let stat: string | null = null
           if (section.key === 'services') stat = `${enService}`
           if (section.key === 'absence') stat = `${mesAbsencesAVenir}`
+          if (section.key === 'agenda' && nextAppointment) {
+            const date = new Date(nextAppointment.scheduled_at)
+            stat = `${date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })} · ${date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
+          }
 
           return (
             <div
@@ -119,7 +127,7 @@ export function HomeTiles({
                 icon={section.icon}
                 label={section.label}
                 stat={stat}
-                color={section.color}
+                color={tileColors[section.key] ?? section.color}
                 big={section.key === 'services'}
                 delay={i * 0.04}
                 className="w-full h-full"
