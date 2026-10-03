@@ -63,5 +63,5 @@ export const GESTION_SECTIONS: GestionSection[] = [
   { key: 'training', label: 'Documents', icon: FolderCog, color: 'var(--tile-hierarchy)', directionOnly: true },
   { key: 'checklists', label: 'Checklists service', icon: ListChecks, color: 'var(--tile-services)', directionOnly: true },
   { key: 'visitor_subjects', label: 'Objets visiteurs', icon: MessagesSquare, color: 'var(--tile-rdv)', directionOnly: true },
-  { key: 'site', label: 'Gestion site', icon: Globe2, color: 'var(--tile-gestion)', directionOnly: true },
+  { key: 'site', label: 'Gestion site', icon: Globe2, color: 'var(--tile-services)', directionOnly: true },
 ]
