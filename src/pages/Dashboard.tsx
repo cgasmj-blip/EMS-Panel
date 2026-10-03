@@ -603,7 +603,9 @@ export function Dashboard() {
               ? 'h-[calc(100vh-5rem)] overflow-hidden'
               : 'h-screen overflow-hidden'
             : effectiveView === 'messages'
-              ? 'h-screen overflow-hidden'
+              ? sidebarHorizontal
+                ? 'h-[calc(100vh-5rem)] overflow-hidden'
+                : 'h-screen overflow-hidden'
               : 'min-h-screen',
         )}
       >
@@ -679,7 +681,7 @@ export function Dashboard() {
               transition={{ duration: 0.25 }}
               className={cn(
                 'flex flex-col gap-6 max-w-5xl w-full mx-auto',
-                effectiveView === 'messages' && 'h-full min-h-0 overflow-hidden',
+                effectiveView === 'messages' && 'h-full min-h-0 overflow-hidden gap-3',
               )}
             >
               {activeSection && (
