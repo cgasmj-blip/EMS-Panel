@@ -337,7 +337,7 @@ export function Dashboard() {
         const missing = visibleTabs.filter((key) => !known.has(key))
         setNavLayout({ home: [...savedHome, ...missing], sidebar: savedSidebar })
       })
-  }, [session?.user.id, staff?.role])
+  }, [session?.user.id, staff?.role, visitorSubjectRules])
 
   async function persistNavLayout(next: { home: TabKey[]; sidebar: TabKey[] }) {
     const userId = session?.user.id
