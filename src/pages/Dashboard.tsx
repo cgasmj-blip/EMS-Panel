@@ -188,7 +188,7 @@ export function Dashboard() {
 
   return (
     <div className={cn('bg-[var(--bg)]', effectiveView === 'messages' ? 'h-screen overflow-hidden' : 'min-h-screen')}>
-      <aside className="fixed inset-y-0 left-0 z-40 w-16 sm:w-20 flex flex-col items-center py-4 gap-3 bg-[var(--sidebar-bg)] border-r border-[var(--ink)]/8 overflow-hidden">
+      <aside className="hidden md:flex fixed inset-y-0 left-0 z-40 w-20 flex-col items-center py-4 gap-3 bg-[var(--sidebar-bg)] border-r border-[var(--ink)]/8 overflow-hidden">
         <img src={logo} alt="EMS" className="w-10 h-10 rounded-full object-cover" />
 
         <CodeBlancAlertButton />
@@ -332,9 +332,59 @@ export function Dashboard() {
         </button>
       </aside>
 
+      <div className="md:hidden fixed top-3 right-3 z-50">
+        <CodeBlancAlertButton />
+      </div>
+
+      <nav className="md:hidden fixed inset-x-0 bottom-0 z-50 border-t border-[var(--ink)]/10 bg-[var(--sidebar-bg)]/95 backdrop-blur-xl px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2">
+        <div className="mx-auto flex max-w-md items-center justify-around">
+          {[
+            { key: 'home' as const, label: 'Accueil', icon: LayoutGrid },
+            { key: 'agenda' as const, label: 'Agenda', icon: CalendarClock },
+            { key: 'messages' as const, label: 'Messages', icon: MessageCircle },
+            { key: 'recherche' as const, label: 'Recherche', icon: Search },
+          ].map((item) => {
+            const Icon = item.icon
+            const active = effectiveView === item.key
+            return (
+              <button
+                key={item.key}
+                type="button"
+                onClick={() => setView(item.key)}
+                className={cn(
+                  'relative min-w-[64px] rounded-xl px-2 py-2 flex flex-col items-center gap-1 text-[10px] font-semibold transition-colors cursor-pointer',
+                  active ? 'bg-red text-white' : 'text-[var(--ink)]/55 hover:bg-[var(--ink)]/5',
+                )}
+              >
+                <Icon size={18} />
+                <span>{item.label}</span>
+                {item.key === 'messages' && unreadMessages > 0 && (
+                  <span className="absolute right-1 top-0 min-w-4 h-4 px-1 rounded-full bg-red text-white text-[9px] font-bold flex items-center justify-center border border-[var(--sidebar-bg)]">
+                    +{unreadMessages}
+                  </span>
+                )}
+              </button>
+            )
+          })}
+          {isAboveChirurgien(staff.role) && (
+            <button
+              type="button"
+              onClick={() => setView('gestion')}
+              className={cn(
+                'min-w-[64px] rounded-xl px-2 py-2 flex flex-col items-center gap-1 text-[10px] font-semibold transition-colors cursor-pointer',
+                effectiveView === 'gestion' ? 'bg-red text-white' : 'text-[var(--ink)]/55 hover:bg-[var(--ink)]/5',
+              )}
+            >
+              <ShieldCheck size={18} />
+              <span>Gestion</span>
+            </button>
+          )}
+        </div>
+      </nav>
+
       <main
         className={cn(
-          'ml-16 sm:ml-20 min-w-0 px-4 py-6 sm:px-8 sm:py-8 flex flex-col gap-6',
+          'ml-0 md:ml-20 min-w-0 px-3 py-4 sm:px-5 sm:py-6 md:px-8 md:py-8 pb-24 md:pb-8 flex flex-col gap-4 sm:gap-6',
           effectiveView === 'messages' ? 'h-screen overflow-hidden' : 'min-h-screen',
         )}
       >
