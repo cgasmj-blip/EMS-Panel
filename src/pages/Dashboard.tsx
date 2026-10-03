@@ -62,6 +62,7 @@ export function Dashboard() {
   const [navLayout, setNavLayout] = useState<{ home: TabKey[]; sidebar: TabKey[] }>({ home: [], sidebar: [] })
   const [showCustomization, setShowCustomization] = useState(false)
   const [layoutEditMode, setLayoutEditMode] = useState(false)
+  const [layoutResetNonce, setLayoutResetNonce] = useState(0)
   const [uiPreferences, setUiPreferences] = useState<{
     background_color: string | null
     background_image_path: string | null
@@ -70,8 +71,10 @@ export function Dashboard() {
     sidebar_color: string | null
     sidebar_position: 'left' | 'right' | 'top' | 'bottom'
     tile_shape: 'square' | 'soft' | 'rounded' | 'pill'
+    tile_opacity: number
+    tile_images: Record<string, string>
     tile_colors: Record<string, string>
-  }>({ background_color: null, background_image_path: null, background_image_opacity: 100, background_position: 'center', sidebar_color: null, sidebar_position: 'left', tile_shape: 'rounded', tile_colors: {} })
+  }>({ background_color: null, background_image_path: null, background_image_opacity: 100, background_position: 'center', sidebar_color: null, sidebar_position: 'left', tile_shape: 'rounded', tile_opacity: 100, tile_images: {}, tile_colors: {} })
   const [backgroundImageUrl, setBackgroundImageUrl] = useState<string | null>(null)
 
   const visibleTabs = TILE_SECTIONS
@@ -217,7 +220,7 @@ export function Dashboard() {
 
     supabase
       .from('user_ui_preferences')
-      .select('background_color,background_image_path,background_image_opacity,background_position,sidebar_color,sidebar_position,tile_shape,tile_colors')
+      .select('background_color,background_image_path,background_image_opacity,background_position,sidebar_color,sidebar_position,tile_shape,tile_opacity,tile_images,tile_colors')
       .eq('staff_id', userId)
       .maybeSingle()
       .then(({ data }) => {
@@ -230,6 +233,8 @@ export function Dashboard() {
           sidebar_color: data.sidebar_color ?? null,
           sidebar_position: (data.sidebar_position ?? 'left') as 'left' | 'right' | 'top' | 'bottom',
           tile_shape: (data.tile_shape ?? 'rounded') as 'square' | 'soft' | 'rounded' | 'pill',
+          tile_opacity: data.tile_opacity ?? 100,
+          tile_images: (data.tile_images ?? {}) as Record<string, string>,
           tile_colors: (data.tile_colors ?? {}) as Record<string, string>,
         })
       })
@@ -655,7 +660,10 @@ export function Dashboard() {
                 nextAppointment={nextAppointment}
                 tileColors={uiPreferences.tile_colors}
                 tileShape={uiPreferences.tile_shape}
+                tileOpacity={uiPreferences.tile_opacity}
+                tileImages={uiPreferences.tile_images}
                 editMode={layoutEditMode}
+                resetNonce={layoutResetNonce}
                 onFinishEdit={() => {
                   setLayoutEditMode(false)
                   setShowCustomization(true)
@@ -698,6 +706,10 @@ export function Dashboard() {
             setShowCustomization(false)
             setView('home')
             setLayoutEditMode(true)
+          }}
+          onResetLayout={async () => {
+            await supabase.from('user_home_tile_geometry').delete().eq('staff_id', staff.id)
+            setLayoutResetNonce((value) => value + 1)
           }}
           onSaved={(next) => {
             setUiPreferences(next)
