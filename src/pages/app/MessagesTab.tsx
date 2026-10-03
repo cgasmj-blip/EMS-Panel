@@ -54,7 +54,7 @@ export function MessagesTab() {
       osc.type = 'sine'
       osc.frequency.setValueAtTime(880, now)
       gain.gain.setValueAtTime(0.0001, now)
-      gain.gain.exponentialRampToValueAtTime(0.32, now + 0.01)
+      gain.gain.exponentialRampToValueAtTime(0.60, now + 0.01)
       gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.24)
 
       osc.start(now)
