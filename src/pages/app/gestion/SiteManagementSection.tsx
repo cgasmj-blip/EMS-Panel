@@ -5,6 +5,7 @@ import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
+import { VisitorSubjectsSection } from './VisitorSubjectsSection'
 
 type LayoutKey = 'hero' | 'contact' | 'navigation' | 'content'
 type LayoutItem = { x: number; y: number; w: number; h: number }
@@ -386,6 +387,14 @@ export function SiteManagementSection() {
             </button>
           ))}
         </div>
+      </Card>
+
+      <Card className="p-5">
+        <h3 className="font-bold text-sm mb-1">Objets visiteurs</h3>
+        <p className="text-[var(--ink)]/40 text-xs mb-4">
+          Configure ici les objets de contact, rendez-vous et recrutement ainsi que les habilitations autorisées à les traiter.
+        </p>
+        <VisitorSubjectsSection />
       </Card>
 
       <div className="flex justify-end gap-2">
