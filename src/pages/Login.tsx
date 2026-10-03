@@ -17,10 +17,10 @@ const DENIAL_MESSAGES: Record<string, string> = {
 }
 
 export function Login() {
-  const { session, loading, denialReason, signInWithDiscord } = useAuth()
+  const { session, staff, loading, denialReason, signInWithDiscord } = useAuth()
   const [connecting, setConnecting] = useState(false)
 
-  if (!loading && session) return <Navigate to="/dashboard" replace />
+  if (!loading && session && staff) return <Navigate to="/dashboard" replace />
 
   async function handleDiscordLogin() {
     setConnecting(true)
