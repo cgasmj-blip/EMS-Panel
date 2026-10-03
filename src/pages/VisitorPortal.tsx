@@ -175,6 +175,8 @@ export function VisitorPortal() {
   const [heroImageUrl, setHeroImageUrl] = useState<string | null>(null)
   const [backgroundImageUrl, setBackgroundImageUrl] = useState<string | null>(null)
   const [discordDisplayName, setDiscordDisplayName] = useState<string>('')
+  const [drivingLicenseFile, setDrivingLicenseFile] = useState<File | null>(null)
+  const [identityDocumentFile, setIdentityDocumentFile] = useState<File | null>(null)
 
   useEffect(() => {
     try {
@@ -372,6 +374,15 @@ export function VisitorPortal() {
     return () => window.clearInterval(timer)
   }, [tab, session?.user.id, discordId])
 
+  async function uploadRecruitmentDocument(file: File, kind: 'permis' | 'identite') {
+    if (!session) throw new Error('Connexion requise.')
+    const ext=file.name.split('.').pop()?.replace(/[^a-zA-Z0-9]/g,'') || 'bin'
+    const path=`${session.user.id}/${Date.now()}-${crypto.randomUUID()}-${kind}.${ext}`
+    const {error: uploadError}=await supabase.storage.from('recruitment-documents').upload(path,file,{contentType:file.type,upsert:false})
+    if(uploadError) throw uploadError
+    return `file:${path}`
+  }
+
   async function submit(type: 'question' | 'recrutement' | 'rendez_vous') {
     setError(null)
     setSuccess(null)
@@ -389,7 +400,7 @@ export function VisitorPortal() {
       return
     }
     if (!form.phone.trim()) { setError('Le numéro de téléphone est obligatoire.'); return }
-    if (type === 'recrutement' && (!form.drivingLicense.trim() || !form.identityDocument.trim())) { setError('Le permis de conduire et la pièce d’identité sont obligatoires.'); return }
+    if (type === 'recrutement' && (!(form.drivingLicense.trim() || drivingLicenseFile) || !(form.identityDocument.trim() || identityDocumentFile))) { setError('Le permis de conduire et la pièce d’identité sont obligatoires (fichier ou lien).'); return }
     if (!subjectId || !form.message.trim()) {
       setError('L’objet et le message sont nécessaires.')
       return
@@ -402,6 +413,14 @@ export function VisitorPortal() {
     }
 
     setSending(true)
+    let drivingLicenseValue=form.drivingLicense.trim()
+    let identityDocumentValue=form.identityDocument.trim()
+    try {
+      if(type==='recrutement' && drivingLicenseFile) drivingLicenseValue=await uploadRecruitmentDocument(drivingLicenseFile,'permis')
+      if(type==='recrutement' && identityDocumentFile) identityDocumentValue=await uploadRecruitmentDocument(identityDocumentFile,'identite')
+    } catch(e) {
+      setSending(false); setError(e instanceof Error?e.message:String(e)); return
+    }
     const { data, error: rpcError } = await supabase.rpc('submit_visitor_request', {
       p_type: type,
       p_full_name: fullName,
@@ -415,8 +434,8 @@ export function VisitorPortal() {
       p_metadata: {},
       p_subject_id: subjectId,
       p_phone: form.phone.trim(),
-      p_driving_license: type === 'recrutement' ? form.drivingLicense.trim() : null,
-      p_identity_document: type === 'recrutement' ? form.identityDocument.trim() : null,
+      p_driving_license: type === 'recrutement' ? drivingLicenseValue : null,
+      p_identity_document: type === 'recrutement' ? identityDocumentValue : null,
     })
     setSending(false)
 
@@ -432,6 +451,8 @@ export function VisitorPortal() {
     const ticket = publicId ? publicId.slice(0, 8).toUpperCase() : null
     setSuccess(ticket ? `Demande envoyée · Référence ${ticket}` : 'Demande envoyée à l’EMS.')
     setForm(EMPTY_FORM)
+    setDrivingLicenseFile(null)
+    setIdentityDocumentFile(null)
     window.sessionStorage.setItem('ems-public-tab', tab)
   }
 
@@ -619,7 +640,7 @@ export function VisitorPortal() {
               <Card key={item.credential.public_id} className="p-5 sm:p-6">
                 <div className="flex items-start justify-between gap-3 mb-4"><div><p className="font-bold">{item.data.request.request_type==='recrutement'?'Candidature':item.data.request.subject}</p><p className="text-[var(--ink)]/35 text-xs mt-1">Réf. {item.data.request.public_id.slice(0,8).toUpperCase()}</p></div><Button size="sm" variant="ghost" onClick={()=>setOpenTicket(null)}>Fermer</Button></div>
                 <div className="grid gap-2 max-h-80 overflow-y-auto pr-1">{item.data.messages.map(message=><div key={message.id} className={message.sender==='ems'?'rounded-xl bg-red/8 border border-red/10 px-3 py-2.5':'rounded-xl bg-[var(--ink)]/[0.035] border border-[var(--ink)]/8 px-3 py-2.5'}><p className="text-[11px] font-semibold text-[var(--ink)]/40 mb-1">{message.sender==='ems'?'EMS':'Vous'}</p><p className="text-sm whitespace-pre-wrap">{message.body}</p></div>)}</div>
-                <div className="flex gap-2 mt-4"><Input value={replyByTicket[item.credential.public_id]??''} onChange={e=>setReplyByTicket(current=>({...current,[item.credential.public_id]:e.target.value}))} placeholder="Ajouter un message…" /><Button onClick={()=>void sendTrackingReply(item)} disabled={!(replyByTicket[item.credential.public_id]??'').trim()}><Send size={15}/></Button></div>
+                {item.data.request.request_type!=='recrutement'&&<div className="flex gap-2 mt-4"><Input value={replyByTicket[item.credential.public_id]??''} onChange={e=>setReplyByTicket(current=>({...current,[item.credential.public_id]:e.target.value}))} placeholder="Ajouter un message…" /><Button onClick={()=>void sendTrackingReply(item)} disabled={!(replyByTicket[item.credential.public_id]??'').trim()}><Send size={15}/></Button></div>}
               </Card>
             ))}
             {threads.length === 0 && (
@@ -699,11 +720,11 @@ export function VisitorPortal() {
                 <div className="grid sm:grid-cols-2 gap-4 mt-4">
                   <label className="grid gap-1.5">
                     <span className="text-xs font-semibold text-[var(--ink)]/55">Permis de conduire *</span>
-                    <Input value={form.drivingLicense} placeholder="Type / numéro du permis" onChange={(e) => setForm((current) => ({ ...current, drivingLicense: e.target.value }))} />
+                    <Input value={form.drivingLicense} placeholder="Lien externe (Drive, hébergeur…)" onChange={(e) => setForm((current) => ({ ...current, drivingLicense: e.target.value }))} /><span className="text-[10px] text-[var(--ink)]/35">ou joindre un fichier (PDF/image, 10 Mo max.)</span><input type="file" accept="image/*,.pdf" onChange={e=>setDrivingLicenseFile(e.target.files?.[0]??null)} className="text-xs" />
                   </label>
                   <label className="grid gap-1.5">
                     <span className="text-xs font-semibold text-[var(--ink)]/55">Pièce d’identité *</span>
-                    <Input value={form.identityDocument} placeholder="Type / numéro de la pièce" onChange={(e) => setForm((current) => ({ ...current, identityDocument: e.target.value }))} />
+                    <Input value={form.identityDocument} placeholder="Lien externe (Drive, hébergeur…)" onChange={(e) => setForm((current) => ({ ...current, identityDocument: e.target.value }))} /><span className="text-[10px] text-[var(--ink)]/35">ou joindre un fichier (PDF/image, 10 Mo max.)</span><input type="file" accept="image/*,.pdf" onChange={e=>setIdentityDocumentFile(e.target.files?.[0]??null)} className="text-xs" />
                   </label>
                 </div>
               )}
