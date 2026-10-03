@@ -571,7 +571,7 @@ export function Dashboard() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.25 }}
-              className="flex flex-col gap-6 max-w-5xl w-full mx-auto"
+              className="flex flex-col gap-6 w-full"
             >
               <div className="relative overflow-hidden rounded-2xl">
                 <div className="absolute inset-0 h-full">
