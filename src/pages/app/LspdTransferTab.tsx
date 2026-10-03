@@ -108,28 +108,47 @@ export function LspdTransferTab() {
       </button>
 
       {current && (
-        <div className="grid gap-4 lg:grid-cols-2"><div className="rounded-2xl border border-[var(--ink)]/10 bg-[var(--ink)]/[0.025] p-4"><div className="mb-3 flex items-center gap-2"><button type="button" onClick={() => setSelected(null)} className="rounded-lg p-2 hover:bg-[var(--ink)]/5"><ArrowLeft size={17}/></button><p className="font-bold">Historique — {current.label}</p></div>
-          <div className="flex items-center justify-between gap-3"><div><p className="font-bold text-[var(--ink)]">{current.label}</p>
-          <div className="max-h-[430px] space-y-2 overflow-y-auto">
-            <p className="text-xs font-bold uppercase tracking-wide text-[var(--ink)]/40">Historique des envois</p>
-            {history.map((item) => <div key={item.id} className="rounded-lg border border-[var(--ink)]/8 bg-[var(--bg)] p-2.5"><div className="flex justify-between gap-2"><span className="text-sm font-semibold">{item.summary}</span><span className="text-[10px] text-[var(--ink)]/35">{new Date(item.createdAt).toLocaleString('fr-FR')}</span></div>{item.files.length > 0 && <p className="mt-1 text-xs text-[var(--ink)]/45">{item.files.join(' • ')}</p>}<span className="mt-1 inline-block text-[10px] font-bold text-amber-600">EN ATTENTE LSPD</span></div>)}
-            {history.length === 0 && <p className="py-12 text-center text-sm text-[var(--ink)]/35">Aucun envoi pour le moment.</p>}</div></div><form onSubmit={simulateSend} className="space-y-4 rounded-2xl border border-red/20 bg-red/[0.05] p-4"><p className="font-bold">{current.label}</p>
-          {current.subject === 'animal' ? (
-            <input required value={animalName} onChange={(e) => setAnimalName(e.target.value)} placeholder="Prénom de l’animal" className="w-full rounded-xl border border-[var(--ink)]/10 bg-[var(--bg)] px-3 py-2.5 text-sm outline-none focus:border-red/40" />
-          ) : (
-            <div className="grid gap-3 sm:grid-cols-2">
-              <input required value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Nom" className="rounded-xl border border-[var(--ink)]/10 bg-[var(--bg)] px-3 py-2.5 text-sm outline-none focus:border-red/40" />
-              <input required value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Prénom" className="rounded-xl border border-[var(--ink)]/10 bg-[var(--bg)] px-3 py-2.5 text-sm outline-none focus:border-red/40" />
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div className="rounded-2xl border border-[var(--ink)]/10 bg-[var(--ink)]/[0.025] p-4">
+            <div className="mb-4 flex items-center gap-2">
+              <button type="button" onClick={() => setSelected(null)} className="rounded-lg p-2 hover:bg-[var(--ink)]/5"><ArrowLeft size={17}/></button>
+              <p className="font-bold text-[var(--ink)]">Historique — {current.label}</p>
             </div>
-          )}
-          {current.reference && <input required value={reference} onChange={(e) => setReference(e.target.value)} placeholder="Référence de facturation" className="w-full rounded-xl border border-[var(--ink)]/10 bg-[var(--bg)] px-3 py-2.5 text-sm outline-none focus:border-red/40" />}
-          <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-dashed border-[var(--ink)]/20 bg-[var(--bg)] p-3 hover:border-red/35">
-            <Paperclip size={17}/><span className="text-sm text-[var(--ink)]/60">{files.length ? `${files.length} fichier(s) sélectionné(s)` : current.key === 'criminal_record_request' ? 'Ajouter la pièce d’identité obligatoire' : current.fileRequired ? 'Ajouter le document obligatoire' : 'Ajouter un document (facultatif)'}</span>
-            <input className="hidden" type="file" multiple required={current.fileRequired} onChange={(e) => setFiles(Array.from(e.target.files ?? []))}/>
-          </label>
-          {files.length > 0 && <p className="text-xs text-[var(--ink)]/45">{files.map((file) => file.name).join(' • ')}</p>}
-          <button type="submit" className="flex w-full items-center justify-center gap-2 rounded-xl bg-red px-4 py-3 text-sm font-bold text-white transition hover:opacity-90"><Send size={17}/> Envoyer au LSPD</button>
-        </form></div>
+            <div className="max-h-[430px] space-y-2 overflow-y-auto">
+              {history.map((item) => (
+                <div key={item.id} className="rounded-xl border border-[var(--ink)]/8 bg-[var(--bg)] p-3">
+                  <div className="flex justify-between gap-2">
+                    <span className="text-sm font-semibold">{item.summary}</span>
+                    <span className="text-[10px] text-[var(--ink)]/35">{new Date(item.createdAt).toLocaleString('fr-FR')}</span>
+                  </div>
+                  {item.files.length > 0 && <p className="mt-1 text-xs text-[var(--ink)]/45">{item.files.join(' • ')}</p>}
+                  <span className="mt-2 inline-block text-[10px] font-bold text-amber-600">EN ATTENTE LSPD</span>
+                </div>
+              ))}
+              {history.length === 0 && <p className="py-12 text-center text-sm text-[var(--ink)]/35">Aucun envoi pour le moment.</p>}
+            </div>
+          </div>
+
+          <form onSubmit={simulateSend} className="space-y-4 rounded-2xl border border-red/20 bg-red/[0.05] p-4">
+            <p className="font-bold text-[var(--ink)]">{current.label}</p>
+            {current.subject === 'animal' ? (
+              <input required value={animalName} onChange={(e) => setAnimalName(e.target.value)} placeholder="Prénom de l’animal" className="w-full rounded-xl border border-[var(--ink)]/10 bg-[var(--bg)] px-3 py-2.5 text-sm outline-none focus:border-red/40" />
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2">
+                <input required value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Nom" className="rounded-xl border border-[var(--ink)]/10 bg-[var(--bg)] px-3 py-2.5 text-sm outline-none focus:border-red/40" />
+                <input required value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Prénom" className="rounded-xl border border-[var(--ink)]/10 bg-[var(--bg)] px-3 py-2.5 text-sm outline-none focus:border-red/40" />
+              </div>
+            )}
+            {current.reference && <input required value={reference} onChange={(e) => setReference(e.target.value)} placeholder="Référence de facturation" className="w-full rounded-xl border border-[var(--ink)]/10 bg-[var(--bg)] px-3 py-2.5 text-sm outline-none focus:border-red/40" />}
+            <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-dashed border-[var(--ink)]/20 bg-[var(--bg)] p-3 hover:border-red/35">
+              <Paperclip size={17}/>
+              <span className="text-sm text-[var(--ink)]/60">{files.length ? `${files.length} fichier(s) sélectionné(s)` : current.key === 'criminal_record_request' ? 'Ajouter la pièce d’identité obligatoire' : 'Ajouter le document obligatoire'}</span>
+              <input className="hidden" type="file" multiple required={current.fileRequired} onChange={(e) => setFiles(Array.from(e.target.files ?? []))}/>
+            </label>
+            {files.length > 0 && <p className="text-xs text-[var(--ink)]/45">{files.map((file) => file.name).join(' • ')}</p>}
+            <button type="submit" className="flex w-full items-center justify-center gap-2 rounded-xl bg-red px-4 py-3 text-sm font-bold text-white transition hover:opacity-90"><Send size={17}/> Envoyer au LSPD</button>
+          </form>
+        </div>
       )}
 
       {directionOpen && (
