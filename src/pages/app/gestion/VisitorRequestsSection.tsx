@@ -73,7 +73,7 @@ export function VisitorRequestsSection({
       setError(fetchError.message)
       return
     }
-    setRequests(((data ?? []) as VisitorRequest[]).filter((request) => !(request.request_type === 'recrutement' && ['acceptee','refusee'].includes(request.status))))
+    setRequests(((data ?? []) as VisitorRequest[]).filter((request) => !(request.request_type === 'recrutement' && ['acceptee','refusee'].includes(request.status)) && !((request.request_type === 'question' || request.request_type === 'rendez_vous') && request.status === 'ferme')))
   }, [typeKey])
 
   useEffect(() => {
@@ -123,6 +123,26 @@ export function VisitorRequestsSection({
     }
 
     await fetchAll()
+  }
+
+  async function closePatientRequest(request: VisitorRequest) {
+    setBusy(true); setError(null)
+    const {error: closeError}=await supabase.from('visitor_requests').update({status:'ferme',updated_at:new Date().toISOString()}).eq('id',request.id)
+    setBusy(false)
+    if(closeError){setError(closeError.message);return}
+    setSelectedId(null); await fetchAll()
+  }
+
+  async function openDocument(value: string | null) {
+    if(!value) return
+    if(value.startsWith('file:')){
+      const {data,error}=await supabase.storage.from('recruitment-documents').createSignedUrl(value.slice(5),300)
+      if(error){setError(error.message);return}
+      if(data?.signedUrl) window.open(data.signedUrl,'_blank','noopener,noreferrer')
+      return
+    }
+    const url=/^https?:\/\//i.test(value)?value:`https://${value}`
+    window.open(url,'_blank','noopener,noreferrer')
   }
 
   async function sendReply(request: VisitorRequest) {
@@ -221,6 +241,7 @@ export function VisitorRequestsSection({
         ) : (
           <div className="max-w-3xl">
             <div className="flex items-start gap-3 mb-5">
+              {selected.request_type !== 'recrutement' && <Button size="sm" variant="outline" className="ml-auto order-last" disabled={busy} onClick={()=>void closePatientRequest(selected)}>Fermer</Button>}
               {selected.discord_avatar_url ? <img src={selected.discord_avatar_url} alt="" className="w-12 h-12 rounded-full object-cover" /> : <span className="w-12 h-12 rounded-full bg-[var(--ink)]/8" />}
               <div className="min-w-0">
                 <h3 className="font-bold">{selected.full_name}</h3>
@@ -229,8 +250,8 @@ export function VisitorRequestsSection({
                 <div className="mt-2 grid gap-1 text-xs text-[var(--ink)]/55">
                   <p><span className="font-semibold">Téléphone :</span> {selected.phone || 'Non renseigné'}</p>
                   <p><span className="font-semibold">ID Discord :</span> <span className="font-mono">{selected.discord_id || 'Non renseigné'}</span></p>
-                  {selected.request_type === 'recrutement' && <p><span className="font-semibold">Permis :</span> {selected.driving_license || 'Non renseigné'}</p>}
-                  {selected.request_type === 'recrutement' && <p><span className="font-semibold">Pièce d’identité :</span> {selected.identity_document || 'Non renseignée'}</p>}
+                  {selected.request_type === 'recrutement' && <p><span className="font-semibold">Permis :</span> {selected.driving_license ? <button className="underline" onClick={()=>void openDocument(selected.driving_license)}>Ouvrir le document</button> : 'Non renseigné'}</p>}
+                  {selected.request_type === 'recrutement' && <p><span className="font-semibold">Pièce d’identité :</span> {selected.identity_document ? <button className="underline" onClick={()=>void openDocument(selected.identity_document)}>Ouvrir le document</button> : 'Non renseignée'}</p>}
                 </div>
               </div>
             </div>
@@ -244,20 +265,9 @@ export function VisitorRequestsSection({
               )}
             </div>
 
-            <div className="grid sm:grid-cols-[1fr_auto] gap-3 mb-5">
-              <Select value={selected.status} disabled={busy} onChange={(e) => void setStatus(selected, e.target.value)}>
-                {STATUS_OPTIONS
-                  .filter(([value]) => selected.request_type === 'recrutement'
-                    ? ['en_attente','verification_dossier','entretien','acceptee','refusee'].includes(value)
-                    : ['nouveau','en_cours','repondu','ferme'].includes(value))
-                  .map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-              </Select>
-              <Badge variant={selected.status === 'acceptee' ? 'green' : selected.status === 'refusee' ? 'red' : 'amber'}>
-                {STATUS_OPTIONS.find(([value]) => value === selected.status)?.[1] ?? selected.status}
-              </Badge>
-            </div>
+            {selected.request_type === 'recrutement' && <div className="grid sm:grid-cols-[1fr_auto] gap-3 mb-5"><Select value={selected.status} disabled={busy} onChange={(e)=>void setStatus(selected,e.target.value)}>{STATUS_OPTIONS.filter(([value])=>['en_attente','verification_dossier','entretien','acceptee','refusee'].includes(value)).map(([value,label])=><option key={value} value={value}>{label}</option>)}</Select><Badge variant={selected.status==='acceptee'?'green':selected.status==='refusee'?'red':'amber'}>{STATUS_OPTIONS.find(([value])=>value===selected.status)?.[1]??selected.status}</Badge></div>}
 
-            <div className="rounded-xl border border-[var(--ink)]/8 bg-[var(--ink)]/[0.015] p-3 mb-4 max-h-72 overflow-y-auto flex flex-col gap-2">
+            {selected.request_type !== 'recrutement' && <><div className="rounded-xl border border-[var(--ink)]/8 bg-[var(--ink)]/[0.015] p-3 mb-4 max-h-72 overflow-y-auto flex flex-col gap-2">
               {messages.map((message)=><div key={message.id} className={message.sender==='ems'?'flex justify-end':'flex justify-start'}><div className={message.sender==='ems'?'max-w-[82%] rounded-2xl bg-red text-white px-3.5 py-2.5':'max-w-[82%] rounded-2xl bg-[var(--ink)]/7 px-3.5 py-2.5'}><p className="text-[10px] opacity-60 mb-1">{message.sender==='ems'?'EMS':selected.full_name} · {new Date(message.created_at).toLocaleString('fr-FR')}</p><p className="text-sm whitespace-pre-wrap">{message.body}</p></div></div>)}
               {messages.length===0&&<p className="text-center text-xs text-[var(--ink)]/30 py-5">Aucun message dans cette conversation.</p>}
             </div>
@@ -276,6 +286,7 @@ export function VisitorRequestsSection({
               <MessageSquareReply size={15} /> Envoyer la réponse
             </Button>
 
+            </>}
             {selected.request_type === 'recrutement' && selected.discord_id && (
               <p className="text-[var(--ink)]/35 text-xs mt-4">
                 Les changements de statut de candidature envoient automatiquement le message correspondant en privé sur Discord.
