@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type DragEvent, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { CalendarClock, LayoutGrid, LogOut, Megaphone, MessageCircle, RefreshCw, Search, ShieldCheck } from 'lucide-react'
+import { CalendarClock, LayoutGrid, LogOut, Megaphone, MessageCircle, Palette, RefreshCw, Search, ShieldCheck } from 'lucide-react'
 import { useAuth } from '@/auth/AuthContext'
 import { displayRoleLabel, isAboveChirurgien, supabase } from '@/lib/supabase'
 import { TILE_SECTIONS, type TabKey } from '@/lib/tiles'
@@ -10,6 +10,7 @@ import { SectionHeader } from '@/components/ui/SectionHeader'
 import { VitalsBar } from '@/components/ui/VitalsBar'
 import { StockAlertButton } from '@/components/ui/StockAlertButton'
 import { CodeBlancAlertButton } from '@/components/ui/CodeBlancAlertButton'
+import { CustomizationPanel } from '@/components/ui/CustomizationPanel'
 import { cn } from '@/lib/utils'
 import logo from '@/assets/logo.webp'
 import { ServicesTab } from './app/ServicesTab'
@@ -58,6 +59,13 @@ export function Dashboard() {
   const previousUnreadRef = useRef<number | null>(null)
   const previousAnnouncementIdRef = useRef<number | null>(null)
   const [navLayout, setNavLayout] = useState<{ home: TabKey[]; sidebar: TabKey[] }>({ home: [], sidebar: [] })
+  const [showCustomization, setShowCustomization] = useState(false)
+  const [uiPreferences, setUiPreferences] = useState<{
+    background_color: string | null
+    background_image_path: string | null
+    tile_colors: Record<string, string>
+  }>({ background_color: null, background_image_path: null, tile_colors: {} })
+  const [backgroundImageUrl, setBackgroundImageUrl] = useState<string | null>(null)
 
   const visibleTabs = TILE_SECTIONS
     .filter((section) => !section.seniorOnly || isAboveChirurgien(staff?.role))
@@ -198,6 +206,47 @@ export function Dashboard() {
 
   useEffect(() => {
     const userId = session?.user.id
+    if (!userId) return
+
+    supabase
+      .from('user_ui_preferences')
+      .select('background_color,background_image_path,tile_colors')
+      .eq('staff_id', userId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!data) return
+        setUiPreferences({
+          background_color: data.background_color ?? null,
+          background_image_path: data.background_image_path ?? null,
+          tile_colors: (data.tile_colors ?? {}) as Record<string, string>,
+        })
+      })
+  }, [session?.user.id])
+
+  useEffect(() => {
+    let active = true
+
+    async function loadBackground() {
+      if (!uiPreferences.background_image_path) {
+        setBackgroundImageUrl(null)
+        return
+      }
+
+      const { data } = await supabase.storage
+        .from('user-backgrounds')
+        .createSignedUrl(uiPreferences.background_image_path, 3600)
+
+      if (active) setBackgroundImageUrl(data?.signedUrl ?? null)
+    }
+
+    loadBackground()
+    return () => {
+      active = false
+    }
+  }, [uiPreferences.background_image_path])
+
+  useEffect(() => {
+    const userId = session?.user.id
     if (!userId || visibleTabs.length === 0) return
 
     supabase
@@ -299,7 +348,16 @@ export function Dashboard() {
   const activeSection = effectiveView === 'home' ? null : TILE_SECTIONS.find((s) => s.key === effectiveView) ?? null
 
   return (
-    <div className={cn('bg-[var(--bg)]', effectiveView === 'messages' ? 'h-screen overflow-hidden' : 'min-h-screen')}>
+    <div
+      className={cn('bg-[var(--bg)]', effectiveView === 'messages' ? 'h-screen overflow-hidden' : 'min-h-screen')}
+      style={{
+        backgroundColor: uiPreferences.background_color ?? undefined,
+        backgroundImage: backgroundImageUrl ? `linear-gradient(rgba(0,0,0,.18), rgba(0,0,0,.18)), url("${backgroundImageUrl}")` : undefined,
+        backgroundSize: backgroundImageUrl ? 'cover' : undefined,
+        backgroundPosition: backgroundImageUrl ? 'center' : undefined,
+        backgroundAttachment: backgroundImageUrl ? 'fixed' : undefined,
+      }}
+    >
       <aside className="hidden md:flex fixed inset-y-0 left-0 z-40 w-20 flex-col items-center py-4 gap-3 bg-[var(--sidebar-bg)] border-r border-[var(--ink)]/8 overflow-hidden">
         <img src={logo} alt="EMS" className="w-10 h-10 rounded-full object-cover" />
 
@@ -359,8 +417,9 @@ export function Dashboard() {
                 title={section.label}
                 className={cn(
                   'relative w-10 h-10 rounded-xl flex items-center justify-center cursor-grab active:cursor-grabbing transition-colors shrink-0',
-                  effectiveView === key ? 'bg-red text-white' : 'bg-[var(--ink)]/5 text-[var(--ink)]/60 hover:bg-[var(--ink)]/10 hover:text-[var(--ink)]',
+                  effectiveView === key ? 'bg-red text-white' : 'text-[var(--ink)]/75 hover:text-white',
                 )}
+                style={effectiveView === key ? undefined : { background: uiPreferences.tile_colors[key] ?? 'color-mix(in srgb, var(--ink) 5%, transparent)' }}
               >
                 <Icon size={17} />
                 {key === 'messages' && unreadMessages > 0 && (
@@ -378,7 +437,7 @@ export function Dashboard() {
         <div className="flex-1" />
 
         <div className="flex flex-col items-center gap-1.5">
-          {nextAppointment && (
+          {nextAppointment && navLayout.sidebar.includes('agenda') && (
             <button
               type="button"
               onClick={() => setView('agenda')}
@@ -412,6 +471,16 @@ export function Dashboard() {
           className="w-10 h-10 rounded-xl bg-[var(--ink)]/5 text-[var(--ink)]/60 hover:bg-[var(--ink)]/10 hover:text-[var(--ink)] transition-colors flex items-center justify-center cursor-pointer disabled:opacity-50"
         >
           <RefreshCw size={16} className={resyncing ? 'animate-spin' : ''} />
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setShowCustomization(true)}
+          aria-label="Personnaliser l’interface"
+          title="Personnaliser l’interface"
+          className="w-10 h-10 rounded-xl bg-[var(--ink)]/5 text-[var(--ink)]/60 hover:bg-[var(--ink)]/10 hover:text-[var(--ink)] transition-colors flex items-center justify-center cursor-pointer"
+        >
+          <Palette size={17} />
         </button>
 
         <ThemeToggle />
@@ -512,7 +581,13 @@ export function Dashboard() {
                   </div>
                 </div>
               )}
-              <HomeTiles keys={navLayout.home} onSelect={(key) => setView(key)} onMove={moveNavItem} />
+              <HomeTiles
+                keys={navLayout.home}
+                onSelect={(key) => setView(key)}
+                onMove={moveNavItem}
+                nextAppointment={nextAppointment}
+                tileColors={uiPreferences.tile_colors}
+              />
             </motion.div>
           ) : (
             <motion.div
@@ -539,6 +614,19 @@ export function Dashboard() {
           )}
         </AnimatePresence>
       </main>
+
+      {showCustomization && (
+        <CustomizationPanel
+          staffId={staff.id}
+          visibleTabs={visibleTabs}
+          initial={uiPreferences}
+          onClose={() => setShowCustomization(false)}
+          onSaved={(next) => {
+            setUiPreferences(next)
+            setShowCustomization(false)
+          }}
+        />
+      )}
     </div>
   )
 }
