@@ -65,8 +65,9 @@ export function Dashboard() {
     background_color: string | null
     background_image_path: string | null
     sidebar_color: string | null
+    tile_shape: 'square' | 'soft' | 'rounded' | 'pill'
     tile_colors: Record<string, string>
-  }>({ background_color: null, background_image_path: null, sidebar_color: null, tile_colors: {} })
+  }>({ background_color: null, background_image_path: null, sidebar_color: null, tile_shape: 'rounded', tile_colors: {} })
   const [backgroundImageUrl, setBackgroundImageUrl] = useState<string | null>(null)
 
   const visibleTabs = TILE_SECTIONS
@@ -212,7 +213,7 @@ export function Dashboard() {
 
     supabase
       .from('user_ui_preferences')
-      .select('background_color,background_image_path,sidebar_color,tile_colors')
+      .select('background_color,background_image_path,sidebar_color,tile_shape,tile_colors')
       .eq('staff_id', userId)
       .maybeSingle()
       .then(({ data }) => {
@@ -221,6 +222,7 @@ export function Dashboard() {
           background_color: data.background_color ?? null,
           background_image_path: data.background_image_path ?? null,
           sidebar_color: data.sidebar_color ?? null,
+          tile_shape: (data.tile_shape ?? 'rounded') as 'square' | 'soft' | 'rounded' | 'pill',
           tile_colors: (data.tile_colors ?? {}) as Record<string, string>,
         })
       })
@@ -615,6 +617,7 @@ export function Dashboard() {
                 onMove={moveNavItem}
                 nextAppointment={nextAppointment}
                 tileColors={uiPreferences.tile_colors}
+                tileShape={uiPreferences.tile_shape}
               />
             </motion.div>
           ) : (
