@@ -11,6 +11,8 @@ export function Tile({
   delay = 0,
   onClick,
   className,
+  opacity = 100,
+  imageUrl,
 }: {
   icon: LucideIcon
   label: string
@@ -20,6 +22,8 @@ export function Tile({
   delay?: number
   onClick: () => void
   className?: string
+  opacity?: number
+  imageUrl?: string | null
 }) {
   return (
     <motion.button
@@ -36,11 +40,18 @@ export function Tile({
         className,
       )}
       style={{
-        background: color,
         boxShadow: `inset 0 1px 0 rgba(255,255,255,.2), 0 12px 26px -10px color-mix(in srgb, ${color} 65%, transparent)`,
       }}
     >
-
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background: imageUrl
+            ? `linear-gradient(rgba(0,0,0,.22), rgba(0,0,0,.22)), url("${imageUrl}") center / cover no-repeat, ${color}`
+            : color,
+          opacity: Math.max(0, Math.min(100, opacity)) / 100,
+        }}
+      />
       <div className="absolute inset-0 bg-gradient-to-br from-white/20 via-transparent to-black/10 pointer-events-none" />
       <div className="absolute -right-8 -top-8 w-28 h-28 rounded-full bg-white/15 blur-2xl pointer-events-none" />
 
