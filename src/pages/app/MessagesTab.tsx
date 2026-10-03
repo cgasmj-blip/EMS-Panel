@@ -5,7 +5,6 @@ import { supabase, displayRoleLabel, isDirection, type Staff, type StaffRole } f
 import { Card } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
-import { VisitorMessagesPane } from './VisitorMessagesPane'
 
 type AnnouncementRow = {
   id: number
@@ -385,20 +384,6 @@ export function MessagesTab() {
       <div className="inline-flex self-start rounded-xl border border-[var(--ink)]/8 bg-[var(--ink)]/[0.02] p-1">
         <button
           type="button"
-          onClick={() => setMode('messages')}
-          className={mode === 'messages' ? 'rounded-lg bg-red px-3 py-2 text-white text-xs font-semibold cursor-pointer' : 'rounded-lg px-3 py-2 text-[var(--ink)]/55 text-xs font-semibold cursor-pointer'}
-        >
-          Messages privés
-        </button>
-        <button
-          type="button"
-          onClick={() => setMode('visiteurs')}
-          className={mode === 'visiteurs' ? 'rounded-lg bg-red px-3 py-2 text-white text-xs font-semibold cursor-pointer' : 'rounded-lg px-3 py-2 text-[var(--ink)]/55 text-xs font-semibold cursor-pointer'}
-        >
-          Visiteurs
-        </button>
-        <button
-          type="button"
           onClick={() => setMode('annonces')}
           className={mode === 'annonces' ? 'rounded-lg bg-red px-3 py-2 text-white text-xs font-semibold cursor-pointer' : 'rounded-lg px-3 py-2 text-[var(--ink)]/55 text-xs font-semibold cursor-pointer'}
         >
@@ -469,8 +454,6 @@ export function MessagesTab() {
             )}
           </div>
         </div>
-      ) : mode === 'visiteurs' ? (
-        <VisitorMessagesPane />
       ) : (
         <div className="grid md:grid-cols-[260px_1fr] gap-3 flex-1 min-h-0 overflow-hidden">
       <Card className="p-3 flex flex-col gap-3 min-h-0 overflow-hidden">
