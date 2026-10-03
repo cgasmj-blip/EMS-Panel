@@ -10,6 +10,7 @@ export function Tile({
   big,
   delay = 0,
   onClick,
+  className,
 }: {
   icon: LucideIcon
   label: string
@@ -18,6 +19,7 @@ export function Tile({
   big?: boolean
   delay?: number
   onClick: () => void
+  className?: string
 }) {
   return (
     <motion.button
@@ -31,6 +33,7 @@ export function Tile({
       className={cn(
         'relative rounded-3xl p-4 flex flex-col justify-between text-left text-white cursor-pointer overflow-hidden min-h-[125px] sm:min-h-[145px]',
         big && 'col-span-2 min-h-[165px] sm:min-h-[185px]',
+        className,
       )}
       style={{
         background: color,
