@@ -380,7 +380,7 @@ export function MessagesTab() {
   }
 
   return (
-    <div className="flex flex-col gap-3 flex-1 min-h-0 overflow-hidden">
+    <div className="flex flex-col gap-3 flex-1 min-h-0 overflow-hidden pb-1">
       <div className="inline-flex self-start rounded-xl border border-[var(--ink)]/8 bg-[var(--ink)]/[0.02] p-1">
         <button
           type="button"
@@ -571,7 +571,7 @@ export function MessagesTab() {
               )}
             </div>
 
-            <div className="p-2.5 border-t border-[var(--ink)]/8 shrink-0">
+            <div className="p-2.5 border-t border-[var(--ink)]/8 shrink-0 bg-[var(--surface)]/95 backdrop-blur">
               {mediaError && <p className="text-red-300 text-xs mb-2">{mediaError}</p>}
               {recording && (
                 <div className="mb-2 rounded-xl border border-red/20 bg-red/8 px-3 py-2 text-red-300 text-xs font-semibold flex items-center gap-2">
