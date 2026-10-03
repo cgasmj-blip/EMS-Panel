@@ -67,6 +67,7 @@ export function CustomizationPanel({
   const [tileImages, setTileImages] = useState<Record<string, string>>(initial.tile_images ?? {})
   const [tileColors, setTileColors] = useState<Record<string, string>>(initial.tile_colors ?? {})
   const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
@@ -134,21 +135,22 @@ export function CustomizationPanel({
     setPreviewUrl(null)
   }
 
-  async function save() {
+  async function persistPreferences() {
     const normalized = normalizeHex(backgroundColor)
     if (!normalized) {
       setError('Couleur de fond invalide.')
-      return
+      return null
     }
-
-    setSaving(true)
-    setError(null)
 
     const normalizedSidebar = normalizeHex(sidebarColor)
     if (!normalizedSidebar) {
       setError('Couleur de sidebar invalide.')
-      return
+      return null
     }
+
+    setSaving(true)
+    setSaved(false)
+    setError(null)
 
     const next: UiPreferences = {
       background_color: backgroundDefault ? null : normalized,
@@ -173,10 +175,23 @@ export function CustomizationPanel({
 
     if (saveError) {
       setError(saveError.message)
-      return
+      return null
     }
 
     onSaved(next)
+    setSaved(true)
+    window.setTimeout(() => setSaved(false), 1800)
+    return next
+  }
+
+  async function save() {
+    const next = await persistPreferences()
+    if (next) onClose()
+  }
+
+  async function saveAndEditLayout() {
+    const next = await persistPreferences()
+    if (next) onEditLayout()
   }
 
   const availableTiles = TILE_SECTIONS.filter((section) => visibleTabs.includes(section.key))
@@ -420,7 +435,9 @@ export function CustomizationPanel({
                 <Button size="sm" variant="ghost" type="button" onClick={() => void onResetLayout()}>
                   <RotateCcw size={13} /> Par défaut
                 </Button>
-                <Button type="button" onClick={onEditLayout}>Modifier</Button>
+                <Button type="button" onClick={() => void saveAndEditLayout()} disabled={saving || uploading}>
+                  {saving ? 'Enregistrement…' : 'Modifier'}
+                </Button>
               </div>
             </div>
           </section>
@@ -514,9 +531,14 @@ export function CustomizationPanel({
                 <h3 className="text-[var(--ink)] font-bold text-sm">Forme des tuiles</h3>
                 <p className="text-[var(--ink)]/35 text-xs">Choisis l’arrondi général des tuiles de l’accueil.</p>
               </div>
-              <Button size="sm" variant="ghost" onClick={() => setTileShape('rounded')}>
-                <RotateCcw size={13} /> Par défaut
-              </Button>
+              <div className="flex gap-2">
+                <Button size="sm" variant="ghost" onClick={() => setTileShape('rounded')}>
+                  <RotateCcw size={13} /> Par défaut
+                </Button>
+                <Button size="sm" onClick={() => void persistPreferences()} disabled={saving || uploading}>
+                  <Save size={13} /> {saved ? 'Enregistré' : saving ? 'Enregistrement…' : 'Enregistrer'}
+                </Button>
+              </div>
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -581,9 +603,11 @@ export function CustomizationPanel({
             </div>
           </section>
 
-          <Button className="w-full" onClick={save} disabled={saving || uploading}>
-            <Save size={15} /> {saving ? 'Enregistrement…' : 'Enregistrer la personnalisation'}
-          </Button>
+          <div className="sticky bottom-0 -mx-5 -mb-5 px-5 py-4 border-t border-[var(--ink)]/8 bg-[var(--surface)]/95 backdrop-blur">
+            <Button className="w-full" onClick={() => void save()} disabled={saving || uploading}>
+              <Save size={15} /> {saved ? '✓ Enregistré' : saving ? 'Enregistrement…' : 'Enregistrer la personnalisation'}
+            </Button>
+          </div>
         </div>
       </div>
     </div>
