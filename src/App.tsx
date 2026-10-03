@@ -1,8 +1,7 @@
-import { HashRouter, Routes, Route } from 'react-router-dom'
+import { HashRouter, Navigate, Routes, Route } from 'react-router-dom'
 import { AuthProvider } from '@/auth/AuthContext'
 import { ProtectedRoute } from '@/auth/ProtectedRoute'
 import { ThemeProvider } from '@/theme/ThemeContext'
-import { Login } from '@/pages/Login'
 import { VisitorPortal } from '@/pages/VisitorPortal'
 import { Dashboard } from '@/pages/Dashboard'
 
@@ -14,7 +13,7 @@ function App() {
           <Routes>
             <Route path="/" element={<VisitorPortal />} />
             <Route path="/visiteur" element={<VisitorPortal />} />
-            <Route path="/login" element={<Login />} />
+            <Route path="/login" element={<Navigate to="/visiteur" replace />} />
             <Route
               path="/dashboard"
               element={
