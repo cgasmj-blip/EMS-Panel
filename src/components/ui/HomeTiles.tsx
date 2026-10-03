@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type PointerEvent as ReactPointerEvent } from 'react'
+import { createPortal } from 'react-dom'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/auth/AuthContext'
 import { TILE_SECTIONS, type TabKey } from '@/lib/tiles'
@@ -496,21 +497,22 @@ export function HomeTiles({
         })}
       </div>
 
-      {editMode && (
-        <div className="fixed right-3 md:right-5 bottom-[calc(6.4rem+env(safe-area-inset-bottom))] md:bottom-6 z-[120] flex items-center gap-2 rounded-2xl border border-white/15 bg-black/80 p-2 shadow-2xl backdrop-blur-xl">
-          <span className="hidden sm:block px-2 text-xs font-semibold text-white/70">Disposition des tuiles</span>
+      {editMode && typeof document !== 'undefined' && createPortal(
+        <div className="fixed right-4 bottom-[calc(6.75rem+env(safe-area-inset-bottom))] z-[9999] flex items-center gap-2 rounded-2xl border border-white/15 bg-black/90 p-2 shadow-2xl backdrop-blur-xl">
+          <span className="hidden sm:block px-2 text-xs font-semibold text-white/75">Disposition des tuiles</span>
           <button
             type="button"
             onClick={() => void finishEditing()}
             disabled={finishing}
             className={cn(
-              'flex min-w-[132px] items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold text-white shadow-xl cursor-pointer disabled:cursor-wait',
+              'flex min-w-[150px] items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-black text-white shadow-xl cursor-pointer disabled:cursor-wait',
               saved ? 'bg-green-600' : 'bg-red',
             )}
           >
             {finishing ? 'Enregistrement…' : saved ? '✓ Enregistré' : 'Enregistrer'}
           </button>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   )
