@@ -495,17 +495,20 @@ export function HomeTiles({
           )
         })}
         {editMode && (
-          <button
-            type="button"
-            onClick={() => void finishEditing()}
-            disabled={finishing}
-            className={cn(
-              'fixed right-5 bottom-6 z-[60] hidden md:flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white shadow-xl cursor-pointer disabled:cursor-wait',
-              saved ? 'bg-green-600' : 'bg-red',
-            )}
-          >
-            {finishing ? 'Enregistrement…' : saved ? '✓ Enregistré' : 'Terminer'}
-          </button>
+          <div className="fixed right-5 bottom-6 z-[95] hidden md:flex items-center gap-2 rounded-2xl border border-white/15 bg-black/70 p-2 shadow-2xl backdrop-blur">
+            <span className="px-2 text-xs font-semibold text-white/65">Disposition des tuiles</span>
+            <button
+              type="button"
+              onClick={() => void finishEditing()}
+              disabled={finishing}
+              className={cn(
+                'flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold text-white shadow-xl cursor-pointer disabled:cursor-wait',
+                saved ? 'bg-green-600' : 'bg-red',
+              )}
+            >
+              {finishing ? 'Enregistrement…' : saved ? '✓ Enregistré' : 'Enregistrer'}
+            </button>
+          </div>
         )}
       </div>
     </div>
