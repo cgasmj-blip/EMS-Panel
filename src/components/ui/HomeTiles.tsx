@@ -33,8 +33,11 @@ export function HomeTiles({
   nextAppointment,
   tileColors,
   tileShape,
+  tileOpacity,
+  tileImages,
   editMode,
   onFinishEdit,
+  resetNonce,
 }: {
   keys: TabKey[]
   onSelect: (key: TabKey) => void
@@ -42,13 +45,17 @@ export function HomeTiles({
   nextAppointment: { scheduled_at: string; title: string | null; type: string } | null
   tileColors: Record<string, string>
   tileShape: 'square' | 'soft' | 'rounded' | 'pill'
+  tileOpacity: number
+  tileImages: Record<string, string>
   editMode: boolean
   onFinishEdit: () => void
+  resetNonce: number
 }) {
   const { session } = useAuth()
   const [enService, setEnService] = useState(0)
   const [mesAbsencesAVenir, setMesAbsencesAVenir] = useState(0)
   const [geometry, setGeometry] = useState<Record<string, TileGeometry>>({})
+  const [tileImageUrls, setTileImageUrls] = useState<Record<string, string>>({})
   const canvasRef = useRef<HTMLDivElement | null>(null)
 
   const refreshStats = useCallback(async () => {
@@ -109,6 +116,33 @@ export function HomeTiles({
       })
   }, [session?.user.id])
 
+  useEffect(() => {
+    let active = true
+    const entries = Object.entries(tileImages)
+    if (entries.length === 0) {
+      setTileImageUrls({})
+      return
+    }
+
+    Promise.all(
+      entries.map(async ([key, path]) => {
+        const { data } = await supabase.storage.from('user-backgrounds').createSignedUrl(path, 3600)
+        return [key, data?.signedUrl ?? ''] as const
+      }),
+    ).then((rows) => {
+      if (!active) return
+      setTileImageUrls(Object.fromEntries(rows.filter(([, url]) => Boolean(url))))
+    })
+
+    return () => {
+      active = false
+    }
+  }, [tileImages])
+
+  useEffect(() => {
+    if (resetNonce > 0) setGeometry({})
+  }, [resetNonce])
+
   const sections = keys
     .map((key) => TILE_SECTIONS.find((section) => section.key === key))
     .filter(Boolean) as typeof TILE_SECTIONS
@@ -120,6 +154,36 @@ export function HomeTiles({
     })
     return next
   }, [sections, geometry])
+
+  function overlaps(key: TabKey, candidate: TileGeometry) {
+    const canvas = canvasRef.current
+    if (!canvas) return false
+    const width = canvas.getBoundingClientRect().width
+    const ax1 = (candidate.x / 100) * width
+    const ax2 = ((candidate.x + candidate.w) / 100) * width
+    const ay1 = candidate.y
+    const ay2 = candidate.y + candidate.h
+
+    return Object.entries(effectiveGeometry).some(([otherKey, other]) => {
+      if (otherKey === key) return false
+      const bx1 = (other.x / 100) * width
+      const bx2 = ((other.x + other.w) / 100) * width
+      const by1 = other.y
+      const by2 = other.y + other.h
+      return ax1 < bx2 && ax2 > bx1 && ay1 < by2 && ay2 > by1
+    })
+  }
+
+  async function swapGeometry(a: TabKey, b: TabKey) {
+    const first = effectiveGeometry[a]
+    const second = effectiveGeometry[b]
+    if (!first || !second) return
+
+    const nextA = { ...first, x: second.x, y: second.y }
+    const nextB = { ...second, x: first.x, y: first.y }
+    setGeometry((current) => ({ ...current, [a]: nextA, [b]: nextB }))
+    await Promise.all([persistGeometry(a, nextA), persistGeometry(b, nextB)])
+  }
 
   async function persistGeometry(key: TabKey, value: TileGeometry) {
     const userId = session?.user.id
@@ -157,7 +221,7 @@ export function HomeTiles({
         x: Math.max(0, Math.min(100 - start.w, start.x + dxPercent)),
         y: Math.max(0, start.y + dy),
       }
-      setGeometry((current) => ({ ...current, [key]: next }))
+      if (!overlaps(key, next)) setGeometry((current) => ({ ...current, [key]: next }))
     }
 
     const onUp = (upEvent: PointerEvent) => {
@@ -168,8 +232,10 @@ export function HomeTiles({
         x: Math.max(0, Math.min(100 - start.w, start.x + dxPercent)),
         y: Math.max(0, start.y + dy),
       }
-      setGeometry((current) => ({ ...current, [key]: next }))
-      void persistGeometry(key, next)
+      if (!overlaps(key, next)) {
+        setGeometry((current) => ({ ...current, [key]: next }))
+        void persistGeometry(key, next)
+      }
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerup', onUp)
     }
@@ -196,8 +262,8 @@ export function HomeTiles({
       const dh = moveEvent.clientY - startY
       const next = {
         ...start,
-        w: Math.max(14, Math.min(100 - start.x, start.w + dwPercent)),
-        h: Math.max(105, Math.min(420, start.h + dh)),
+        w: Math.max(0.5, Math.min(100 - start.x, start.w + dwPercent)),
+        h: Math.max(10, start.h + dh),
       }
       setGeometry((current) => ({ ...current, [key]: next }))
     }
@@ -207,8 +273,8 @@ export function HomeTiles({
       const dh = upEvent.clientY - startY
       const next = {
         ...start,
-        w: Math.max(14, Math.min(100 - start.x, start.w + dwPercent)),
-        h: Math.max(105, Math.min(420, start.h + dh)),
+        w: Math.max(0.5, Math.min(100 - start.x, start.w + dwPercent)),
+        h: Math.max(10, start.h + dh),
       }
       setGeometry((current) => ({ ...current, [key]: next }))
       void persistGeometry(key, next)
@@ -325,6 +391,19 @@ export function HomeTiles({
               onDragStart={(event) => {
                 if (!editMode) dragKey(event, section.key)
               }}
+              onDragOver={(event) => {
+                if (editMode) return
+                event.preventDefault()
+                event.stopPropagation()
+              }}
+              onDrop={(event) => {
+                if (editMode) return
+                event.preventDefault()
+                event.stopPropagation()
+                const dragged = readDraggedKey(event)
+                if (!dragged || dragged === section.key) return
+                if (keys.includes(dragged)) void swapGeometry(dragged, section.key)
+              }}
               className={cn(
                 'absolute',
                 editMode
@@ -349,6 +428,8 @@ export function HomeTiles({
                 label={section.label}
                 stat={tileStat(section.key)}
                 color={tileColors[section.key] ?? section.color}
+                opacity={tileOpacity}
+                imageUrl={tileImageUrls[section.key] ?? null}
                 big={section.key === 'services'}
                 delay={i * 0.04}
                 className={cn(
