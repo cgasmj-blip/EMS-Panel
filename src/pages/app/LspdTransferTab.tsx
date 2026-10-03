@@ -13,7 +13,17 @@ const folders = [
 ] as const
 
 type FolderKey = (typeof folders)[number]['key']
-type Draft = { id: string; kind: string; summary: string; files: string[]; createdAt: string }
+type Draft = { id: string; kind: string; summary: string; files: string[]; images?: { name: string; dataUrl: string }[]; createdAt: string }
+
+const TILE_COLORS = ['bg-blue-900', 'bg-indigo-900', 'bg-slate-900', 'bg-blue-800', 'bg-indigo-950', 'bg-sky-900', 'bg-blue-950', 'bg-slate-800'] as const
+
+function readImage(file: File) {
+  return new Promise<{ name: string; dataUrl: string }>((resolve) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve({ name: file.name, dataUrl: String(reader.result ?? '') })
+    reader.readAsDataURL(file)
+  })
+}
 
 const OUTBOX_KEY = 'ems-lspd-outbox'
 
@@ -34,6 +44,7 @@ export function LspdTransferTab() {
   const [directionFiles, setDirectionFiles] = useState<File[]>([])
   const [success, setSuccess] = useState<string | null>(null)
   const [revision, setRevision] = useState(0)
+  const [previewImage, setPreviewImage] = useState<string | null>(null)
 
   const current = useMemo(() => folders.find((folder) => folder.key === selected) ?? null, [selected])
   const history = useMemo(() => selected ? (JSON.parse(window.localStorage.getItem(OUTBOX_KEY) || '[]') as Draft[]).filter((item) => item.kind === selected) : [], [selected, revision])
@@ -43,17 +54,20 @@ export function LspdTransferTab() {
     setFirstName(''); setLastName(''); setAnimalName(''); setReference(''); setFiles([])
   }
 
-  function simulateSend(event: FormEvent) {
+  async function simulateSend(event: FormEvent) {
     event.preventDefault()
     if (!current) return
     const subject = current.subject === 'animal' ? animalName.trim() : `${firstName.trim()} ${lastName.trim()}`.trim()
     if (!subject || (current.reference && !reference.trim()) || (current.fileRequired && files.length === 0)) return
 
+    const imageFiles = files.filter((file) => file.type.startsWith('image/'))
+    const images = await Promise.all(imageFiles.map(readImage))
     saveDraft({
       id: crypto.randomUUID(),
       kind: current.key,
       summary: current.reference ? `${subject} — ${reference.trim()}` : subject,
       files: files.map((file) => file.name),
+      images,
       createdAt: new Date().toISOString(),
     })
     setSuccess(`${current.label} placé dans la file d’envoi LSPD.`)
@@ -89,20 +103,20 @@ export function LspdTransferTab() {
       {!current && !directionOpen && (
         <>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-        {folders.map((folder) => {
+        {folders.map((folder, index) => {
           const Icon = folder.icon
           return (
             <button key={folder.key} type="button" onClick={() => { setSelected(folder.key); setDirectionOpen(false); setSuccess(null) }}
-              className="group rounded-2xl border border-[var(--ink)]/10 bg-[var(--ink)]/[0.025] p-4 text-left transition hover:-translate-y-0.5 hover:border-red/30 hover:bg-red/[0.06]">
-              <div className="flex min-h-28 flex-col items-center justify-center gap-3 text-center"><span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--ink)]/5 text-[var(--ink)]/70 group-hover:bg-red/15 group-hover:text-red"><Icon size={20} /></span><p className="font-bold text-[var(--ink)]">{folder.label}</p></div>
+              className={`group rounded-2xl border border-white/10 ${TILE_COLORS[index % TILE_COLORS.length]} p-4 text-left text-white shadow-sm transition hover:-translate-y-0.5 hover:border-white/25 hover:brightness-110`}>
+              <div className="flex min-h-28 flex-col items-center justify-center gap-3 text-center"><span className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/10 text-white"><Icon size={20} /></span><p className="font-bold text-white">{folder.label}</p></div>
             </button>
           )
         })}
         <button type="button" onClick={() => { setDirectionOpen(true); setSelected(null); setSuccess(null) }}
-          className="group rounded-2xl border border-[var(--ink)]/10 bg-[var(--ink)]/[0.025] p-4 text-left transition hover:-translate-y-0.5 hover:border-red/30 hover:bg-red/[0.06]">
+          className="group col-span-2 rounded-2xl border border-white/10 bg-blue-950 p-4 text-left text-white shadow-sm transition hover:-translate-y-0.5 hover:border-white/25 hover:brightness-110 sm:col-span-3 lg:col-span-4">
           <div className="flex min-h-28 flex-col items-center justify-center gap-3 text-center">
             <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-red/15 text-red"><MessageSquareText size={20}/></span>
-            <p className="font-bold text-[var(--ink)]">Messagerie Direction</p>
+            <p className="font-bold text-white">Messagerie Direction</p>
           </div>
         </button>
       </div>
@@ -124,6 +138,7 @@ export function LspdTransferTab() {
                     <span className="text-sm font-semibold">{item.summary}</span>
                     <span className="text-[10px] text-[var(--ink)]/35">{new Date(item.createdAt).toLocaleString('fr-FR')}</span>
                   </div>
+                  {item.images && item.images.length > 0 && <div className="mt-2 flex flex-wrap gap-2">{item.images.map((image) => <button key={image.name} type="button" onClick={() => setPreviewImage(image.dataUrl)} className="overflow-hidden rounded-lg border border-[var(--ink)]/10"><img src={image.dataUrl} alt={image.name} className="h-20 w-24 object-cover"/></button>)}</div>}
                   {item.files.length > 0 && <p className="mt-1 text-xs text-[var(--ink)]/45">{item.files.join(' • ')}</p>}
                   <span className="mt-2 inline-block text-[10px] font-bold text-amber-600">{current.key === 'criminal_record_request' ? 'EN ATTENTE DU CASIER LSPD' : 'EN ATTENTE LSPD'}</span>
                   {current.key === 'criminal_record_request' && <p className="mt-2 text-xs text-[var(--ink)]/45">La réponse LSPD et le document du casier vierge apparaîtront sur cette demande dès réception.</p>}
@@ -154,6 +169,12 @@ export function LspdTransferTab() {
           </form>
         </div>
         </>
+      )}
+
+      {previewImage && (
+        <div role="presentation" onClick={() => setPreviewImage(null)} className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-6">
+          <img src={previewImage} alt="Aperçu du document" onClick={(e) => e.stopPropagation()} className="max-h-[90vh] max-w-[90vw] rounded-xl object-contain shadow-2xl"/>
+        </div>
       )}
 
       {directionOpen && (
