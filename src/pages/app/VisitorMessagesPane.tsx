@@ -27,6 +27,7 @@ type VisitorMessage = {
 }
 
 function typeLabel(type: VisitorRequest['request_type']) {
+  if (type === 'recrutement') return 'Candidature'
   return type === 'rendez_vous' ? 'Rendez-vous' : 'Contact'
 }
 
@@ -44,7 +45,7 @@ export function VisitorMessagesPane() {
     const { data, error: fetchError } = await supabase
       .from('visitor_requests')
       .select('id,public_id,request_type,full_name,discord_username,discord_avatar_url,subject,status,updated_at,created_at')
-      .in('request_type', ['question', 'rendez_vous'])
+      .in('request_type', ['question', 'rendez_vous', 'recrutement'])
       .order('updated_at', { ascending: false })
 
     if (fetchError) {
@@ -117,7 +118,7 @@ export function VisitorMessagesPane() {
     const { data, error: invokeError } = await supabase.functions.invoke('notify-visitor-request', {
       body: {
         request_id: selected.id,
-        status: 'repondu',
+        status: selected.request_type === 'recrutement' ? selected.status : 'repondu',
         custom_message: message,
       },
     })
@@ -166,7 +167,7 @@ export function VisitorMessagesPane() {
                 <span className="block text-sm font-semibold truncate">{request.full_name}</span>
                 <span className="block text-[11px] text-[var(--ink)]/35 truncate">{request.subject}</span>
               </span>
-              <Badge variant={request.request_type === 'rendez_vous' ? 'cyan' : 'gray'}>{typeLabel(request.request_type)}</Badge>
+              <Badge variant={request.request_type === 'recrutement' ? 'red' : request.request_type === 'rendez_vous' ? 'cyan' : 'gray'}>{typeLabel(request.request_type)}</Badge>
             </button>
           ))}
           {visibleRequests.length === 0 && (
