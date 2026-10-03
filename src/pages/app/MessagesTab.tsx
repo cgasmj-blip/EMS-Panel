@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Megaphone, MessageCircle, Search, Send, Trash2 } from 'lucide-react'
+import { ImagePlus, Megaphone, MessageCircle, Mic, Search, Send, Square, Trash2 } from 'lucide-react'
 import { useAuth } from '@/auth/AuthContext'
 import { supabase, displayRoleLabel, isDirection, type Staff, type StaffRole } from '@/lib/supabase'
 import { Card } from '@/components/ui/Card'
@@ -12,6 +12,12 @@ type AnnouncementRow = {
   title: string
   body: string
   created_at: string
+  media_type: 'image' | 'audio' | null
+  media_path: string | null
+  media_name: string | null
+  media_mime: string | null
+  media_duration_seconds: number | null
+  media_url?: string | null
 }
 
 type MessageRow = {
@@ -41,6 +47,13 @@ export function MessagesTab() {
   const [publishing, setPublishing] = useState(false)
   const messagesScrollRef = useRef<HTMLDivElement | null>(null)
   const latestIncomingIdRef = useRef<number | null>(null)
+  const imageInputRef = useRef<HTMLInputElement | null>(null)
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const recordingStreamRef = useRef<MediaStream | null>(null)
+  const recordingChunksRef = useRef<Blob[]>([])
+  const recordingStartedAtRef = useRef<number>(0)
+  const [recording, setRecording] = useState(false)
+  const [mediaError, setMediaError] = useState<string | null>(null)
 
   const playIncomingMessageTone = useCallback(() => {
     try {
@@ -143,7 +156,18 @@ export function MessagesTab() {
       .order('created_at', { ascending: true })
       .limit(300)
 
-    setMessages((data ?? []) as MessageRow[])
+    const rows = (data ?? []) as MessageRow[]
+    const withUrls = await Promise.all(
+      rows.map(async (message) => {
+        if (!message.media_path) return message
+        const { data: signed } = await supabase.storage
+          .from('internal-message-media')
+          .createSignedUrl(message.media_path, 3600)
+        return { ...message, media_url: signed?.signedUrl ?? null }
+      }),
+    )
+
+    setMessages(withUrls)
 
     await supabase
       .from('internal_messages')
@@ -196,6 +220,121 @@ export function MessagesTab() {
     if (!term) return staff
     return staff.filter((person) => person.full_name.toLocaleLowerCase('fr').includes(term))
   }, [staff, filter])
+
+  async function sendMedia(file: File | Blob, mediaType: 'image' | 'audio', options?: { name?: string; mime?: string; duration?: number }) {
+    if (!me || !selectedId || sending) return
+    if (file.size > 20 * 1024 * 1024) {
+      setMediaError('Le fichier est trop volumineux (20 Mo maximum).')
+      return
+    }
+
+    setSending(true)
+    setMediaError(null)
+
+    try {
+      const name = options?.name || (file instanceof File ? file.name : mediaType === 'audio' ? 'message-vocal.webm' : 'image')
+      const safeName = name.replace(/[^a-zA-Z0-9._-]+/g, '-')
+      const path = `${me}/${selectedId}/${Date.now()}-${crypto.randomUUID()}-${safeName}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('internal-message-media')
+        .upload(path, file, {
+          contentType: options?.mime || file.type || undefined,
+          upsert: false,
+        })
+
+      if (uploadError) throw uploadError
+
+      const { error: insertError } = await supabase.from('internal_messages').insert({
+        sender_id: me,
+        recipient_id: selectedId,
+        body: '',
+        media_type: mediaType,
+        media_path: path,
+        media_name: name,
+        media_mime: options?.mime || file.type || null,
+        media_duration_seconds: options?.duration ?? null,
+      })
+
+      if (insertError) {
+        await supabase.storage.from('internal-message-media').remove([path])
+        throw insertError
+      }
+
+      await fetchConversation()
+    } catch (e) {
+      setMediaError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setSending(false)
+    }
+  }
+
+  async function handleImage(file: File | null) {
+    if (!file) return
+    const extension = file.name.split('.').pop()?.toLowerCase() ?? ''
+    const imageExtensions = new Set(['jpg', 'jpeg', 'png', 'webp', 'gif', 'avif', 'heic', 'heif', 'bmp', 'svg', 'ico', 'tif', 'tiff'])
+    if (!file.type.startsWith('image/') && !imageExtensions.has(extension)) {
+      setMediaError('Ce fichier ne semble pas être une image.')
+      return
+    }
+    await sendMedia(file, 'image', { name: file.name, mime: file.type || undefined })
+  }
+
+  async function startRecording() {
+    if (!selectedId || recording || sending) return
+    setMediaError(null)
+
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+      setMediaError('L’enregistrement vocal n’est pas pris en charge par ce navigateur.')
+      return
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      recordingStreamRef.current = stream
+      recordingChunksRef.current = []
+
+      const candidates = ['audio/webm;codecs=opus', 'audio/ogg;codecs=opus', 'audio/mp4']
+      const mimeType = candidates.find((candidate) => MediaRecorder.isTypeSupported(candidate))
+      const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream)
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) recordingChunksRef.current.push(event.data)
+      }
+
+      recorder.onstop = async () => {
+        const duration = Math.max(1, Math.round((Date.now() - recordingStartedAtRef.current) / 1000))
+        const blob = new Blob(recordingChunksRef.current, { type: recorder.mimeType || 'audio/webm' })
+        recordingStreamRef.current?.getTracks().forEach((track) => track.stop())
+        recordingStreamRef.current = null
+        mediaRecorderRef.current = null
+        setRecording(false)
+
+        if (blob.size > 0) {
+          const ext = recorder.mimeType.includes('ogg') ? 'ogg' : recorder.mimeType.includes('mp4') ? 'm4a' : 'webm'
+          await sendMedia(blob, 'audio', {
+            name: `message-vocal.${ext}`,
+            mime: recorder.mimeType || 'audio/webm',
+            duration,
+          })
+        }
+      }
+
+      recordingStartedAtRef.current = Date.now()
+      mediaRecorderRef.current = recorder
+      recorder.start()
+      setRecording(true)
+    } catch {
+      recordingStreamRef.current?.getTracks().forEach((track) => track.stop())
+      recordingStreamRef.current = null
+      setMediaError('Impossible d’accéder au microphone. Vérifie l’autorisation du navigateur.')
+    }
+  }
+
+  function stopRecording() {
+    const recorder = mediaRecorderRef.current
+    if (recorder && recorder.state !== 'inactive') recorder.stop()
+  }
 
   async function sendMessage() {
     const message = body.trim()
@@ -398,7 +537,27 @@ export function MessagesTab() {
                 return (
                   <div key={message.id} className={mine ? 'flex justify-end' : 'flex justify-start'}>
                     <div className={mine ? 'max-w-[82%] rounded-2xl rounded-br-md bg-red text-white px-3.5 py-2.5' : 'max-w-[82%] rounded-2xl rounded-bl-md bg-[var(--ink)]/7 text-[var(--ink)] px-3.5 py-2.5'}>
-                      <p className="text-sm whitespace-pre-wrap break-words">{message.body}</p>
+                      {message.body && <p className="text-sm whitespace-pre-wrap break-words">{message.body}</p>}
+                      {message.media_type === 'image' && message.media_url && (
+                        <a href={message.media_url} target="_blank" rel="noreferrer" className="block mt-1">
+                          <img
+                            src={message.media_url}
+                            alt={message.media_name || 'Image'}
+                            className="max-w-full max-h-80 rounded-xl object-contain bg-black/10"
+                          />
+                          <span className={mine ? 'block text-white/60 text-[10px] mt-1' : 'block text-[var(--ink)]/40 text-[10px] mt-1'}>
+                            {message.media_name || 'Ouvrir l’image'}
+                          </span>
+                        </a>
+                      )}
+                      {message.media_type === 'audio' && message.media_url && (
+                        <div className="mt-1 min-w-[220px]">
+                          <audio controls preload="metadata" src={message.media_url} className="w-full h-10" />
+                          <p className={mine ? 'text-white/60 text-[10px] mt-1' : 'text-[var(--ink)]/40 text-[10px] mt-1'}>
+                            Message vocal{message.media_duration_seconds ? ` · ${message.media_duration_seconds}s` : ''}
+                          </p>
+                        </div>
+                      )}
                       <p className={mine ? 'text-white/55 text-[10px] mt-1 text-right' : 'text-[var(--ink)]/30 text-[10px] mt-1'}>
                         {new Date(message.created_at).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
                         {mine && message.read_at ? ' · Lu' : ''}
@@ -412,24 +571,60 @@ export function MessagesTab() {
               )}
             </div>
 
-            <div className="p-2.5 border-t border-[var(--ink)]/8 flex gap-2 items-end shrink-0">
-              <textarea
-                value={body}
-                onChange={(e) => setBody(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault()
-                    sendMessage()
-                  }
-                }}
-                placeholder="Écrire un message…"
-                rows={2}
-                maxLength={4000}
-                className="flex-1 resize-none rounded-xl border border-[var(--ink)]/10 bg-[var(--bg)] px-3 py-2.5 text-sm text-[var(--ink)] outline-none focus:border-red/35"
-              />
-              <Button onClick={sendMessage} disabled={!body.trim() || sending} title="Envoyer">
-                <Send size={16} />
-              </Button>
+            <div className="p-2.5 border-t border-[var(--ink)]/8 shrink-0">
+              {mediaError && <p className="text-red-300 text-xs mb-2">{mediaError}</p>}
+              {recording && (
+                <div className="mb-2 rounded-xl border border-red/20 bg-red/8 px-3 py-2 text-red-300 text-xs font-semibold flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-red animate-pulse" />
+                  Enregistrement vocal en cours…
+                </div>
+              )}
+              <div className="flex gap-2 items-end">
+                <input
+                  ref={imageInputRef}
+                  type="file"
+                  accept="image/*,.heic,.heif,.avif,.bmp,.svg,.ico,.tif,.tiff"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] ?? null
+                    e.currentTarget.value = ''
+                    void handleImage(file)
+                  }}
+                />
+                <Button
+                  variant="ghost"
+                  onClick={() => imageInputRef.current?.click()}
+                  disabled={sending || recording}
+                  title="Envoyer une image"
+                >
+                  <ImagePlus size={16} />
+                </Button>
+                <Button
+                  variant={recording ? 'red' : 'ghost'}
+                  onClick={recording ? stopRecording : startRecording}
+                  disabled={sending}
+                  title={recording ? 'Arrêter et envoyer le vocal' : 'Enregistrer un message vocal'}
+                >
+                  {recording ? <Square size={15} /> : <Mic size={16} />}
+                </Button>
+                <textarea
+                  value={body}
+                  onChange={(e) => setBody(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault()
+                      sendMessage()
+                    }
+                  }}
+                  placeholder="Écrire un message…"
+                  rows={2}
+                  maxLength={4000}
+                  className="flex-1 resize-none rounded-xl border border-[var(--ink)]/10 bg-[var(--bg)] px-3 py-2.5 text-sm text-[var(--ink)] outline-none focus:border-red/35"
+                />
+                <Button onClick={sendMessage} disabled={!body.trim() || sending || recording} title="Envoyer">
+                  <Send size={16} />
+                </Button>
+              </div>
             </div>
           </>
         )}
