@@ -5,6 +5,7 @@ import { supabase, displayRoleLabel, isDirection, type Staff, type StaffRole } f
 import { Card } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
+import { VisitorMessagesPane } from './VisitorMessagesPane'
 
 type AnnouncementRow = {
   id: number
@@ -40,7 +41,7 @@ export function MessagesTab() {
   const [filter, setFilter] = useState('')
   const [body, setBody] = useState('')
   const [sending, setSending] = useState(false)
-  const [mode, setMode] = useState<'messages' | 'annonces'>('messages')
+  const [mode, setMode] = useState<'messages' | 'visiteurs' | 'annonces'>('messages')
   const [announcements, setAnnouncements] = useState<AnnouncementRow[]>([])
   const [announcementTitle, setAnnouncementTitle] = useState('')
   const [announcementBody, setAnnouncementBody] = useState('')
@@ -391,6 +392,13 @@ export function MessagesTab() {
         </button>
         <button
           type="button"
+          onClick={() => setMode('visiteurs')}
+          className={mode === 'visiteurs' ? 'rounded-lg bg-red px-3 py-2 text-white text-xs font-semibold cursor-pointer' : 'rounded-lg px-3 py-2 text-[var(--ink)]/55 text-xs font-semibold cursor-pointer'}
+        >
+          Visiteurs
+        </button>
+        <button
+          type="button"
           onClick={() => setMode('annonces')}
           className={mode === 'annonces' ? 'rounded-lg bg-red px-3 py-2 text-white text-xs font-semibold cursor-pointer' : 'rounded-lg px-3 py-2 text-[var(--ink)]/55 text-xs font-semibold cursor-pointer'}
         >
@@ -461,6 +469,8 @@ export function MessagesTab() {
             )}
           </div>
         </div>
+      ) : mode === 'visiteurs' ? (
+        <VisitorMessagesPane />
       ) : (
         <div className="grid md:grid-cols-[260px_1fr] gap-3 flex-1 min-h-0 overflow-hidden">
       <Card className="p-3 flex flex-col gap-3 min-h-0 overflow-hidden">
