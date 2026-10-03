@@ -145,7 +145,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       provider: 'discord',
       options: {
         redirectTo: window.location.origin + import.meta.env.BASE_URL,
-        scopes: 'identify',
+        scopes: 'identify guilds.members.read',
       },
     })
   }, [])
