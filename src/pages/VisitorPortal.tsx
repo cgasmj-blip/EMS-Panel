@@ -27,6 +27,12 @@ type SiteSettings = {
   show_recrutement: boolean
   show_rendez_vous: boolean
   show_suivi: boolean
+  layout_json: {
+    hero: { x: number; y: number; w: number; h: number }
+    contact: { x: number; y: number; w: number; h: number }
+    navigation: { x: number; y: number; w: number; h: number }
+    content: { x: number; y: number; w: number; h: number }
+  }
 }
 
 type SubjectRow = {
@@ -97,6 +103,20 @@ export function VisitorPortal() {
   const [heroImageUrl, setHeroImageUrl] = useState<string | null>(null)
   const [backgroundImageUrl, setBackgroundImageUrl] = useState<string | null>(null)
 
+  useEffect(() => {
+    try {
+      const raw = window.sessionStorage.getItem('ems-public-draft')
+      if (!raw) return
+      const draft = JSON.parse(raw) as { tab?: PortalTab; form?: RequestForm; subjectId?: number | null }
+      if (draft.tab) setTab(draft.tab)
+      if (draft.form) setForm(draft.form)
+      if (typeof draft.subjectId === 'number') setSubjectId(draft.subjectId)
+      window.sessionStorage.removeItem('ems-public-draft')
+    } catch {
+      window.sessionStorage.removeItem('ems-public-draft')
+    }
+  }, [])
+
   const metadata = (session?.user.user_metadata ?? {}) as Record<string, unknown>
   const discordId = String(metadata.provider_id ?? metadata.sub ?? '')
   const discordName = String(metadata.full_name ?? metadata.name ?? metadata.user_name ?? '')
@@ -140,7 +160,7 @@ export function VisitorPortal() {
   }, [tab, subjects])
 
   useEffect(() => {
-    if ((tab === 'contact' || tab === 'recrutement') && session && discordName) {
+    if ((tab === 'contact' || tab === 'recrutement' || tab === 'rendez_vous') && session && discordName) {
       setForm((current) => ({
         ...current,
         fullName: current.fullName || discordName,
@@ -161,10 +181,11 @@ export function VisitorPortal() {
     [siteSettings],
   )
 
-  async function connectDiscord(target: 'contact' | 'recrutement') {
+  async function connectDiscord(target: 'contact' | 'recrutement' | 'rendez_vous') {
     setConnecting(true)
     setError(null)
     window.sessionStorage.setItem('ems-public-tab', target)
+    window.sessionStorage.setItem('ems-public-draft', JSON.stringify({ tab: target, form, subjectId }))
     await signInVisitorWithDiscord()
     setConnecting(false)
   }
@@ -224,15 +245,14 @@ export function VisitorPortal() {
     setError(null)
     setSuccess(null)
 
-    if ((type === 'question' || type === 'recrutement') && (!session || !discordId)) {
-      setError(type === 'recrutement'
-        ? 'Connecte ton compte Discord pour envoyer une candidature.'
-        : 'Connecte ton compte Discord pour nous contacter.')
+    if (!session || !discordId) {
+      const target = type === 'question' ? 'contact' : type === 'recrutement' ? 'recrutement' : 'rendez_vous'
+      await connectDiscord(target)
       return
     }
 
-    const needsDiscord = type === 'question' || type === 'recrutement'
-    const fullName = (needsDiscord ? discordName || form.fullName : form.fullName).trim()
+    const needsDiscord = true
+    const fullName = (discordName || form.fullName).trim()
     if (fullName.length < 2) {
       setError('Indique ton nom.')
       return
@@ -355,10 +375,6 @@ export function VisitorPortal() {
                 onClick={() => {
                   setError(null)
                   setSuccess(null)
-                  if ((item.key === 'contact' || item.key === 'recrutement') && !session) {
-                    void connectDiscord(item.key)
-                    return
-                  }
                   window.sessionStorage.setItem('ems-public-tab', item.key)
                   setTab(item.key)
                 }}
@@ -446,23 +462,7 @@ export function VisitorPortal() {
                   : 'Remplis les informations ci-dessous et notre équipe pourra traiter ta demande depuis le panel.'}
               </p>
 
-              {(tab === 'contact' || tab === 'recrutement') && !session && (
-                <div className="rounded-2xl border border-indigo-400/20 bg-indigo-400/5 p-4 mb-5 flex flex-col sm:flex-row sm:items-center gap-3">
-                  <div className="flex-1">
-                    <p className="font-semibold text-sm">Authentification Discord requise</p>
-                    <p className="text-[var(--ink)]/40 text-xs mt-1">
-                      {tab === 'recrutement'
-                        ? 'Nécessaire pour identifier ta candidature et recevoir son suivi en message privé.'
-                        : 'Nécessaire pour identifier ta demande et permettre à l’EMS de te recontacter.'}
-                    </p>
-                  </div>
-                  <Button onClick={() => void connectDiscord(tab)} disabled={connecting}>
-                    {connecting ? 'Connexion…' : 'Se connecter avec Discord'}
-                  </Button>
-                </div>
-              )}
-
-              {(tab === 'contact' || tab === 'recrutement') && session && (
+              {(tab === 'contact' || tab === 'recrutement' || tab === 'rendez_vous') && session && (
                 <div className="rounded-2xl border border-green-400/20 bg-green-400/5 p-4 mb-5 flex items-center gap-3">
                   {discordAvatar ? <img src={discordAvatar} alt="" className="w-10 h-10 rounded-full object-cover" /> : <span className="w-10 h-10 rounded-full bg-[var(--ink)]/10" />}
                   <div className="min-w-0 flex-1">
@@ -477,8 +477,8 @@ export function VisitorPortal() {
                 <label className="grid gap-1.5">
                   <span className="text-xs font-semibold text-[var(--ink)]/55">Nom</span>
                   <Input
-                    value={(tab === 'contact' || tab === 'recrutement') && discordName ? discordName : form.fullName}
-                    disabled={(tab === 'contact' || tab === 'recrutement') && Boolean(discordName)}
+                    value={(tab === 'contact' || tab === 'recrutement' || tab === 'rendez_vous') && discordName ? discordName : form.fullName}
+                    disabled={(tab === 'contact' || tab === 'recrutement' || tab === 'rendez_vous') && Boolean(discordName)}
                     onChange={(e) => setForm((current) => ({ ...current, fullName: e.target.value }))}
                   />
                 </label>
@@ -529,10 +529,10 @@ export function VisitorPortal() {
 
               <Button
                 className="mt-5"
-                disabled={sending || ((tab === 'contact' || tab === 'recrutement') && !session)}
+                disabled={sending || connecting}
                 onClick={() => void submit(requestType)}
               >
-                <Send size={15} /> {sending ? 'Envoi…' : 'Envoyer la demande'}
+                <Send size={15} /> {sending ? 'Envoi…' : connecting ? 'Connexion Discord…' : session ? 'Envoyer la demande' : 'Continuer avec Discord et envoyer'}
               </Button>
             </div>
           </Card>
