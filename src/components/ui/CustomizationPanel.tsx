@@ -8,6 +8,8 @@ import { Input } from '@/components/ui/Input'
 type UiPreferences = {
   background_color: string | null
   background_image_path: string | null
+  background_image_opacity: number
+  background_position: 'center' | 'top' | 'bottom' | 'left' | 'right' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
   sidebar_color: string | null
   sidebar_position: 'left' | 'right' | 'top' | 'bottom'
   tile_shape: 'square' | 'soft' | 'rounded' | 'pill'
@@ -51,6 +53,8 @@ export function CustomizationPanel({
   const [backgroundColor, setBackgroundColor] = useState(initial.background_color ?? '#1c2027')
   const [backgroundDefault, setBackgroundDefault] = useState(initial.background_color == null)
   const [backgroundImagePath, setBackgroundImagePath] = useState<string | null>(initial.background_image_path)
+  const [backgroundImageOpacity, setBackgroundImageOpacity] = useState(initial.background_image_opacity ?? 100)
+  const [backgroundPosition, setBackgroundPosition] = useState<UiPreferences['background_position']>(initial.background_position ?? 'center')
   const [sidebarColor, setSidebarColor] = useState(initial.sidebar_color ?? '#16191f')
   const [sidebarDefault, setSidebarDefault] = useState(initial.sidebar_color == null)
   const [sidebarPosition, setSidebarPosition] = useState<'left' | 'right' | 'top' | 'bottom'>(initial.sidebar_position ?? 'left')
@@ -143,6 +147,8 @@ export function CustomizationPanel({
     const next: UiPreferences = {
       background_color: backgroundDefault ? null : normalized,
       background_image_path: backgroundImagePath,
+      background_image_opacity: backgroundImageOpacity,
+      background_position: backgroundPosition,
       sidebar_color: sidebarDefault ? null : normalizedSidebar,
       sidebar_position: sidebarPosition,
       tile_shape: tileShape,
@@ -336,6 +342,50 @@ export function CustomizationPanel({
 
             {previewUrl && (
               <img src={previewUrl} alt="" className="w-full h-40 object-cover rounded-xl border border-[var(--ink)]/10 mb-3" />
+            )}
+
+            {backgroundImagePath && (
+              <div className="grid gap-4 mb-4">
+                <label className="grid gap-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-[var(--ink)]/60 text-xs font-semibold">Transparence de l’image</span>
+                    <span className="text-[var(--ink)]/40 text-xs">{100 - backgroundImageOpacity}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={backgroundImageOpacity}
+                    onChange={(e) => setBackgroundImageOpacity(Number(e.target.value))}
+                    className="w-full"
+                  />
+                </label>
+
+                <div>
+                  <div className="flex items-center justify-between gap-3 mb-2">
+                    <span className="text-[var(--ink)]/60 text-xs font-semibold">Position de l’image</span>
+                    <Button size="sm" variant="ghost" onClick={() => setBackgroundPosition('center')}>
+                      <RotateCcw size={13} /> Centre
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {([
+                      ['top-left', '↖'], ['top', '↑'], ['top-right', '↗'],
+                      ['left', '←'], ['center', '•'], ['right', '→'],
+                      ['bottom-left', '↙'], ['bottom', '↓'], ['bottom-right', '↘'],
+                    ] as const).map(([value, label]) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => setBackgroundPosition(value)}
+                        className={`h-10 rounded-xl border text-sm font-bold transition-colors cursor-pointer ${backgroundPosition === value ? 'border-red bg-red/10 text-red-200' : 'border-[var(--ink)]/10 text-[var(--ink)]/60 hover:bg-[var(--ink)]/[0.04]'}`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
             )}
 
             <label className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-[var(--ink)]/15 px-4 py-5 text-[var(--ink)]/55 text-sm cursor-pointer hover:bg-[var(--ink)]/[0.03]">
