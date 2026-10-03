@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState, type DragEvent } from 'react'
-import { GripVertical } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/auth/AuthContext'
 import { TILE_SECTIONS, type TabKey } from '@/lib/tiles'
@@ -76,10 +75,6 @@ export function HomeTiles({
 
   return (
     <div className="flex flex-col gap-2">
-      <p className="text-[var(--ink)]/30 text-[11px] px-1 hidden sm:flex items-center gap-1.5">
-        <GripVertical size={13} />
-        Glisse les tuiles pour les réordonner ou déplace-les vers la sidebar.
-      </p>
 
       <div
         className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 min-h-[120px] rounded-2xl"
