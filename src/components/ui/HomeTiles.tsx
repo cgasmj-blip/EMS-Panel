@@ -6,6 +6,7 @@ import { Tile } from '@/components/ui/Tile'
 
 export function HomeTiles({ tabs, onSelect }: { tabs: TabKey[]; onSelect: (key: TabKey) => void }) {
   const { session } = useAuth()
+  const [favorites, setFavorites] = useState<string[]>([])
   const [enService, setEnService] = useState(0)
   const [mesAbsencesAVenir, setMesAbsencesAVenir] = useState(0)
 
@@ -45,8 +46,36 @@ export function HomeTiles({ tabs, onSelect }: { tabs: TabKey[]; onSelect: (key: 
     return () => window.clearInterval(timer)
   }, [refreshStats])
 
+  useEffect(() => {
+    const userId = session?.user.id
+    if (!userId) {
+      setFavorites([])
+      return
+    }
+    supabase
+      .from('user_favorites')
+      .select('tab_key')
+      .eq('staff_id', userId)
+      .then(({ data }) => setFavorites((data ?? []).map((row) => row.tab_key)))
+  }, [session?.user.id])
+
+  async function toggleFavorite(key: TabKey) {
+    const userId = session?.user.id
+    if (!userId) return
+    const isFavorite = favorites.includes(key)
+    setFavorites((current) => isFavorite ? current.filter((x) => x !== key) : [...current, key])
+
+    if (isFavorite) {
+      await supabase.from('user_favorites').delete().eq('staff_id', userId).eq('tab_key', key)
+    } else {
+      await supabase.from('user_favorites').upsert({ staff_id: userId, tab_key: key })
+    }
+  }
+
   const homeKeys: TabKey[] = ['services', 'absence', 'prestations', 'dossier', 'dossier_medical', 'formations', 'aide']
-  const sections = TILE_SECTIONS.filter((s) => tabs.includes(s.key) && homeKeys.includes(s.key))
+  const sections = TILE_SECTIONS
+    .filter((s) => tabs.includes(s.key) && homeKeys.includes(s.key))
+    .sort((a, b) => Number(favorites.includes(b.key)) - Number(favorites.includes(a.key)))
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
@@ -64,6 +93,8 @@ export function HomeTiles({ tabs, onSelect }: { tabs: TabKey[]; onSelect: (key: 
             color={section.color}
             big={section.key === 'services'}
             delay={i * 0.04}
+            favorite={favorites.includes(section.key)}
+            onToggleFavorite={() => toggleFavorite(section.key)}
             onClick={() => {
               if (section.key === 'dossier_medical') {
                 window.open('https://ljlife.online/admin/pages/ambulance/ems.php', '_blank', 'noopener,noreferrer')
