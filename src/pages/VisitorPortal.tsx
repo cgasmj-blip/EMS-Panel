@@ -27,6 +27,22 @@ type CustomSiteBlock = {
   url?: string
 }
 
+type BuiltInBlocksConfig = {
+  hero: { visible: boolean }
+  contact: { visible: boolean }
+  navigation: {
+    visible: boolean
+    labels: {
+      reglement: string
+      contact: string
+      recrutement: string
+      rendez_vous: string
+      suivi: string
+    }
+  }
+  content: { visible: boolean }
+}
+
 type SiteSettings = {
   hero_title: string
   hero_subtitle: string
@@ -49,6 +65,7 @@ type SiteSettings = {
     content: { x: number; y: number; w: number; h: number }
   }
   custom_blocks: CustomSiteBlock[]
+  built_in_blocks: BuiltInBlocksConfig
 }
 
 type SubjectRow = {
@@ -102,6 +119,22 @@ const DEFAULT_SITE_LAYOUT = {
   contact: { x: 66, y: 0, w: 34, h: 300 },
   navigation: { x: 0, y: 320, w: 100, h: 64 },
   content: { x: 0, y: 404, w: 100, h: 520 },
+}
+
+const DEFAULT_BUILT_IN_BLOCKS: BuiltInBlocksConfig = {
+  hero: { visible: true },
+  contact: { visible: true },
+  navigation: {
+    visible: true,
+    labels: {
+      reglement: 'Règlement',
+      contact: 'Nous contacter',
+      recrutement: 'Recrutement',
+      rendez_vous: 'Rendez-vous',
+      suivi: 'Mes demandes',
+    },
+  },
+  content: { visible: true },
 }
 
 function layoutStyle(item: { x: number; y: number; w: number; h: number }): CSSProperties {
@@ -202,15 +235,17 @@ export function VisitorPortal() {
     }
   }, [tab, session, discordName])
 
+  const builtInBlocks = siteSettings?.built_in_blocks ?? DEFAULT_BUILT_IN_BLOCKS
+
   const tabs = useMemo(
     () => [
-      siteSettings?.show_reglement !== false ? { key: 'reglement' as const, label: 'Règlement', icon: FileText } : null,
-      siteSettings?.show_contact !== false ? { key: 'contact' as const, label: 'Nous contacter', icon: MessageCircle } : null,
-      siteSettings?.show_recrutement !== false ? { key: 'recrutement' as const, label: 'Recrutement', icon: UserRoundPlus } : null,
-      siteSettings?.show_rendez_vous !== false ? { key: 'rendez_vous' as const, label: 'Rendez-vous', icon: CalendarClock } : null,
-      siteSettings?.show_suivi !== false ? { key: 'suivi' as const, label: 'Mes demandes', icon: History } : null,
+      siteSettings?.show_reglement !== false ? { key: 'reglement' as const, label: builtInBlocks.navigation.labels.reglement, icon: FileText } : null,
+      siteSettings?.show_contact !== false ? { key: 'contact' as const, label: builtInBlocks.navigation.labels.contact, icon: MessageCircle } : null,
+      siteSettings?.show_recrutement !== false ? { key: 'recrutement' as const, label: builtInBlocks.navigation.labels.recrutement, icon: UserRoundPlus } : null,
+      siteSettings?.show_rendez_vous !== false ? { key: 'rendez_vous' as const, label: builtInBlocks.navigation.labels.rendez_vous, icon: CalendarClock } : null,
+      siteSettings?.show_suivi !== false ? { key: 'suivi' as const, label: builtInBlocks.navigation.labels.suivi, icon: History } : null,
     ].filter(Boolean) as Array<{ key: PortalTab; label: string; icon: typeof FileText }>,
-    [siteSettings],
+    [siteSettings, builtInBlocks],
   )
 
   async function connectDiscord(target: 'contact' | 'recrutement' | 'rendez_vous') {
@@ -380,6 +415,7 @@ export function VisitorPortal() {
       >
         <div className="md:relative md:h-[var(--site-height)]">
           <section className="contents">
+          {builtInBlocks.hero.visible && (
           <Card
             className="p-0 overflow-hidden flex flex-col justify-center mb-6 md:mb-0 md:absolute md:left-[var(--site-x)] md:top-[var(--site-y)] md:w-[var(--site-w)] md:h-[var(--site-h)]"
             style={layoutStyle(publicLayout.hero)}
@@ -402,6 +438,8 @@ export function VisitorPortal() {
               </p>
             </div>
           </Card>
+          )}
+          {builtInBlocks.contact.visible && (
           <Card
             className="p-7 sm:p-9 flex flex-col justify-center bg-red/5 mb-6 md:mb-0 md:absolute md:left-[var(--site-x)] md:top-[var(--site-y)] md:w-[var(--site-w)] md:h-[var(--site-h)]"
             style={layoutStyle(publicLayout.contact)}
@@ -412,8 +450,10 @@ export function VisitorPortal() {
               {siteSettings?.contact_text ?? 'Les demandes envoyées ici arrivent directement dans le panel EMS afin que l’équipe puisse les traiter et assurer leur suivi.'}
             </p>
           </Card>
+          )}
           </section>
 
+        {builtInBlocks.navigation.visible && (
         <div
           className="flex gap-2 overflow-x-auto pb-2 mb-5 md:mb-0 md:absolute md:left-[var(--site-x)] md:top-[var(--site-y)] md:w-[var(--site-w)] md:h-[var(--site-h)] md:items-center"
           style={layoutStyle(publicLayout.navigation)}
@@ -439,7 +479,9 @@ export function VisitorPortal() {
             )
           })}
         </div>
+        )}
 
+        {builtInBlocks.content.visible && (
         <div
           className="md:absolute md:left-[var(--site-x)] md:top-[var(--site-y)] md:w-[var(--site-w)] md:h-[var(--site-h)] md:overflow-auto"
           style={layoutStyle(publicLayout.content)}
@@ -594,6 +636,7 @@ export function VisitorPortal() {
           </Card>
         )}
         </div>
+        )}
 
         {customBlocks.map((block) => {
           const blockStyle = layoutStyle({
