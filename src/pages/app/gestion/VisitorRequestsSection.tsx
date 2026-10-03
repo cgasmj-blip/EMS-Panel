@@ -13,6 +13,9 @@ type VisitorRequest = {
   request_type: 'question' | 'recrutement' | 'rendez_vous'
   full_name: string
   contact: string | null
+  phone: string | null
+  driving_license: string | null
+  identity_document: string | null
   discord_id: string | null
   discord_username: string | null
   discord_avatar_url: string | null
@@ -208,6 +211,12 @@ export function VisitorRequestsSection({
                 <h3 className="font-bold">{selected.full_name}</h3>
                 <p className="text-[var(--ink)]/40 text-xs">{selected.discord_username || selected.contact || 'Contact non renseigné'}</p>
                 <p className="text-[var(--ink)]/30 text-[10px] mt-1">Réf. {selected.public_id.slice(0,8).toUpperCase()}</p>
+                <div className="mt-2 grid gap-1 text-xs text-[var(--ink)]/55">
+                  <p><span className="font-semibold">Téléphone :</span> {selected.phone || 'Non renseigné'}</p>
+                  <p><span className="font-semibold">ID Discord :</span> <span className="font-mono">{selected.discord_id || 'Non renseigné'}</span></p>
+                  {selected.request_type === 'recrutement' && <p><span className="font-semibold">Permis :</span> {selected.driving_license || 'Non renseigné'}</p>}
+                  {selected.request_type === 'recrutement' && <p><span className="font-semibold">Pièce d’identité :</span> {selected.identity_document || 'Non renseignée'}</p>}
+                </div>
               </div>
             </div>
 
