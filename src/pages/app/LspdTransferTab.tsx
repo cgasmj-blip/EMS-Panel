@@ -9,7 +9,7 @@ const folders = [
   { key: 'work_stoppage', label: 'Arrêt de travail', detail: 'Nom, prénom + document', subject: 'person', reference: false, fileRequired: true, access: 'Tous les EMS', icon: FileClock },
   { key: 'sick_leave', label: 'Arrêt maladie', detail: 'Nom, prénom + document', subject: 'person', reference: false, fileRequired: true, access: 'Tous les EMS', icon: FileText },
   { key: 'billing', label: 'Facturation LSPD', detail: 'Nom, prénom, référence + facture', subject: 'person', reference: true, fileRequired: true, access: 'Tous les EMS', icon: Receipt },
-  { key: 'criminal_record_request', label: 'Casier judiciaire vierge', detail: 'Nom et prénom — demande au LSPD', subject: 'person', reference: false, fileRequired: false, access: 'Tous les EMS', icon: ShieldCheck },
+  { key: 'criminal_record_request', label: 'Casier judiciaire vierge', detail: 'Nom, prénom + pièce d’identité', subject: 'person', reference: false, fileRequired: true, access: 'Tous les EMS', icon: ShieldCheck },
 ] as const
 
 type FolderKey = (typeof folders)[number]['key']
@@ -124,7 +124,7 @@ export function LspdTransferTab() {
           )}
           {current.reference && <input required value={reference} onChange={(e) => setReference(e.target.value)} placeholder="Référence de facturation" className="w-full rounded-xl border border-[var(--ink)]/10 bg-[var(--bg)] px-3 py-2.5 text-sm outline-none focus:border-red/40" />}
           <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-dashed border-[var(--ink)]/20 bg-[var(--bg)] p-3 hover:border-red/35">
-            <Paperclip size={17}/><span className="text-sm text-[var(--ink)]/60">{files.length ? `${files.length} fichier(s) sélectionné(s)` : current.fileRequired ? 'Ajouter le document obligatoire' : 'Ajouter un document (facultatif)'}</span>
+            <Paperclip size={17}/><span className="text-sm text-[var(--ink)]/60">{files.length ? `${files.length} fichier(s) sélectionné(s)` : current.key === 'criminal_record_request' ? 'Ajouter la pièce d’identité obligatoire' : current.fileRequired ? 'Ajouter le document obligatoire' : 'Ajouter un document (facultatif)'}</span>
             <input className="hidden" type="file" multiple required={current.fileRequired} onChange={(e) => setFiles(Array.from(e.target.files ?? []))}/>
           </label>
           {files.length > 0 && <p className="text-xs text-[var(--ink)]/45">{files.map((file) => file.name).join(' • ')}</p>}
