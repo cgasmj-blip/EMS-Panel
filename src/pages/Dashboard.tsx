@@ -50,6 +50,7 @@ const TAB_CONTENT: Record<TabKey, ReactNode> = {
 }
 
 const VIEW_STORAGE_KEY = 'ems-dashboard-view'
+// Deployment refresh marker: 2026-10-03
 
 function getStoredView(): TabKey | 'home' {
   if (typeof window === 'undefined') return 'home'
