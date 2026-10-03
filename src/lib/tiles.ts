@@ -1,6 +1,6 @@
-import { Siren, UserX, Receipt, CalendarClock, HelpCircle, History, ShieldCheck, Stethoscope, FileHeart, FolderOpen, Search, MessageCircle, UserRoundCheck, ClipboardList, type LucideIcon } from 'lucide-react'
+import { Siren, UserX, Receipt, CalendarClock, BriefcaseBusiness, HelpCircle, History, ShieldCheck, Stethoscope, FileHeart, FolderOpen, Search, MessageCircle, UserRoundCheck, ClipboardList, type LucideIcon } from 'lucide-react'
 
-export type TabKey = 'services' | 'absence' | 'prestations' | 'agenda' | 'dossier' | 'dossier_medical' | 'formations' | 'recherche' | 'messages' | 'aide' | 'historique' | 'gestion' | 'visitor_rdv' | 'candidatures'
+export type TabKey = 'services' | 'absence' | 'prestations' | 'agenda' | 'dossier' | 'dossier_medical' | 'formations' | 'recherche' | 'messages' | 'aide' | 'historique' | 'gestion' | 'visitor_rdv' | 'candidatures' | 'professional_messages'
 
 export interface TileSection {
   key: TabKey
@@ -24,5 +24,6 @@ export const TILE_SECTIONS: TileSection[] = [
   { key: 'historique', label: 'Historique', icon: History, color: 'var(--tile-historique)' },
   { key: 'gestion', label: 'Gestion', icon: ShieldCheck, color: 'var(--tile-gestion)', seniorOnly: true },
   { key: 'visitor_rdv', label: 'Rendez-vous', icon: ClipboardList, color: 'var(--tile-rdv)' },
+  { key: 'professional_messages', label: 'Messages professionnels', icon: BriefcaseBusiness, color: 'var(--tile-absence)' },
   { key: 'candidatures', label: 'Candidatures', icon: UserRoundCheck, color: 'var(--tile-services)' },
 ]
