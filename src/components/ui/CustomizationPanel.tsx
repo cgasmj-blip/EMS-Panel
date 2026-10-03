@@ -9,6 +9,7 @@ type UiPreferences = {
   background_color: string | null
   background_image_path: string | null
   sidebar_color: string | null
+  sidebar_position: 'left' | 'right'
   tile_shape: 'square' | 'soft' | 'rounded' | 'pill'
   tile_colors: Record<string, string>
 }
@@ -52,6 +53,7 @@ export function CustomizationPanel({
   const [backgroundImagePath, setBackgroundImagePath] = useState<string | null>(initial.background_image_path)
   const [sidebarColor, setSidebarColor] = useState(initial.sidebar_color ?? '#16191f')
   const [sidebarDefault, setSidebarDefault] = useState(initial.sidebar_color == null)
+  const [sidebarPosition, setSidebarPosition] = useState<'left' | 'right'>(initial.sidebar_position ?? 'left')
   const [tileShape, setTileShape] = useState<'square' | 'soft' | 'rounded' | 'pill'>(initial.tile_shape ?? 'rounded')
   const [tileColors, setTileColors] = useState<Record<string, string>>(initial.tile_colors ?? {})
   const [saving, setSaving] = useState(false)
@@ -142,6 +144,7 @@ export function CustomizationPanel({
       background_color: backgroundDefault ? null : normalized,
       background_image_path: backgroundImagePath,
       sidebar_color: sidebarDefault ? null : normalizedSidebar,
+      sidebar_position: sidebarPosition,
       tile_shape: tileShape,
       tile_colors: tileColors,
     }
@@ -274,6 +277,35 @@ export function CustomizationPanel({
                   placeholder="#16191f"
                 />
               </div>
+            </div>
+          </section>
+
+          <section className="rounded-2xl border border-[var(--ink)]/8 p-4">
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <div>
+                <h3 className="text-[var(--ink)] font-bold text-sm">Position de la sidebar</h3>
+                <p className="text-[var(--ink)]/35 text-xs">Choisis de quel côté elle s’affiche sur ordinateur.</p>
+              </div>
+              <Button size="sm" variant="ghost" onClick={() => setSidebarPosition('left')}>
+                <RotateCcw size={13} /> Par défaut
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              {([
+                ['left', 'À gauche'],
+                ['right', 'À droite'],
+              ] as const).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setSidebarPosition(value)}
+                  className={`relative h-24 rounded-2xl border transition-all overflow-hidden cursor-pointer ${sidebarPosition === value ? 'border-red bg-red/10 ring-2 ring-red/20' : 'border-[var(--ink)]/10 bg-[var(--ink)]/[0.025] hover:bg-[var(--ink)]/[0.05]'}`}
+                >
+                  <span className={`absolute top-2 bottom-2 w-3 rounded-md bg-[var(--ink)]/45 ${value === 'left' ? 'left-2' : 'right-2'}`} />
+                  <span className="text-[var(--ink)]/75 text-sm font-semibold">{label}</span>
+                </button>
+              ))}
             </div>
           </section>
 
