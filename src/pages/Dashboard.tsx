@@ -570,17 +570,17 @@ export function Dashboard() {
         </button>
       </aside>
 
-      <div className="md:hidden fixed top-3 right-3 z-50 flex items-center gap-2">
+      <div className="md:hidden fixed top-[max(0.65rem,env(safe-area-inset-top))] right-3 z-50 flex items-center gap-1.5 rounded-2xl border border-[var(--ink)]/8 bg-[var(--sidebar-bg)]/90 p-1.5 shadow-lg backdrop-blur-xl">
         <CodeBlancAlertButton />
         <CodeRougeAlertButton />
         <StockAlertButton compact />
       </div>
 
       <nav
-        className="md:hidden fixed inset-x-0 bottom-0 z-50 border-t border-[var(--ink)]/10 backdrop-blur-xl px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2"
+        className="md:hidden fixed inset-x-2 bottom-2 z-50 rounded-2xl border border-[var(--ink)]/10 backdrop-blur-xl px-1.5 pb-[max(0.4rem,env(safe-area-inset-bottom))] pt-1.5 shadow-2xl"
         style={{ backgroundColor: uiPreferences.sidebar_color ?? 'var(--sidebar-bg)' }}
       >
-        <div className="mx-auto flex max-w-md items-center justify-around">
+        <div className="mx-auto flex max-w-md items-center justify-around gap-0.5">
           {[
             { key: 'home' as const, label: 'Accueil', icon: LayoutGrid },
             { key: 'agenda' as const, label: 'Agenda', icon: CalendarClock },
@@ -595,7 +595,7 @@ export function Dashboard() {
                 type="button"
                 onClick={() => setView(item.key)}
                 className={cn(
-                  'relative min-w-[64px] rounded-xl px-2 py-2 flex flex-col items-center gap-1 text-[10px] font-semibold transition-colors cursor-pointer',
+                  'relative min-w-0 flex-1 rounded-xl px-1.5 py-2 flex flex-col items-center gap-1 text-[10px] font-semibold transition-colors cursor-pointer',
                   active ? 'bg-red text-white' : 'text-[var(--ink)]/55 hover:bg-[var(--ink)]/5',
                 )}
               >
@@ -614,7 +614,7 @@ export function Dashboard() {
               type="button"
               onClick={() => setView('gestion')}
               className={cn(
-                'min-w-[64px] rounded-xl px-2 py-2 flex flex-col items-center gap-1 text-[10px] font-semibold transition-colors cursor-pointer',
+                'min-w-0 flex-1 rounded-xl px-1.5 py-2 flex flex-col items-center gap-1 text-[10px] font-semibold transition-colors cursor-pointer',
                 effectiveView === 'gestion' ? 'bg-red text-white' : 'text-[var(--ink)]/55 hover:bg-[var(--ink)]/5',
               )}
             >
@@ -628,7 +628,7 @@ export function Dashboard() {
       <main
         className={cn(
           'relative z-10',
-          'min-w-0 px-3 py-4 sm:px-5 sm:py-6 md:px-8 md:py-8 pb-24 md:pb-8 flex flex-col gap-4 sm:gap-6',
+          'min-w-0 px-3 pt-[max(4.25rem,calc(env(safe-area-inset-top)+3.5rem))] sm:px-5 sm:pt-6 md:px-8 md:py-8 pb-[calc(6.5rem+env(safe-area-inset-bottom))] md:pb-8 flex flex-col gap-4 sm:gap-6',
           uiPreferences.sidebar_position === 'right' && 'md:mr-20',
           uiPreferences.sidebar_position === 'left' && 'md:ml-20',
           uiPreferences.sidebar_position === 'top' && 'md:mt-20',
@@ -652,7 +652,7 @@ export function Dashboard() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.25 }}
-              className="flex flex-col gap-6 w-full h-full min-h-0 overflow-hidden"
+              className="flex flex-col gap-3 sm:gap-6 w-full h-full min-h-0 overflow-y-auto md:overflow-hidden"
             >
               <div className="relative overflow-hidden rounded-2xl">
                 <div className="absolute inset-0 h-full">
@@ -664,7 +664,7 @@ export function Dashboard() {
                 </div>
               </div>
               {latestAnnouncements.length > 0 && (
-                <div className="rounded-2xl border border-red/20 bg-red/10 px-4 py-3">
+                <div className="rounded-2xl border border-red/20 bg-red/10 px-3 py-2.5 sm:px-4 sm:py-3 shrink-0">
                   <div className="flex items-center gap-3 mb-3">
                     <span className="w-9 h-9 rounded-xl bg-red/15 text-red-300 flex items-center justify-center shrink-0">
                       <Megaphone size={17} />
@@ -676,7 +676,7 @@ export function Dashboard() {
                   </div>
 
                   <div className="grid gap-2">
-                    {latestAnnouncements.map((announcement) => (
+                    {latestAnnouncements.slice(0, 1).map((announcement) => (
                       <div key={announcement.id} className="rounded-xl border border-[var(--ink)]/8 bg-[var(--bg)]/55 px-3 py-2.5">
                         <div className="flex items-start justify-between gap-3">
                           <p className="text-[var(--ink)] font-semibold text-sm">{announcement.title}</p>
@@ -684,7 +684,7 @@ export function Dashboard() {
                             {new Date(announcement.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}
                           </span>
                         </div>
-                        <p className="text-[var(--ink)]/60 text-sm mt-1 whitespace-pre-wrap line-clamp-3">{announcement.body}</p>
+                        <p className="text-[var(--ink)]/60 text-xs sm:text-sm mt-1 whitespace-pre-wrap line-clamp-2 sm:line-clamp-3">{announcement.body}</p>
                       </div>
                     ))}
                   </div>
@@ -715,8 +715,8 @@ export function Dashboard() {
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.25 }}
               className={cn(
-                'flex flex-col gap-6 max-w-5xl w-full mx-auto',
-                effectiveView === 'messages' && 'h-full min-h-0 overflow-hidden gap-3',
+                'flex flex-col gap-4 sm:gap-6 max-w-5xl w-full mx-auto min-w-0',
+                effectiveView === 'messages' && 'h-full min-h-0 overflow-hidden gap-2 sm:gap-3',
               )}
             >
               {activeSection && (
