@@ -169,6 +169,7 @@ export function VisitorPortal() {
   const [subjects, setSubjects] = useState<SubjectRow[]>([])
   const [subjectId, setSubjectId] = useState<number | null>(null)
   const [threads, setThreads] = useState<Array<{ credential: TicketCredential; data: ThreadData }>>([])
+  const [openTicket, setOpenTicket] = useState<string | null>(null)
   const [replyByTicket, setReplyByTicket] = useState<Record<string, string>>({})
   const [siteSettings, setSiteSettings] = useState<SiteSettings | null>(null)
   const [heroImageUrl, setHeroImageUrl] = useState<string | null>(null)
@@ -193,6 +194,8 @@ export function VisitorPortal() {
   const discordId = String(metadata.provider_id ?? metadata.sub ?? '')
   const discordName = discordDisplayName || String(metadata.global_name ?? metadata.full_name ?? metadata.name ?? metadata.user_name ?? '')
   const discordAvatar = String(metadata.avatar_url ?? metadata.picture ?? '')
+  const [discordDisplayName, setDiscordDisplayName] = useState('')
+  const visitorName = discordDisplayName || discordName
 
   useEffect(() => {
     if (!session) {
@@ -207,6 +210,12 @@ export function VisitorPortal() {
       })
       .catch(() => {})
   }, [session?.user.id])
+
+  useEffect(() => {
+    if (!session?.provider_token) return
+    supabase.functions.invoke('resolve-discord-profile', { body: { providerToken: session.provider_token } })
+      .then(({ data }) => setDiscordDisplayName(String(data?.display_name ?? '')))
+  }, [session?.user.id, session?.provider_token])
 
   useEffect(() => {
     if (!staff) return
@@ -258,10 +267,10 @@ export function VisitorPortal() {
   }, [tab, subjects])
 
   useEffect(() => {
-    if ((tab === 'contact' || tab === 'recrutement' || tab === 'rendez_vous') && session && discordName) {
+    if ((tab === 'contact' || tab === 'recrutement' || tab === 'rendez_vous') && session && visitorName) {
       setForm((current) => ({
         ...current,
-        fullName: current.fullName || discordName,
+        fullName: current.fullName || visitorName,
         contact: current.contact || `Discord · ${discordName}`,
         subject: current.subject || (tab === 'recrutement' ? 'Candidature EMS' : ''),
       }))
@@ -375,7 +384,7 @@ export function VisitorPortal() {
     }
 
     const needsDiscord = true
-    const fullName = (discordName || form.fullName).trim()
+    const fullName = (visitorName || form.fullName).trim()
     if (fullName.length < 2) {
       setError('Indique ton nom.')
       return
@@ -402,7 +411,7 @@ export function VisitorPortal() {
       p_message: form.message.trim(),
       p_preferred_at: form.preferredAt ? new Date(form.preferredAt).toISOString() : null,
       p_discord_id: needsDiscord ? discordId : null,
-      p_discord_username: needsDiscord ? discordName : null,
+      p_discord_username: needsDiscord ? visitorName : null,
       p_discord_avatar_url: needsDiscord ? discordAvatar : null,
       p_metadata: {},
       p_subject_id: subjectId,
@@ -574,7 +583,7 @@ export function VisitorPortal() {
                 {discordAvatar ? <img src={discordAvatar} alt="" className="w-11 h-11 rounded-full object-cover" /> : <span className="w-11 h-11 rounded-full bg-[var(--ink)]/10" />}
                 <div className="min-w-0 flex-1">
                   <p className="font-bold text-sm">Mon espace visiteur</p>
-                  <p className="text-[var(--ink)]/40 text-xs truncate">{discordName || 'Compte Discord connecté'} · messages, rendez-vous et candidatures</p>
+                  <p className="text-[var(--ink)]/40 text-xs truncate">{visitorName || 'Compte Discord connecté'} · messages, rendez-vous et candidatures</p>
                 </div>
                 <Button size="sm" variant="ghost" onClick={() => void signOut()}>Déconnexion</Button>
               </Card>
@@ -590,68 +599,28 @@ export function VisitorPortal() {
                 </Button>
               </Card>
             )}
-            {threads.map((item) => (
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {threads.map((item) => {
+                const status=item.data.request.status
+                const isRecruit=item.data.request.request_type==='recrutement'
+                const isRdv=item.data.request.request_type==='rendez_vous'
+                const tone=isRecruit
+                  ? status==='refusee' ? 'border-red/35 bg-red/8' : status==='acceptee' ? 'border-green-400/35 bg-green-400/8' : status==='verification_dossier' ? 'border-orange-400/35 bg-orange-400/8' : ['en_cours','en_attente','entretien'].includes(status) ? 'border-yellow-400/35 bg-yellow-400/8' : 'border-[var(--ink)]/10'
+                  : isRdv && ['en_cours','repondu','ferme'].includes(status) ? 'border-cyan/30 bg-cyan/5' : 'border-[var(--ink)]/10'
+                const label=isRecruit ? 'Candidature' : isRdv ? 'Rendez-vous' : item.data.request.subject
+                const statusLabel=status==='refusee'?'Refusé':status==='acceptee'?'Accepté':status==='verification_dossier'?'En attente du casier judiciaire':['en_cours','en_attente','entretien'].includes(status)?'En cours de traitement':status==='candidature_recue'?'Pas pris en charge':status.replaceAll('_',' ')
+                return <button key={item.credential.public_id} type="button" onClick={()=>setOpenTicket(item.credential.public_id)} className={`rounded-xl border p-4 text-left hover:bg-[var(--ink)]/[0.04] ${tone}`}>
+                  <p className="font-bold text-sm">{label}</p>
+                  <p className="text-[11px] text-[var(--ink)]/45 mt-1">{isRecruit||isRdv ? statusLabel : new Date(item.data.request.created_at).toLocaleDateString('fr-FR')}</p>
+                  <p className="text-[10px] text-[var(--ink)]/30 mt-2">Réf. {item.data.request.public_id.slice(0,8).toUpperCase()}</p>
+                </button>
+              })}
+            </div>
+            {threads.filter(item=>item.credential.public_id===openTicket).map((item)=>(
               <Card key={item.credential.public_id} className="p-5 sm:p-6">
-                <div className="flex items-start justify-between gap-3 mb-4">
-                  <div>
-                    <p className="font-bold">{item.data.request.subject}</p>
-                    <p className="text-[var(--ink)]/35 text-xs mt-1">
-                      Réf. {item.data.request.public_id.slice(0, 8).toUpperCase()} · {new Date(item.data.request.created_at).toLocaleString('fr-FR')}
-                    </p>
-                  </div>
-                  <span className="rounded-full border border-[var(--ink)]/10 px-2.5 py-1 text-[11px] text-[var(--ink)]/60">
-                    {item.data.request.status.replaceAll('_', ' ')}
-                  </span>
-                </div>
-
-                <div className="grid gap-2 max-h-80 overflow-y-auto pr-1">
-                  {item.data.messages.map((message) => (
-                    <div
-                      key={message.id}
-                      className={message.sender === 'ems'
-                        ? 'rounded-xl bg-red/8 border border-red/10 px-3 py-2.5'
-                        : 'rounded-xl bg-[var(--ink)]/[0.035] border border-[var(--ink)]/8 px-3 py-2.5'}
-                    >
-                      <p className="text-[11px] font-semibold text-[var(--ink)]/40 mb-1">{message.sender === 'ems' ? 'EMS' : 'Vous'}</p>
-                      <p className="text-sm whitespace-pre-wrap">{message.body}</p>
-                      <p className="text-[10px] text-[var(--ink)]/25 mt-1">{new Date(message.created_at).toLocaleString('fr-FR')}</p>
-                    </div>
-                  ))}
-                </div>
-
-                {(item.data.request.status === 'refusee' || item.data.request.status === 'acceptee') && (
-                  <div className="mt-4">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => setReplyByTicket((current) => ({
-                        ...current,
-                        [item.credential.public_id]: item.data.request.status === 'refusee'
-                          ? 'Bonjour, pouvez-vous m’expliquer la raison du refus de ma candidature ?'
-                          : 'Bonjour, pouvez-vous m’indiquer la suite à donner à ma candidature ?',
-                      }))}
-                    >
-                      <MessageCircle size={14} /> {item.data.request.status === 'refusee' ? 'Demander pourquoi' : 'Demander la suite'}
-                    </Button>
-                  </div>
-                )}
-
-                <div className="flex gap-2 mt-4">
-                  <Input
-                    value={replyByTicket[item.credential.public_id] ?? ''}
-                    onChange={(e) => setReplyByTicket((current) => ({ ...current, [item.credential.public_id]: e.target.value }))}
-                    placeholder="Ajouter un message…"
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault()
-                        void sendTrackingReply(item)
-                      }
-                    }}
-                  />
-                  <Button onClick={() => void sendTrackingReply(item)} disabled={!(replyByTicket[item.credential.public_id] ?? '').trim()}>
-                    <Send size={15} />
-                  </Button>
-                </div>
+                <div className="flex items-start justify-between gap-3 mb-4"><div><p className="font-bold">{item.data.request.request_type==='recrutement'?'Candidature':item.data.request.subject}</p><p className="text-[var(--ink)]/35 text-xs mt-1">Réf. {item.data.request.public_id.slice(0,8).toUpperCase()}</p></div><Button size="sm" variant="ghost" onClick={()=>setOpenTicket(null)}>Fermer</Button></div>
+                <div className="grid gap-2 max-h-80 overflow-y-auto pr-1">{item.data.messages.map(message=><div key={message.id} className={message.sender==='ems'?'rounded-xl bg-red/8 border border-red/10 px-3 py-2.5':'rounded-xl bg-[var(--ink)]/[0.035] border border-[var(--ink)]/8 px-3 py-2.5'}><p className="text-[11px] font-semibold text-[var(--ink)]/40 mb-1">{message.sender==='ems'?'EMS':'Vous'}</p><p className="text-sm whitespace-pre-wrap">{message.body}</p></div>)}</div>
+                <div className="flex gap-2 mt-4"><Input value={replyByTicket[item.credential.public_id]??''} onChange={e=>setReplyByTicket(current=>({...current,[item.credential.public_id]:e.target.value}))} placeholder="Ajouter un message…" /><Button onClick={()=>void sendTrackingReply(item)} disabled={!(replyByTicket[item.credential.public_id]??'').trim()}><Send size={15}/></Button></div>
               </Card>
             ))}
             {threads.length === 0 && (
@@ -679,7 +648,7 @@ export function VisitorPortal() {
                   {discordAvatar ? <img src={discordAvatar} alt="" className="w-10 h-10 rounded-full object-cover" /> : <span className="w-10 h-10 rounded-full bg-[var(--ink)]/10" />}
                   <div className="min-w-0 flex-1">
                     <p className="text-green-300 text-sm font-semibold">Discord lié</p>
-                    <p className="text-[var(--ink)]/50 text-xs truncate">{discordName || 'Compte Discord connecté'}</p>
+                    <p className="text-[var(--ink)]/50 text-xs truncate">{visitorName || 'Compte Discord connecté'}</p>
                   </div>
                   {!staff && <Button size="sm" variant="ghost" onClick={signOut}>Changer</Button>}
                 </div>
@@ -689,8 +658,8 @@ export function VisitorPortal() {
                 <label className="grid gap-1.5">
                   <span className="text-xs font-semibold text-[var(--ink)]/55">Nom</span>
                   <Input
-                    value={(tab === 'contact' || tab === 'recrutement' || tab === 'rendez_vous') && discordName ? discordName : form.fullName}
-                    disabled={(tab === 'contact' || tab === 'recrutement' || tab === 'rendez_vous') && Boolean(discordName)}
+                    value={(tab === 'contact' || tab === 'recrutement' || tab === 'rendez_vous') && visitorName ? visitorName : form.fullName}
+                    disabled={(tab === 'contact' || tab === 'recrutement' || tab === 'rendez_vous') && Boolean(visitorName)}
                     onChange={(e) => setForm((current) => ({ ...current, fullName: e.target.value }))}
                   />
                 </label>
