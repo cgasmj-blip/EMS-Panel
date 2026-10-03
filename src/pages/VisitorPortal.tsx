@@ -104,6 +104,9 @@ type RequestForm = {
   subject: string
   message: string
   preferredAt: string
+  phone: string
+  drivingLicense: string
+  identityDocument: string
 }
 
 const EMPTY_FORM: RequestForm = {
@@ -112,6 +115,9 @@ const EMPTY_FORM: RequestForm = {
   subject: '',
   message: '',
   preferredAt: '',
+  phone: '',
+  drivingLicense: '',
+  identityDocument: '',
 }
 
 const DEFAULT_SITE_LAYOUT = {
@@ -359,6 +365,8 @@ export function VisitorPortal() {
       setError('Indique ton nom.')
       return
     }
+    if (!form.phone.trim()) { setError('Le numéro de téléphone est obligatoire.'); return }
+    if (type === 'recrutement' && (!form.drivingLicense.trim() || !form.identityDocument.trim())) { setError('Le permis de conduire et la pièce d’identité sont obligatoires.'); return }
     if (!subjectId || !form.message.trim()) {
       setError('L’objet et le message sont nécessaires.')
       return
@@ -383,6 +391,9 @@ export function VisitorPortal() {
       p_discord_avatar_url: needsDiscord ? discordAvatar : null,
       p_metadata: {},
       p_subject_id: subjectId,
+      p_phone: form.phone.trim(),
+      p_driving_license: type === 'recrutement' ? form.drivingLicense.trim() : null,
+      p_identity_document: type === 'recrutement' ? form.identityDocument.trim() : null,
     })
     setSending(false)
 
@@ -690,11 +701,28 @@ export function VisitorPortal() {
                 </Select>
               </label>
 
-              {tab === 'rendez_vous' && (
-                <label className="grid gap-1.5 mt-4">
-                  <span className="text-xs font-semibold text-[var(--ink)]/55">Date / heure souhaitée</span>
-                  <Input type="datetime-local" value={form.preferredAt} onChange={(e) => setForm((current) => ({ ...current, preferredAt: e.target.value }))} />
+              <div className="grid sm:grid-cols-2 gap-4 mt-4">
+                <label className="grid gap-1.5">
+                  <span className="text-xs font-semibold text-[var(--ink)]/55">Téléphone *</span>
+                  <Input value={form.phone} placeholder="Numéro de téléphone" onChange={(e) => setForm((current) => ({ ...current, phone: e.target.value }))} />
                 </label>
+                <label className="grid gap-1.5">
+                  <span className="text-xs font-semibold text-[var(--ink)]/55">ID Discord</span>
+                  <Input value={discordId} disabled placeholder="Connexion Discord requise" />
+                </label>
+              </div>
+
+              {tab === 'recrutement' && (
+                <div className="grid sm:grid-cols-2 gap-4 mt-4">
+                  <label className="grid gap-1.5">
+                    <span className="text-xs font-semibold text-[var(--ink)]/55">Permis de conduire *</span>
+                    <Input value={form.drivingLicense} placeholder="Type / numéro du permis" onChange={(e) => setForm((current) => ({ ...current, drivingLicense: e.target.value }))} />
+                  </label>
+                  <label className="grid gap-1.5">
+                    <span className="text-xs font-semibold text-[var(--ink)]/55">Pièce d’identité *</span>
+                    <Input value={form.identityDocument} placeholder="Type / numéro de la pièce" onChange={(e) => setForm((current) => ({ ...current, identityDocument: e.target.value }))} />
+                  </label>
+                </div>
               )}
 
               <label className="grid gap-1.5 mt-4">
