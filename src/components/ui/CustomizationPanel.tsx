@@ -13,6 +13,8 @@ type UiPreferences = {
   sidebar_color: string | null
   sidebar_position: 'left' | 'right' | 'top' | 'bottom'
   tile_shape: 'square' | 'soft' | 'rounded' | 'pill'
+  tile_opacity: number
+  tile_images: Record<string, string>
   tile_colors: Record<string, string>
 }
 
@@ -42,6 +44,7 @@ export function CustomizationPanel({
   onClose,
   onSaved,
   onEditLayout,
+  onResetLayout,
 }: {
   staffId: string
   visibleTabs: TabKey[]
@@ -49,6 +52,7 @@ export function CustomizationPanel({
   onClose: () => void
   onSaved: (next: UiPreferences) => void
   onEditLayout: () => void
+  onResetLayout: () => Promise<void> | void
 }) {
   const [backgroundColor, setBackgroundColor] = useState(initial.background_color ?? '#1c2027')
   const [backgroundDefault, setBackgroundDefault] = useState(initial.background_color == null)
@@ -59,6 +63,8 @@ export function CustomizationPanel({
   const [sidebarDefault, setSidebarDefault] = useState(initial.sidebar_color == null)
   const [sidebarPosition, setSidebarPosition] = useState<'left' | 'right' | 'top' | 'bottom'>(initial.sidebar_position ?? 'left')
   const [tileShape, setTileShape] = useState<'square' | 'soft' | 'rounded' | 'pill'>(initial.tile_shape ?? 'rounded')
+  const [tileOpacity, setTileOpacity] = useState(initial.tile_opacity ?? 100)
+  const [tileImages, setTileImages] = useState<Record<string, string>>(initial.tile_images ?? {})
   const [tileColors, setTileColors] = useState<Record<string, string>>(initial.tile_colors ?? {})
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
@@ -152,6 +158,8 @@ export function CustomizationPanel({
       sidebar_color: sidebarDefault ? null : normalizedSidebar,
       sidebar_position: sidebarPosition,
       tile_shape: tileShape,
+      tile_opacity: tileOpacity,
+      tile_images: tileImages,
       tile_colors: tileColors,
     }
 
@@ -408,9 +416,95 @@ export function CustomizationPanel({
                 <h3 className="text-[var(--ink)] font-bold text-sm">Disposition des tuiles</h3>
                 <p className="text-[var(--ink)]/35 text-xs mt-1">Déplace et redimensionne librement les tuiles sur l’accueil.</p>
               </div>
-              <Button type="button" onClick={onEditLayout}>
-                Modifier
+              <div className="flex gap-2">
+                <Button size="sm" variant="ghost" type="button" onClick={() => void onResetLayout()}>
+                  <RotateCcw size={13} /> Par défaut
+                </Button>
+                <Button type="button" onClick={onEditLayout}>Modifier</Button>
+              </div>
+            </div>
+          </section>
+
+          <section className="rounded-2xl border border-[var(--ink)]/8 p-4">
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <div>
+                <h3 className="text-[var(--ink)] font-bold text-sm">Transparence des tuiles</h3>
+                <p className="text-[var(--ink)]/35 text-xs">Règle l’opacité générale des tuiles.</p>
+              </div>
+              <Button size="sm" variant="ghost" onClick={() => setTileOpacity(100)}>
+                <RotateCcw size={13} /> Par défaut
               </Button>
+            </div>
+            <div className="flex items-center gap-3">
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={tileOpacity}
+                onChange={(e) => setTileOpacity(Number(e.target.value))}
+                className="flex-1"
+              />
+              <span className="w-12 text-right text-xs text-[var(--ink)]/50">{tileOpacity}%</span>
+            </div>
+          </section>
+
+          <section className="rounded-2xl border border-[var(--ink)]/8 p-4">
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <div>
+                <h3 className="text-[var(--ink)] font-bold text-sm">Images des tuiles</h3>
+                <p className="text-[var(--ink)]/35 text-xs">Ajoute une image de fond à une tuile si tu veux la rendre plus visuelle.</p>
+              </div>
+            </div>
+            <div className="grid sm:grid-cols-2 gap-2">
+              {availableTiles.map((section) => (
+                <div key={section.key} className="rounded-xl border border-[var(--ink)]/8 px-3 py-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[var(--ink)]/70 text-sm">{section.label}</span>
+                    {tileImages[section.key] && (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const path = tileImages[section.key]
+                          await supabase.storage.from('user-backgrounds').remove([path])
+                          setTileImages((images) => {
+                            const next = { ...images }
+                            delete next[section.key]
+                            return next
+                          })
+                        }}
+                        className="text-[var(--ink)]/35 hover:text-[var(--ink)] cursor-pointer"
+                        title="Retirer l’image"
+                      >
+                        <RotateCcw size={14} />
+                      </button>
+                    )}
+                  </div>
+                  <label className="mt-2 flex items-center justify-center gap-2 rounded-lg border border-dashed border-[var(--ink)]/15 px-3 py-3 text-[var(--ink)]/50 text-xs cursor-pointer hover:bg-[var(--ink)]/[0.03]">
+                    <ImagePlus size={14} />
+                    {tileImages[section.key] ? 'Remplacer l’image' : 'Ajouter une image'}
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp,image/gif"
+                      className="hidden"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0]
+                        if (!file) return
+                        const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg'
+                        const path = `${staffId}/tile-${section.key}-${Date.now()}.${ext}`
+                        const previous = tileImages[section.key]
+                        const { error: uploadError } = await supabase.storage.from('user-backgrounds').upload(path, file)
+                        if (uploadError) {
+                          setError(uploadError.message)
+                          return
+                        }
+                        if (previous) await supabase.storage.from('user-backgrounds').remove([previous])
+                        setTileImages((images) => ({ ...images, [section.key]: path }))
+                        e.currentTarget.value = ''
+                      }}
+                    />
+                  </label>
+                </div>
+              ))}
             </div>
           </section>
 
