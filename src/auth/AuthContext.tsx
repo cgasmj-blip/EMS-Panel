@@ -10,6 +10,7 @@ interface AuthState {
   loading: boolean
   denialReason: AuthDenialReason | null
   signInWithDiscord: () => Promise<void>
+  signInVisitorWithDiscord: () => Promise<void>
   signOut: () => Promise<void>
   refreshStaff: () => Promise<void>
 }
@@ -20,6 +21,7 @@ const AuthContext = createContext<AuthState>({
   loading: true,
   denialReason: null,
   signInWithDiscord: async () => {},
+  signInVisitorWithDiscord: async () => {},
   signOut: async () => {},
   refreshStaff: async () => {},
 })
@@ -100,13 +102,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const { data: subscription } = supabase.auth.onAuthStateChange(async (event, newSession) => {
       if (event === 'SIGNED_IN' && newSession) {
-        const verification = await verifyDiscordMembership(newSession)
-        if (!verification.authorized) {
-          setSession(null)
-          setStaff(null)
-          await supabase.auth.signOut({ scope: 'local' })
-          return
+        const authPurpose = window.sessionStorage.getItem('ems-auth-purpose')
+        if (authPurpose !== 'visitor') {
+          const verification = await verifyDiscordMembership(newSession)
+          if (!verification.authorized) {
+            setSession(null)
+            setStaff(null)
+            await supabase.auth.signOut({ scope: 'local' })
+            return
+          }
         }
+        window.sessionStorage.removeItem('ems-auth-purpose')
       }
 
       setSession(newSession)
@@ -122,6 +128,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signInWithDiscord = useCallback(async () => {
     setDenialReason(null)
+    window.sessionStorage.setItem('ems-auth-purpose', 'staff')
     await supabase.auth.signInWithOAuth({
       provider: 'discord',
       options: {
@@ -131,12 +138,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })
   }, [])
 
+  const signInVisitorWithDiscord = useCallback(async () => {
+    setDenialReason(null)
+    window.sessionStorage.setItem('ems-auth-purpose', 'visitor')
+    await supabase.auth.signInWithOAuth({
+      provider: 'discord',
+      options: {
+        redirectTo: window.location.origin + import.meta.env.BASE_URL,
+        scopes: 'identify',
+      },
+    })
+  }, [])
+
   const signOut = useCallback(async () => {
     await supabase.auth.signOut()
   }, [])
 
   return (
-    <AuthContext.Provider value={{ session, staff, loading, denialReason, signInWithDiscord, signOut, refreshStaff }}>
+    <AuthContext.Provider value={{ session, staff, loading, denialReason, signInWithDiscord, signInVisitorWithDiscord, signOut, refreshStaff }}>
       {children}
     </AuthContext.Provider>
   )
