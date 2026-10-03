@@ -173,6 +173,7 @@ export function VisitorPortal() {
   const [siteSettings, setSiteSettings] = useState<SiteSettings | null>(null)
   const [heroImageUrl, setHeroImageUrl] = useState<string | null>(null)
   const [backgroundImageUrl, setBackgroundImageUrl] = useState<string | null>(null)
+  const [discordDisplayName, setDiscordDisplayName] = useState<string>('')
 
   useEffect(() => {
     try {
@@ -190,8 +191,22 @@ export function VisitorPortal() {
 
   const metadata = (session?.user.user_metadata ?? {}) as Record<string, unknown>
   const discordId = String(metadata.provider_id ?? metadata.sub ?? '')
-  const discordName = String(metadata.full_name ?? metadata.name ?? metadata.user_name ?? '')
+  const discordName = discordDisplayName || String(metadata.global_name ?? metadata.full_name ?? metadata.name ?? metadata.user_name ?? '')
   const discordAvatar = String(metadata.avatar_url ?? metadata.picture ?? '')
+
+  useEffect(() => {
+    if (!session) {
+      setDiscordDisplayName('')
+      return
+    }
+
+    supabase.functions.invoke('get-discord-display-name')
+      .then(({ data }) => {
+        const next = String(data?.display_name ?? '').trim()
+        if (next) setDiscordDisplayName(next)
+      })
+      .catch(() => {})
+  }, [session?.user.id])
 
   useEffect(() => {
     if (!staff) return
