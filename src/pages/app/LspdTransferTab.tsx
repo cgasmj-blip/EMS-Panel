@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent } from 'react'
-import { Bone, CalendarCheck, CheckCircle2, FileBadge, FileCheck2, FileClock, FileText, ArrowLeft, Link2, MessageSquareText, Paperclip, Receipt, Send, ShieldCheck, X } from 'lucide-react'
+import { Bone, CalendarCheck, CheckCircle2, FileBadge, FileCheck2, FileClock, FileText, ArrowLeft, ImagePlus, MessageSquareText, Paperclip, Receipt, Send, ShieldCheck, X } from 'lucide-react'
 
 const folders = [
   { key: 'veterinary_followup', label: 'Suivi vétérinaire', detail: 'Prénom de l’animal + document', subject: 'animal', reference: false, fileRequired: true, access: 'Vétérinaire', icon: Bone },
@@ -31,7 +31,6 @@ export function LspdTransferTab() {
   const [reference, setReference] = useState('')
   const [files, setFiles] = useState<File[]>([])
   const [directionText, setDirectionText] = useState('')
-  const [directionLink, setDirectionLink] = useState('')
   const [directionFiles, setDirectionFiles] = useState<File[]>([])
   const [success, setSuccess] = useState<string | null>(null)
   const [revision, setRevision] = useState(0)
@@ -65,17 +64,17 @@ export function LspdTransferTab() {
 
   function simulateDirectionSend(event: FormEvent) {
     event.preventDefault()
-    if (!directionText.trim() && !directionLink.trim() && directionFiles.length === 0) return
+    if (!directionText.trim() && directionFiles.length === 0) return
     saveDraft({
       id: crypto.randomUUID(),
       kind: 'direction_message',
-      summary: [directionText.trim(), directionLink.trim()].filter(Boolean).join('\n') || 'Pièce jointe Direction',
+      summary: directionText.trim() || 'Pièce jointe Direction',
       files: directionFiles.map((file) => file.name),
       createdAt: new Date().toISOString(),
     })
     setSuccess('Message Direction placé dans la file d’envoi LSPD.')
     setRevision((value) => value + 1)
-    setDirectionText(''); setDirectionLink(''); setDirectionFiles([])
+    setDirectionText(''); setDirectionFiles([])
     window.setTimeout(() => setSuccess(null), 4500)
   }
 
@@ -87,6 +86,8 @@ export function LspdTransferTab() {
         </div>
       )}
 
+      {!current && !directionOpen && (
+        <>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         {folders.map((folder) => {
           const Icon = folder.icon
@@ -98,22 +99,17 @@ export function LspdTransferTab() {
           )
         })}
       </div>
-
-      <button type="button" onClick={() => { setDirectionOpen(true); setSelected(null); setSuccess(null) }}
-        className="w-full rounded-2xl border border-[var(--ink)]/10 bg-[var(--ink)]/[0.025] p-4 text-left transition hover:border-red/30 hover:bg-red/[0.06]">
-        <div className="flex items-center gap-3">
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-red/15 text-red"><MessageSquareText size={18} /></span>
-          <div><p className="font-bold text-[var(--ink)]">Messagerie Direction</p><p className="mt-1 text-xs text-[var(--ink)]/50">Conversation écrite, liens, images et documents.</p></div>
-        </div>
-      </button>
+        </>
+      )}
 
       {current && (
+        <>
+          <button type="button" onClick={() => setSelected(null)} className="mb-1 flex items-center gap-2 text-sm font-semibold text-[var(--ink)]/60 hover:text-[var(--ink)]">
+            <ArrowLeft size={17}/> Retour à Liaison LSPD
+          </button>
         <div className="grid gap-4 lg:grid-cols-2">
           <div className="rounded-2xl border border-[var(--ink)]/10 bg-[var(--ink)]/[0.025] p-4">
-            <div className="mb-4 flex items-center gap-2">
-              <button type="button" onClick={() => setSelected(null)} className="rounded-lg p-2 hover:bg-[var(--ink)]/5"><ArrowLeft size={17}/></button>
-              <p className="font-bold text-[var(--ink)]">Historique — {current.label}</p>
-            </div>
+            <p className="mb-4 font-bold text-[var(--ink)]">Historique — {current.label}</p>
             <div className="max-h-[430px] space-y-2 overflow-y-auto">
               {history.map((item) => (
                 <div key={item.id} className="rounded-xl border border-[var(--ink)]/8 bg-[var(--bg)] p-3">
@@ -149,17 +145,33 @@ export function LspdTransferTab() {
             <button type="submit" className="flex w-full items-center justify-center gap-2 rounded-xl bg-red px-4 py-3 text-sm font-bold text-white transition hover:opacity-90"><Send size={17}/> Envoyer au LSPD</button>
           </form>
         </div>
+        </>
       )}
 
       {directionOpen && (
-        <form onSubmit={simulateDirectionSend} className="space-y-4 rounded-2xl border border-red/20 bg-red/[0.05] p-4 sm:p-5">
-          <div className="flex items-center justify-between"><div><p className="font-bold text-[var(--ink)]">Direction LSPD</p><p className="text-xs text-[var(--ink)]/45">Conversation EMS ↔ LSPD</p></div><button type="button" onClick={() => setDirectionOpen(false)} className="rounded-lg p-2 hover:bg-[var(--ink)]/5"><X size={17}/></button></div>
-          <div className="max-h-80 space-y-2 overflow-y-auto rounded-xl border border-[var(--ink)]/8 bg-[var(--bg)]/60 p-3">{directionHistory.map((item) => <div key={item.id} className="ml-auto max-w-[85%] rounded-2xl rounded-br-md bg-red px-3 py-2 text-white"><p className="text-sm">{item.summary}</p>{item.files.length > 0 && <p className="mt-1 text-xs text-white/70">{item.files.join(' • ')}</p>}<p className="mt-1 text-right text-[10px] text-white/60">{new Date(item.createdAt).toLocaleString('fr-FR')}</p></div>)}{directionHistory.length === 0 && <p className="py-8 text-center text-sm text-[var(--ink)]/35">Aucun message avec la Direction LSPD.</p>}</div>
-          <textarea value={directionText} onChange={(e) => setDirectionText(e.target.value)} rows={4} placeholder="Écrire un message à la Direction LSPD…" className="w-full resize-y rounded-xl border border-[var(--ink)]/10 bg-[var(--bg)] px-3 py-2.5 text-sm outline-none focus:border-red/40"/>
-          <div className="flex items-center gap-2 rounded-xl border border-[var(--ink)]/10 bg-[var(--bg)] px-3"><Link2 size={16} className="text-[var(--ink)]/40"/><input type="url" value={directionLink} onChange={(e) => setDirectionLink(e.target.value)} placeholder="Ajouter un lien (optionnel)" className="w-full bg-transparent py-2.5 text-sm outline-none"/></div>
-          <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-dashed border-[var(--ink)]/20 bg-[var(--bg)] p-3 hover:border-red/35"><Paperclip size={17}/><span className="text-sm text-[var(--ink)]/60">{directionFiles.length ? `${directionFiles.length} fichier(s) sélectionné(s)` : 'Ajouter images, documents ou factures'}</span><input className="hidden" type="file" multiple onChange={(e) => setDirectionFiles(Array.from(e.target.files ?? []))}/></label>
-          <button type="submit" className="flex w-full items-center justify-center gap-2 rounded-xl bg-red px-4 py-3 text-sm font-bold text-white transition hover:opacity-90"><Send size={17}/> Envoyer à la Direction LSPD</button>
+        <>
+          <button type="button" onClick={() => setDirectionOpen(false)} className="mb-1 flex items-center gap-2 text-sm font-semibold text-[var(--ink)]/60 hover:text-[var(--ink)]">
+            <ArrowLeft size={17}/> Retour à Liaison LSPD
+          </button>
+        <form onSubmit={simulateDirectionSend} className="flex min-h-[560px] flex-col overflow-hidden rounded-2xl border border-[var(--ink)]/10 bg-[var(--ink)]/[0.035]">
+          <div className="flex items-center gap-3 border-b border-[var(--ink)]/10 px-4 py-3">
+            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-red/15 text-red"><MessageSquareText size={18}/></span>
+            <div><p className="font-bold text-[var(--ink)]">Direction LSPD</p><p className="text-xs text-[var(--ink)]/45">Liaison interservices</p></div>
+          </div>
+          <div className="flex-1 space-y-3 overflow-y-auto p-4">
+            {directionHistory.map((item) => <div key={item.id} className="ml-auto max-w-[80%] rounded-2xl rounded-br-md bg-red px-4 py-2.5 text-white"><p className="whitespace-pre-wrap text-sm">{item.summary}</p>{item.files.length > 0 && <p className="mt-1 text-xs text-white/70">{item.files.join(' • ')}</p>}<p className="mt-1 text-right text-[10px] text-white/60">{new Date(item.createdAt).toLocaleString('fr-FR')}</p></div>)}
+            {directionHistory.length === 0 && <p className="pt-12 text-center text-sm text-[var(--ink)]/35">Aucun message pour le moment.</p>}
+          </div>
+          {directionFiles.length > 0 && <div className="border-t border-[var(--ink)]/8 px-4 py-2 text-xs text-[var(--ink)]/50">{directionFiles.map(file => file.name).join(' • ')}</div>}
+          <div className="flex items-end gap-2 border-t border-[var(--ink)]/10 p-3">
+            <label className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-[var(--ink)]/15 bg-[var(--ink)]/[0.035] text-[var(--ink)]/60 hover:border-red/30 hover:text-red" title="Ajouter une image ou un document">
+              <ImagePlus size={18}/><input className="hidden" type="file" multiple accept="image/*,.pdf,.doc,.docx" onChange={(e) => setDirectionFiles(Array.from(e.target.files ?? []))}/>
+            </label>
+            <textarea value={directionText} onChange={(e) => setDirectionText(e.target.value)} rows={2} placeholder="Écrire un message…" className="min-h-11 flex-1 resize-none rounded-xl border border-[var(--ink)]/10 bg-[var(--bg)] px-3 py-2.5 text-sm outline-none focus:border-red/40"/>
+            <button type="submit" className="flex h-11 w-14 shrink-0 items-center justify-center rounded-xl bg-red text-white transition hover:opacity-90" aria-label="Envoyer"><Send size={18}/></button>
+          </div>
         </form>
+        </>
       )}
     </div>
   )
