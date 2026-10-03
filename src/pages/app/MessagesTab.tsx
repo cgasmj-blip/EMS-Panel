@@ -12,12 +12,6 @@ type AnnouncementRow = {
   title: string
   body: string
   created_at: string
-  media_type: 'image' | 'audio' | null
-  media_path: string | null
-  media_name: string | null
-  media_mime: string | null
-  media_duration_seconds: number | null
-  media_url?: string | null
 }
 
 type MessageRow = {
@@ -27,6 +21,12 @@ type MessageRow = {
   body: string
   read_at: string | null
   created_at: string
+  media_type: 'image' | 'audio' | null
+  media_path: string | null
+  media_name: string | null
+  media_mime: string | null
+  media_duration_seconds: number | null
+  media_url?: string | null
 }
 
 export function MessagesTab() {
