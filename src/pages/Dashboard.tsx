@@ -66,7 +66,7 @@ export function Dashboard() {
     background_color: string | null
     background_image_path: string | null
     sidebar_color: string | null
-    sidebar_position: 'left' | 'right'
+    sidebar_position: 'left' | 'right' | 'top' | 'bottom'
     tile_shape: 'square' | 'soft' | 'rounded' | 'pill'
     tile_colors: Record<string, string>
   }>({ background_color: null, background_image_path: null, sidebar_color: null, sidebar_position: 'left', tile_shape: 'rounded', tile_colors: {} })
@@ -224,7 +224,7 @@ export function Dashboard() {
           background_color: data.background_color ?? null,
           background_image_path: data.background_image_path ?? null,
           sidebar_color: data.sidebar_color ?? null,
-          sidebar_position: (data.sidebar_position ?? 'left') as 'left' | 'right',
+          sidebar_position: (data.sidebar_position ?? 'left') as 'left' | 'right' | 'top' | 'bottom',
           tile_shape: (data.tile_shape ?? 'rounded') as 'square' | 'soft' | 'rounded' | 'pill',
           tile_colors: (data.tile_colors ?? {}) as Record<string, string>,
         })
@@ -354,6 +354,7 @@ export function Dashboard() {
 
   const effectiveView = view !== 'home' && !visibleTabs.includes(view) ? 'home' : view
   const activeSection = effectiveView === 'home' ? null : TILE_SECTIONS.find((s) => s.key === effectiveView) ?? null
+  const sidebarHorizontal = uiPreferences.sidebar_position === 'top' || uiPreferences.sidebar_position === 'bottom'
 
   return (
     <div
@@ -368,10 +369,11 @@ export function Dashboard() {
     >
       <aside
         className={cn(
-          'hidden md:flex fixed inset-y-0 z-40 w-20 flex-col items-center py-4 gap-3 overflow-hidden',
-          uiPreferences.sidebar_position === 'right'
-            ? 'right-0 border-l border-[var(--ink)]/8'
-            : 'left-0 border-r border-[var(--ink)]/8',
+          'hidden md:flex fixed z-40 items-center gap-3 overflow-hidden',
+          uiPreferences.sidebar_position === 'left' && 'inset-y-0 left-0 w-20 flex-col py-4 border-r border-[var(--ink)]/8',
+          uiPreferences.sidebar_position === 'right' && 'inset-y-0 right-0 w-20 flex-col py-4 border-l border-[var(--ink)]/8',
+          uiPreferences.sidebar_position === 'top' && 'inset-x-0 top-0 h-20 flex-row px-4 border-b border-[var(--ink)]/8',
+          uiPreferences.sidebar_position === 'bottom' && 'inset-x-0 bottom-0 h-20 flex-row px-4 border-t border-[var(--ink)]/8',
         )}
         style={{ backgroundColor: uiPreferences.sidebar_color ?? 'var(--sidebar-bg)' }}
       >
@@ -394,7 +396,10 @@ export function Dashboard() {
         </button>
 
         <div
-          className="flex flex-col items-center gap-1.5 min-h-12 w-full px-2"
+          className={cn(
+            'flex items-center gap-1.5',
+            sidebarHorizontal ? 'flex-row min-w-12 h-full py-2' : 'flex-col min-h-12 w-full px-2',
+          )}
           onDragOver={(event) => {
             event.preventDefault()
             event.dataTransfer.dropEffect = 'move'
@@ -452,7 +457,7 @@ export function Dashboard() {
 
         <div className="flex-1" />
 
-        <div className="flex flex-col items-center gap-1.5">
+        <div className={cn('flex items-center gap-1.5', sidebarHorizontal ? 'flex-row' : 'flex-col')}>
           {nextAppointment && navLayout.sidebar.includes('agenda') && (
             <button
               type="button"
@@ -568,7 +573,10 @@ export function Dashboard() {
       <main
         className={cn(
           'min-w-0 px-3 py-4 sm:px-5 sm:py-6 md:px-8 md:py-8 pb-24 md:pb-8 flex flex-col gap-4 sm:gap-6',
-          uiPreferences.sidebar_position === 'right' ? 'md:mr-20' : 'md:ml-20',
+          uiPreferences.sidebar_position === 'right' && 'md:mr-20',
+          uiPreferences.sidebar_position === 'left' && 'md:ml-20',
+          uiPreferences.sidebar_position === 'top' && 'md:mt-20',
+          uiPreferences.sidebar_position === 'bottom' && 'md:mb-20',
           effectiveView === 'messages' ? 'h-screen overflow-hidden' : 'min-h-screen',
         )}
       >
