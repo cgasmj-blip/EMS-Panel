@@ -71,6 +71,7 @@ export function AgendaTab() {
   const [scheduledAt, setScheduledAt] = useState(() => defaultTimeForDay(new Date()))
   const [editingId, setEditingId] = useState<number | null>(null)
   const [showForm, setShowForm] = useState(false)
+  const [remindDayBefore, setRemindDayBefore] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -148,6 +149,7 @@ export function AgendaTab() {
 
   function openNewAppointment(day = selectedDay) {
     selectDay(day)
+    setRemindDayBefore(false)
     setShowForm(true)
   }
 
@@ -158,6 +160,7 @@ export function AgendaTab() {
     setType(appointment.type)
     setTitle(appointment.title ?? '')
     setScheduledAt(toLocalInput(appointment.scheduled_at))
+    setRemindDayBefore(appointment.remind_day_before)
     setShowForm(true)
     setError(null)
   }
@@ -167,6 +170,7 @@ export function AgendaTab() {
     setEditingId(null)
     setTitle('')
     setScheduledAt(defaultTimeForDay(selectedDay))
+    setRemindDayBefore(false)
     setError(null)
   }
 
@@ -185,6 +189,9 @@ export function AgendaTab() {
       title: title.trim() || null,
       scheduled_at: new Date(scheduledAt).toISOString(),
       status: 'prevu' as AppointmentStatus,
+      remind_day_before: remindDayBefore,
+      reminder_day_before_sent_at: null,
+      reminder_30m_sent_at: null,
     }
 
     const { error: err } = editingId
@@ -356,6 +363,19 @@ export function AgendaTab() {
                   />
                 </Field>
               </div>
+
+              <label className="sm:col-span-2 flex items-center justify-between gap-3 rounded-xl border border-[var(--ink)]/10 bg-[var(--ink)]/[0.025] px-3 py-2.5 cursor-pointer">
+                <div>
+                  <p className="text-[var(--ink)] text-sm font-semibold">Ajouter un rappel la veille ?</p>
+                  <p className="text-[var(--ink)]/35 text-xs">Le rappel 30 minutes avant reste automatique.</p>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={remindDayBefore}
+                  onChange={(e) => setRemindDayBefore(e.target.checked)}
+                  className="h-4 w-4 accent-red"
+                />
+              </label>
             </div>
 
             <Button variant="red" className="w-full mt-3" disabled={submitting || !type} onClick={handleSubmit}>
