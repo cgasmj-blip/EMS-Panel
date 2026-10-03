@@ -63,8 +63,9 @@ export function Dashboard() {
   const [uiPreferences, setUiPreferences] = useState<{
     background_color: string | null
     background_image_path: string | null
+    sidebar_color: string | null
     tile_colors: Record<string, string>
-  }>({ background_color: null, background_image_path: null, tile_colors: {} })
+  }>({ background_color: null, background_image_path: null, sidebar_color: null, tile_colors: {} })
   const [backgroundImageUrl, setBackgroundImageUrl] = useState<string | null>(null)
 
   const visibleTabs = TILE_SECTIONS
@@ -210,7 +211,7 @@ export function Dashboard() {
 
     supabase
       .from('user_ui_preferences')
-      .select('background_color,background_image_path,tile_colors')
+      .select('background_color,background_image_path,sidebar_color,tile_colors')
       .eq('staff_id', userId)
       .maybeSingle()
       .then(({ data }) => {
@@ -218,6 +219,7 @@ export function Dashboard() {
         setUiPreferences({
           background_color: data.background_color ?? null,
           background_image_path: data.background_image_path ?? null,
+          sidebar_color: data.sidebar_color ?? null,
           tile_colors: (data.tile_colors ?? {}) as Record<string, string>,
         })
       })
@@ -358,7 +360,10 @@ export function Dashboard() {
         backgroundAttachment: backgroundImageUrl ? 'fixed' : undefined,
       }}
     >
-      <aside className="hidden md:flex fixed inset-y-0 left-0 z-40 w-20 flex-col items-center py-4 gap-3 bg-[var(--sidebar-bg)] border-r border-[var(--ink)]/8 overflow-hidden">
+      <aside
+        className="hidden md:flex fixed inset-y-0 left-0 z-40 w-20 flex-col items-center py-4 gap-3 border-r border-[var(--ink)]/8 overflow-hidden"
+        style={{ backgroundColor: uiPreferences.sidebar_color ?? 'var(--sidebar-bg)' }}
+      >
         <img src={logo} alt="EMS" className="w-10 h-10 rounded-full object-cover" />
 
         <CodeBlancAlertButton />
@@ -499,7 +504,10 @@ export function Dashboard() {
         <CodeBlancAlertButton />
       </div>
 
-      <nav className="md:hidden fixed inset-x-0 bottom-0 z-50 border-t border-[var(--ink)]/10 bg-[var(--sidebar-bg)]/95 backdrop-blur-xl px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2">
+      <nav
+        className="md:hidden fixed inset-x-0 bottom-0 z-50 border-t border-[var(--ink)]/10 backdrop-blur-xl px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2"
+        style={{ backgroundColor: uiPreferences.sidebar_color ?? 'var(--sidebar-bg)' }}
+      >
         <div className="mx-auto flex max-w-md items-center justify-around">
           {[
             { key: 'home' as const, label: 'Accueil', icon: LayoutGrid },
