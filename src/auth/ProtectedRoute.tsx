@@ -13,7 +13,10 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
     )
   }
 
-  if (!session || !staff) return <Navigate to="/login" replace />
+  // The public visitor portal is the application's signed-out landing page.
+  // Staff authentication is initiated from there; the old standalone /login
+  // screen must never be shown after signing out of the panel.
+  if (!session || !staff) return <Navigate to="/visiteur" replace />
 
   return <>{children}</>
 }
