@@ -38,12 +38,14 @@ export function CustomizationPanel({
   initial,
   onClose,
   onSaved,
+  onEditLayout,
 }: {
   staffId: string
   visibleTabs: TabKey[]
   initial: UiPreferences
   onClose: () => void
   onSaved: (next: UiPreferences) => void
+  onEditLayout: () => void
 }) {
   const [backgroundColor, setBackgroundColor] = useState(initial.background_color ?? '#1c2027')
   const [backgroundDefault, setBackgroundDefault] = useState(initial.background_color == null)
@@ -305,6 +307,18 @@ export function CustomizationPanel({
             </label>
           </section>
 
+
+          <section className="rounded-2xl border border-[var(--ink)]/8 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h3 className="text-[var(--ink)] font-bold text-sm">Disposition des tuiles</h3>
+                <p className="text-[var(--ink)]/35 text-xs mt-1">Déplace et redimensionne librement les tuiles sur l’accueil.</p>
+              </div>
+              <Button type="button" onClick={onEditLayout}>
+                Modifier
+              </Button>
+            </div>
+          </section>
 
           <section className="rounded-2xl border border-[var(--ink)]/8 p-4">
             <div className="flex items-center justify-between gap-3 mb-4">
