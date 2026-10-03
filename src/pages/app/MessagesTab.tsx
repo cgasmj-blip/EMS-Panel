@@ -14,6 +14,8 @@ type AnnouncementRow = {
   created_at: string
 }
 
+type GroupMessageRow = { id:number; sender_id:string; body:string; created_at:string }
+
 type MessageRow = {
   id: number
   sender_id: string
@@ -35,12 +37,14 @@ export function MessagesTab() {
   const [staff, setStaff] = useState<Pick<Staff, 'id' | 'full_name' | 'avatar_url' | 'role'>[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [messages, setMessages] = useState<MessageRow[]>([])
+  const [groupMessages, setGroupMessages] = useState<GroupMessageRow[]>([])
+  const [generalSelected, setGeneralSelected] = useState(false)
   const [unreadBySender, setUnreadBySender] = useState<Record<string, number>>({})
   const [lastMessageAt, setLastMessageAt] = useState<Record<string, string>>({})
   const [filter, setFilter] = useState('')
   const [body, setBody] = useState('')
   const [sending, setSending] = useState(false)
-  const [mode, setMode] = useState<'messages' | 'visiteurs' | 'annonces'>('messages')
+  const [mode, setMode] = useState<'messages' | 'annonces'>('messages')
   const [announcements, setAnnouncements] = useState<AnnouncementRow[]>([])
   const [announcementTitle, setAnnouncementTitle] = useState('')
   const [announcementBody, setAnnouncementBody] = useState('')
@@ -79,6 +83,8 @@ export function MessagesTab() {
   }, [])
 
   const selected = staff.find((person) => person.id === selectedId) ?? null
+
+  const fetchGroup = useCallback(async () => { const {data}=await supabase.from('internal_group_messages').select('*').order('created_at',{ascending:true}).limit(300); setGroupMessages((data??[]) as GroupMessageRow[]) }, [])
 
   const fetchPeople = useCallback(async () => {
     if (!me) return
@@ -187,12 +193,14 @@ export function MessagesTab() {
   useEffect(() => {
     fetchPeople()
     fetchAnnouncements()
+    fetchGroup()
     const timer = window.setInterval(() => {
       fetchPeople()
       fetchAnnouncements()
+      fetchGroup()
     }, 5000)
     return () => window.clearInterval(timer)
-  }, [fetchPeople, fetchAnnouncements])
+  }, [fetchPeople, fetchAnnouncements, fetchGroup])
 
   useEffect(() => {
     fetchConversation()
@@ -338,6 +346,13 @@ export function MessagesTab() {
 
   async function sendMessage() {
     const message = body.trim()
+    if (generalSelected) {
+      if (!me || !message || sending) return
+      setSending(true)
+      const {error}=await supabase.from('internal_group_messages').insert({sender_id:me,body:message})
+      if(!error){setBody('');await fetchGroup()}
+      setSending(false); return
+    }
     if (!me || !selectedId || !message || sending) return
 
     setSending(true)
@@ -382,6 +397,8 @@ export function MessagesTab() {
   return (
     <div className="flex flex-col gap-3 flex-1 min-h-0 overflow-hidden pb-1">
       <div className="inline-flex self-start rounded-xl border border-[var(--ink)]/8 bg-[var(--ink)]/[0.02] p-1">
+        <button type="button" onClick={() => setMode('messages')} className={mode === 'messages' ? 'rounded-lg bg-red px-3 py-2 text-white text-xs font-semibold cursor-pointer' : 'rounded-lg px-3 py-2 text-[var(--ink)]/55 text-xs font-semibold cursor-pointer'}>Messages privés</button>
+
         <button
           type="button"
           onClick={() => setMode('annonces')}
@@ -463,13 +480,15 @@ export function MessagesTab() {
         </div>
 
         <div className="flex-1 min-h-0 flex flex-col gap-1 overflow-y-auto pr-1">
+          <button type="button" onClick={()=>{setGeneralSelected(true);setSelectedId(null)}} className={generalSelected?'flex items-center gap-3 rounded-xl bg-red/10 border border-red/15 p-2.5 text-left':'flex items-center gap-3 rounded-xl hover:bg-[var(--ink)]/[0.04] p-2.5 text-left'}><span className="w-9 h-9 rounded-full bg-red/10 flex items-center justify-center"><MessageCircle size={16}/></span><span><span className="block text-sm font-bold">Groupe général EMS</span><span className="block text-[11px] text-[var(--ink)]/35">Tout l’effectif</span></span></button>
+
           {visiblePeople.map((person) => {
             const unread = unreadBySender[person.id] ?? 0
             return (
               <button
                 key={person.id}
                 type="button"
-                onClick={() => setSelectedId(person.id)}
+                onClick={() => { setGeneralSelected(false); setSelectedId(person.id) }}
                 className={
                   selectedId === person.id
                     ? 'flex items-center gap-3 rounded-xl bg-red/10 border border-red/15 p-2.5 text-left cursor-pointer'
@@ -504,7 +523,9 @@ export function MessagesTab() {
       </Card>
 
       <Card className="p-0 overflow-hidden flex flex-col min-h-0 h-full">
-        {!selected ? (
+        {generalSelected ? (
+          <><div className="px-4 py-3 border-b border-[var(--ink)]/8"><p className="font-bold text-sm">Groupe général EMS</p><p className="text-[var(--ink)]/35 text-xs">Tous les membres de l’effectif</p></div><div ref={messagesScrollRef} className="flex-1 min-h-0 overflow-y-auto p-3 flex flex-col gap-2">{groupMessages.map(m=>{const mine=m.sender_id===me;const author=staff.find(p=>p.id===m.sender_id)?.full_name||(mine?currentStaff?.full_name:'EMS');return <div key={m.id} className={mine?'flex justify-end':'flex justify-start'}><div className={mine?'max-w-[82%] rounded-2xl bg-red text-white px-3.5 py-2.5':'max-w-[82%] rounded-2xl bg-[var(--ink)]/7 px-3.5 py-2.5'}><p className="text-[10px] opacity-60 mb-1">{author}</p><p className="text-sm whitespace-pre-wrap">{m.body}</p></div></div>})}</div><div className="p-2.5 border-t border-[var(--ink)]/8 flex gap-2"><Input value={body} onChange={e=>setBody(e.target.value)} placeholder="Écrire au groupe EMS…" onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();void sendMessage()}}}/><Button onClick={()=>void sendMessage()} disabled={!body.trim()||sending}><Send size={16}/></Button></div></>
+        ) : !selected ? (
           <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
             <MessageCircle size={28} className="text-[var(--ink)]/25 mb-3" />
             <p className="text-[var(--ink)] font-semibold text-sm">Messagerie interne EMS</p>
