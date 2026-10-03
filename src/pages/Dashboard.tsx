@@ -160,6 +160,33 @@ export function Dashboard() {
     return () => window.clearInterval(timer)
   }, [refreshSidebarData])
 
+  useEffect(() => {
+    const userId = session?.user.id
+    if (!userId) return
+
+    const heartbeat = async () => {
+      if (document.visibilityState !== 'visible') return
+      const now = new Date().toISOString()
+      await supabase.from('user_presence').upsert(
+        { staff_id: userId, last_seen_at: now, updated_at: now },
+        { onConflict: 'staff_id' },
+      )
+    }
+
+    heartbeat()
+    const timer = window.setInterval(heartbeat, 30000)
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') heartbeat()
+    }
+
+    document.addEventListener('visibilitychange', onVisibility)
+
+    return () => {
+      window.clearInterval(timer)
+      document.removeEventListener('visibilitychange', onVisibility)
+    }
+  }, [session?.user.id])
+
   async function handleResync() {
     setResyncing(true)
     // Re-runs the Discord OAuth flow. Since consent is already granted this
