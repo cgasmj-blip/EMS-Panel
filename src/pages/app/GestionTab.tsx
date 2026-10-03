@@ -23,6 +23,7 @@ import { ChecklistsSection } from './gestion/ChecklistsSection'
 import { SiteManagementSection } from './gestion/SiteManagementSection'
 import { VisitorAccessSection } from './gestion/VisitorAccessSection'
 import { RecruitmentArchiveAccessSection } from './gestion/RecruitmentArchiveAccessSection'
+import { LspdTransferAccessSection } from './gestion/LspdTransferAccessSection'
 
 const SECTION_CONTENT: Record<GestionKey, ReactNode> = {
   users: <UsersSection />,
@@ -42,6 +43,7 @@ const SECTION_CONTENT: Record<GestionKey, ReactNode> = {
   site: <SiteManagementSection />,
   visitor_access: <VisitorAccessSection />,
   recruitment_archive_access: <RecruitmentArchiveAccessSection />,
+  lspd_transfer_access: <LspdTransferAccessSection />,
 }
 
 type GestionView = GestionKey | 'home' | 'employees' | 'hospital'
@@ -65,6 +67,7 @@ const HOSPITAL_KEYS: GestionKey[] = [
   'checklists',
   'recruitment_archive_access',
   'visitor_access',
+  'lspd_transfer_access',
 ]
 
 const VIEW_STORAGE_KEY = 'ems-gestion-view'
