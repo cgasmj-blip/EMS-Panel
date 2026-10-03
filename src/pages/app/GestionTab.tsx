@@ -20,7 +20,6 @@ import { HistoriqueSection } from './gestion/HistoriqueSection'
 import { HierarchySection } from './gestion/HierarchySection'
 import { TrainingFoldersSection } from './gestion/TrainingFoldersSection'
 import { ChecklistsSection } from './gestion/ChecklistsSection'
-import { VisitorSubjectsSection } from './gestion/VisitorSubjectsSection'
 import { SiteManagementSection } from './gestion/SiteManagementSection'
 
 const SECTION_CONTENT: Record<GestionKey, ReactNode> = {
@@ -38,7 +37,6 @@ const SECTION_CONTENT: Record<GestionKey, ReactNode> = {
   hierarchy: <HierarchySection />,
   training: <TrainingFoldersSection />,
   checklists: <ChecklistsSection />,
-  visitor_subjects: <VisitorSubjectsSection />,
   site: <SiteManagementSection />,
 }
 
@@ -62,7 +60,6 @@ const HOSPITAL_KEYS: GestionKey[] = [
   'aide',
   'training',
   'checklists',
-  'visitor_subjects',
 ]
 
 const VIEW_STORAGE_KEY = 'ems-gestion-view'
@@ -215,7 +212,7 @@ export function GestionTab() {
             <Tile
               icon={siteSection.icon}
               label={siteSection.label}
-              color="var(--tile-services)"
+              color="#16a34a"
               delay={0.08}
               onClick={() => setView('site')}
             />
