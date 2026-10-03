@@ -57,6 +57,8 @@ export function HomeTiles({
   const [mesAbsencesAVenir, setMesAbsencesAVenir] = useState(0)
   const [geometry, setGeometry] = useState<Record<string, TileGeometry>>({})
   const [tileImageUrls, setTileImageUrls] = useState<Record<string, string>>({})
+  const [finishing, setFinishing] = useState(false)
+  const [saved, setSaved] = useState(false)
   const canvasRef = useRef<HTMLDivElement | null>(null)
 
   const refreshStats = useCallback(async () => {
@@ -305,6 +307,21 @@ export function HomeTiles({
     window.addEventListener('pointerup', onUp)
   }
 
+  async function finishEditing() {
+    if (finishing) return
+    setFinishing(true)
+    setSaved(false)
+    await Promise.all(
+      sections.map((section) => persistGeometry(section.key, effectiveGeometry[section.key])),
+    )
+    setFinishing(false)
+    setSaved(true)
+    window.setTimeout(() => {
+      setSaved(false)
+      onFinishEdit()
+    }, 700)
+  }
+
   function dragKey(event: DragEvent, key: TabKey) {
     event.dataTransfer.effectAllowed = 'move'
     event.dataTransfer.setData('application/x-ems-tab', key)
@@ -480,10 +497,14 @@ export function HomeTiles({
         {editMode && (
           <button
             type="button"
-            onClick={onFinishEdit}
-            className="fixed right-5 bottom-6 z-[60] hidden md:flex items-center gap-2 rounded-xl bg-red px-4 py-2.5 text-sm font-semibold text-white shadow-xl cursor-pointer"
+            onClick={() => void finishEditing()}
+            disabled={finishing}
+            className={cn(
+              'fixed right-5 bottom-6 z-[60] hidden md:flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white shadow-xl cursor-pointer disabled:cursor-wait',
+              saved ? 'bg-green-600' : 'bg-red',
+            )}
           >
-            Terminer
+            {finishing ? 'Enregistrement…' : saved ? '✓ Enregistré' : 'Terminer'}
           </button>
         )}
       </div>
