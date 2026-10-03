@@ -192,9 +192,8 @@ export function VisitorPortal() {
 
   const metadata = (session?.user.user_metadata ?? {}) as Record<string, unknown>
   const discordId = String(metadata.provider_id ?? metadata.sub ?? '')
-  const discordName = discordDisplayName || String(metadata.global_name ?? metadata.full_name ?? metadata.name ?? metadata.user_name ?? '')
+  const discordName = String(metadata.global_name ?? metadata.full_name ?? metadata.name ?? metadata.user_name ?? '')
   const discordAvatar = String(metadata.avatar_url ?? metadata.picture ?? '')
-  const [discordDisplayName, setDiscordDisplayName] = useState('')
   const visitorName = discordDisplayName || discordName
 
   useEffect(() => {
