@@ -10,6 +10,7 @@ import { SectionHeader } from '@/components/ui/SectionHeader'
 import { VitalsBar } from '@/components/ui/VitalsBar'
 import { StockAlertButton } from '@/components/ui/StockAlertButton'
 import { CodeBlancAlertButton } from '@/components/ui/CodeBlancAlertButton'
+import { CodeRougeAlertButton } from '@/components/ui/CodeRougeAlertButton'
 import { CustomizationPanel } from '@/components/ui/CustomizationPanel'
 import { cn } from '@/lib/utils'
 import logo from '@/assets/logo.webp'
@@ -367,6 +368,8 @@ export function Dashboard() {
         <img src={logo} alt="EMS" className="w-10 h-10 rounded-full object-cover" />
 
         <CodeBlancAlertButton />
+        <StockAlertButton compact />
+        <CodeRougeAlertButton />
 
         <button
           type="button"
@@ -475,9 +478,6 @@ export function Dashboard() {
         >
           <RefreshCw size={16} className={resyncing ? 'animate-spin' : ''} />
         </button>
-
-        <StockAlertButton compact />
-
         <button
           type="button"
           onClick={() => setShowCustomization(true)}
@@ -500,8 +500,10 @@ export function Dashboard() {
         </button>
       </aside>
 
-      <div className="md:hidden fixed top-3 right-3 z-50">
+      <div className="md:hidden fixed top-3 right-3 z-50 flex items-center gap-2">
         <CodeBlancAlertButton />
+        <StockAlertButton compact />
+        <CodeRougeAlertButton />
       </div>
 
       <nav
