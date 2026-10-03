@@ -262,7 +262,7 @@ export function HomeTiles({
   )
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-2 flex-1 min-h-0">
       <div
         className="md:hidden grid grid-cols-2 gap-3 min-h-[120px] rounded-2xl"
         onDragOver={(event) => {
@@ -298,8 +298,7 @@ export function HomeTiles({
 
       <div
         ref={canvasRef}
-        className="hidden md:block relative w-full min-h-[calc(100vh-11rem)]"
-        style={{ height: Math.max(canvasHeight, typeof window !== 'undefined' ? window.innerHeight - 176 : canvasHeight) }}
+        className="hidden md:block relative w-full flex-1 min-h-0 h-full overflow-hidden"
         onDragOver={(event) => {
           event.preventDefault()
           event.dataTransfer.dropEffect = 'move'
