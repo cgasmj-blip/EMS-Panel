@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type PointerEvent as ReactPointerEvent } from 'react'
-import { GripVertical, Move, Scaling } from 'lucide-react'
+import { Check, Pencil } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/auth/AuthContext'
 import { TILE_SECTIONS, type TabKey } from '@/lib/tiles'
@@ -46,6 +46,7 @@ export function HomeTiles({
   const [enService, setEnService] = useState(0)
   const [mesAbsencesAVenir, setMesAbsencesAVenir] = useState(0)
   const [geometry, setGeometry] = useState<Record<string, TileGeometry>>({})
+  const [editMode, setEditMode] = useState(false)
   const canvasRef = useRef<HTMLDivElement | null>(null)
 
   const refreshStats = useCallback(async () => {
@@ -138,7 +139,7 @@ export function HomeTiles({
     })
   }
 
-  function startMove(event: ReactPointerEvent<HTMLButtonElement>, key: TabKey) {
+  function startMove(event: ReactPointerEvent<HTMLElement>, key: TabKey) {
     event.preventDefault()
     event.stopPropagation()
     const canvas = canvasRef.current
@@ -180,7 +181,7 @@ export function HomeTiles({
     window.addEventListener('pointerup', onUp)
   }
 
-  function startResize(event: ReactPointerEvent<HTMLButtonElement>, key: TabKey) {
+  function startResize(event: ReactPointerEvent<HTMLElement>, key: TabKey) {
     event.preventDefault()
     event.stopPropagation()
     const canvas = canvasRef.current
@@ -295,8 +296,8 @@ export function HomeTiles({
 
       <div
         ref={canvasRef}
-        className="hidden md:block relative w-full rounded-2xl border border-dashed border-[var(--ink)]/8 bg-[var(--ink)]/[0.015]"
-        style={{ height: canvasHeight }}
+        className="hidden md:block relative w-full min-h-[calc(100vh-11rem)]"
+        style={{ height: Math.max(canvasHeight, typeof window !== 'undefined' ? window.innerHeight - 176 : canvasHeight) }}
         onDragOver={(event) => {
           event.preventDefault()
           event.dataTransfer.dropEffect = 'move'
@@ -319,17 +320,45 @@ export function HomeTiles({
           }
         }}
       >
+        <button
+          type="button"
+          onClick={() => setEditMode((value) => !value)}
+          className={cn(
+            'fixed right-5 bottom-6 z-[60] hidden md:flex items-center gap-2 rounded-xl px-3.5 py-2.5 text-sm font-semibold shadow-xl backdrop-blur-md transition-colors cursor-pointer',
+            editMode
+              ? 'bg-red text-white'
+              : 'bg-[var(--surface)]/95 text-[var(--ink)] border border-[var(--ink)]/10 hover:bg-[var(--surface)]',
+          )}
+          title={editMode ? 'Terminer la modification' : 'Modifier la disposition'}
+        >
+          {editMode ? <Check size={16} /> : <Pencil size={16} />}
+          {editMode ? 'Terminer' : 'Modifier'}
+        </button>
+
         {sections.map((section, i) => {
           const item = effectiveGeometry[section.key]
           return (
             <div
               key={section.key}
-              className="absolute group"
+              draggable={!editMode}
+              onDragStart={(event) => {
+                if (!editMode) dragKey(event, section.key)
+              }}
+              className={cn(
+                'absolute',
+                editMode ? 'cursor-move select-none touch-none' : 'cursor-grab active:cursor-grabbing',
+              )}
               style={{
                 left: `${item.x}%`,
                 top: item.y,
                 width: `${item.w}%`,
                 height: item.h,
+              }}
+              onPointerDown={(event) => {
+                if (!editMode) return
+                const target = event.target as HTMLElement
+                if (target.closest('[data-tile-resize]')) return
+                startMove(event, section.key)
               }}
             >
               <Tile
@@ -339,44 +368,28 @@ export function HomeTiles({
                 color={tileColors[section.key] ?? section.color}
                 big={section.key === 'services'}
                 delay={i * 0.04}
-                className={cn('w-full h-full min-h-0', tileRadius)}
-                onClick={() => openSection(section.key)}
+                className={cn(
+                  'w-full h-full min-h-0',
+                  tileRadius,
+                  editMode && 'pointer-events-none',
+                )}
+                onClick={() => {
+                  if (!editMode) openSection(section.key)
+                }}
               />
 
-              <div className="absolute top-2 right-2 z-30 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button
-                  type="button"
-                  onPointerDown={(event) => startMove(event, section.key)}
-                  className="w-8 h-8 rounded-lg bg-black/55 text-white flex items-center justify-center cursor-move backdrop-blur-sm"
-                  title="Déplacer librement"
-                  aria-label={`Déplacer ${section.label}`}
-                >
-                  <Move size={14} />
-                </button>
-                <button
-                  type="button"
-                  draggable
-                  onDragStart={(event) => dragKey(event, section.key)}
-                  className="w-8 h-8 rounded-lg bg-black/55 text-white flex items-center justify-center cursor-grab active:cursor-grabbing backdrop-blur-sm"
-                  title="Déplacer vers la sidebar"
-                  aria-label={`Déplacer ${section.label} vers la sidebar`}
-                >
-                  <GripVertical size={14} />
-                </button>
-              </div>
-
-              <button
-                type="button"
-                onPointerDown={(event) => startResize(event, section.key)}
-                className="absolute bottom-2 right-2 z-30 w-8 h-8 rounded-lg bg-black/55 text-white flex items-center justify-center cursor-se-resize opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm"
-                title="Redimensionner"
-                aria-label={`Redimensionner ${section.label}`}
-              >
-                <Scaling size={14} />
-              </button>
+              {editMode && (
+                <span
+                  data-tile-resize
+                  onPointerDown={(event) => startResize(event, section.key)}
+                  className="absolute bottom-0 right-0 z-30 w-7 h-7 cursor-se-resize touch-none"
+                  aria-label={`Redimensionner ${section.label}`}
+                />
+              )}
             </div>
           )
         })}
+      </div>
       </div>
     </div>
   )
