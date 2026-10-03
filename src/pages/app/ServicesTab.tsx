@@ -217,26 +217,6 @@ export function ServicesTab() {
   )
 
   function requestStartChecklist() {
-    if (!newUnitName.trim()) {
-      setError("Le nom de l’unité est obligatoire.")
-      return
-    }
-    if (!newUnitLieu) {
-      setError('Le lieu est obligatoire.')
-      return
-    }
-    if (!newCode) {
-      setError("Le code d’urgence est obligatoire.")
-      return
-    }
-    if (!vehicule) {
-      setError('Le véhicule est obligatoire.')
-      return
-    }
-    if (!defibrillateurChoice) {
-      setError('Indique si un défibrillateur est présent.')
-      return
-    }
     openChecklist('start')
   }
 
@@ -289,17 +269,17 @@ export function ServicesTab() {
   }
 
   async function handlePrendreService() {
-    if (!staff || submitting || !newCode || !vehicule || !defibrillateurChoice || !newUnitName.trim()) return
+    if (!staff || submitting) return
     setSubmitting(true)
     setError(null)
     try {
       const startedAt = new Date().toISOString()
       const unitPayload = {
-        name: newUnitName.trim(),
+        name: newUnitName.trim() || `Unité de ${staff.full_name}`,
         status: 'en_service' as DutyStatus,
-        sector: newUnitLieu,
-        code: newCode,
-        vehicule,
+        sector: newUnitLieu || null,
+        code: newCode || null,
+        vehicule: vehicule || null,
         commentaire: commentaire.trim() || null,
         intervention: intervention || null,
         defibrillateur: defibrillateurChoice === 'oui',
@@ -322,8 +302,8 @@ export function ServicesTab() {
         staff_id: staff.id,
         unit_name: unit.name,
         sector: unit.sector,
-        code: newCode,
-        vehicule,
+        code: newCode || null,
+        vehicule: vehicule || null,
         commentaire: commentaire.trim() || null,
         intervention: intervention || null,
         defibrillateur: defibrillateurChoice === 'oui',
@@ -387,15 +367,15 @@ export function ServicesTab() {
   }
 
   async function handleMettreAJour() {
-    if (!staff?.unit_id || submitting || !newCode || !vehicule || !defibrillateurChoice || !newUnitName.trim()) return
+    if (!staff?.unit_id || submitting) return
     setSubmitting(true)
     setError(null)
     try {
       const patch = {
-        name: newUnitName.trim(),
-        sector: newUnitLieu,
-        code: newCode,
-        vehicule,
+        name: newUnitName.trim() || `Unité de ${staff.full_name}`,
+        sector: newUnitLieu || null,
+        code: newCode || null,
+        vehicule: vehicule || null,
         defibrillateur: defibrillateurChoice === 'oui',
         commentaire: commentaire.trim() || null,
         intervention: intervention || null,
@@ -484,7 +464,7 @@ export function ServicesTab() {
         {error && <p className="text-red-300 text-xs mb-3">{error}</p>}
         <div className="flex flex-col gap-4 mb-4">
           <div className="grid sm:grid-cols-2 gap-4">
-            <Field label="Nom de l’unité">
+            <Field label="Nom de l’unité (facultatif)">
               <Input
                 value={newUnitName}
                 onChange={(e) => {
@@ -494,7 +474,7 @@ export function ServicesTab() {
                 placeholder="Ex : Unité Nord 1"
               />
             </Field>
-            <Field label="Lieu">
+            <Field label="Lieu (facultatif)">
               <Select
                 value={newUnitLieu}
                 onChange={(e) => {
@@ -510,7 +490,7 @@ export function ServicesTab() {
           </div>
 
           <div>
-            <p className="text-xs uppercase tracking-[1.5px] text-[var(--ink)]/40 font-semibold mb-1.5">Code d’urgence</p>
+            <p className="text-xs uppercase tracking-[1.5px] text-[var(--ink)]/40 font-semibold mb-1.5">Code d’urgence (facultatif)</p>
             <div className="flex flex-wrap gap-2">
               {codes.map((code) => (
                 <Button
@@ -530,7 +510,7 @@ export function ServicesTab() {
           </div>
 
           <div className="grid sm:grid-cols-2 gap-4">
-            <Field label="Véhicule">
+            <Field label="Véhicule (facultatif)">
               <Select
                 value={vehicule}
                 onChange={(e) => {
@@ -538,7 +518,7 @@ export function ServicesTab() {
                   if (staff.status !== 'hors_service') setDetailsDirty(true)
                 }}
               >
-                <option value="">— Sélectionner un véhicule —</option>
+                <option value="">— Aucun / non renseigné —</option>
                 {eligibleVehicles.map((v) => (
                   <option key={v.id} value={v.name}>
                     {v.plate ? v.name + ' · ' + v.plate : v.name}
@@ -546,7 +526,7 @@ export function ServicesTab() {
                 ))}
               </Select>
             </Field>
-            <Field label="Défibrillateur">
+            <Field label="Défibrillateur (facultatif)">
               <Select
                 value={defibrillateurChoice}
                 onChange={(e) => {
@@ -554,7 +534,7 @@ export function ServicesTab() {
                   if (staff.status !== 'hors_service') setDetailsDirty(true)
                 }}
               >
-                <option value="">— Sélectionner —</option>
+                <option value="">— Non renseigné —</option>
                 <option value="oui">OUI</option>
                 <option value="non">NON</option>
               </Select>
