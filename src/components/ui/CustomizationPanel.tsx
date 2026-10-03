@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/Input'
 type UiPreferences = {
   background_color: string | null
   background_image_path: string | null
+  sidebar_color: string | null
   tile_colors: Record<string, string>
 }
 
@@ -45,6 +46,7 @@ export function CustomizationPanel({
 }) {
   const [backgroundColor, setBackgroundColor] = useState(initial.background_color ?? '#1c2027')
   const [backgroundImagePath, setBackgroundImagePath] = useState<string | null>(initial.background_image_path)
+  const [sidebarColor, setSidebarColor] = useState(initial.sidebar_color ?? '#16191f')
   const [tileColors, setTileColors] = useState<Record<string, string>>(initial.tile_colors ?? {})
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
@@ -52,6 +54,7 @@ export function CustomizationPanel({
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
 
   const rgb = useMemo(() => hexToRgb(backgroundColor), [backgroundColor])
+  const sidebarRgb = useMemo(() => hexToRgb(sidebarColor), [sidebarColor])
 
   useEffect(() => {
     let active = true
@@ -72,6 +75,11 @@ export function CustomizationPanel({
   function setRgb(channel: 'r' | 'g' | 'b', value: number) {
     const next = { ...rgb, [channel]: value }
     setBackgroundColor(rgbToHex(next.r, next.g, next.b))
+  }
+
+  function setSidebarRgb(channel: 'r' | 'g' | 'b', value: number) {
+    const next = { ...sidebarRgb, [channel]: value }
+    setSidebarColor(rgbToHex(next.r, next.g, next.b))
   }
 
   async function uploadBackground(file: File | null) {
@@ -116,9 +124,16 @@ export function CustomizationPanel({
     setSaving(true)
     setError(null)
 
+    const normalizedSidebar = normalizeHex(sidebarColor)
+    if (!normalizedSidebar) {
+      setError('Couleur de sidebar invalide.')
+      return
+    }
+
     const next: UiPreferences = {
       background_color: normalized,
       background_image_path: backgroundImagePath,
+      sidebar_color: normalizedSidebar,
       tile_colors: tileColors,
     }
 
@@ -146,7 +161,7 @@ export function CustomizationPanel({
         <div className="sticky top-0 z-10 flex items-center justify-between gap-3 px-5 py-4 border-b border-[var(--ink)]/8 bg-[var(--surface)]/95 backdrop-blur">
           <div>
             <h2 className="text-[var(--ink)] font-bold">Personnalisation</h2>
-            <p className="text-[var(--ink)]/40 text-xs mt-0.5">Fond, image et couleurs des tuiles.</p>
+            <p className="text-[var(--ink)]/40 text-xs mt-0.5">Fond, sidebar, image et couleurs des tuiles.</p>
           </div>
           <Button size="sm" variant="ghost" onClick={onClose}><X size={15} /></Button>
         </div>
@@ -193,6 +208,51 @@ export function CustomizationPanel({
                     if (normalized) setBackgroundColor(normalized)
                   }}
                   placeholder="#1c2027"
+                />
+              </div>
+            </div>
+          </section>
+
+
+          <section className="rounded-2xl border border-[var(--ink)]/8 p-4">
+            <h3 className="text-[var(--ink)] font-bold text-sm mb-4">Couleur de la sidebar</h3>
+            <div className="grid sm:grid-cols-[120px_1fr] gap-4">
+              <input
+                type="color"
+                value={sidebarColor}
+                onChange={(e) => setSidebarColor(e.target.value)}
+                className="w-full h-24 rounded-xl border border-[var(--ink)]/10 bg-transparent cursor-pointer"
+              />
+
+              <div className="grid gap-3">
+                {(['r', 'g', 'b'] as const).map((channel) => (
+                  <label key={channel} className="grid grid-cols-[22px_1fr_54px] items-center gap-2">
+                    <span className="text-[var(--ink)]/45 uppercase text-xs font-bold">{channel}</span>
+                    <input
+                      type="range"
+                      min="0"
+                      max="255"
+                      value={sidebarRgb[channel]}
+                      onChange={(e) => setSidebarRgb(channel, Number(e.target.value))}
+                      className="w-full"
+                    />
+                    <Input
+                      type="number"
+                      min={0}
+                      max={255}
+                      value={sidebarRgb[channel]}
+                      onChange={(e) => setSidebarRgb(channel, Number(e.target.value))}
+                    />
+                  </label>
+                ))}
+                <Input
+                  value={sidebarColor}
+                  onChange={(e) => setSidebarColor(e.target.value)}
+                  onBlur={() => {
+                    const normalized = normalizeHex(sidebarColor)
+                    if (normalized) setSidebarColor(normalized)
+                  }}
+                  placeholder="#16191f"
                 />
               </div>
             </div>
