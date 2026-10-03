@@ -13,6 +13,22 @@ type SiteLayout = Record<LayoutKey, LayoutItem>
 type Position = 'center' | 'top' | 'bottom' | 'left' | 'right' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
 type CustomBlockType = 'title' | 'text' | 'image' | 'button'
 
+type BuiltInBlocksConfig = {
+  hero: { visible: boolean }
+  contact: { visible: boolean }
+  navigation: {
+    visible: boolean
+    labels: {
+      reglement: string
+      contact: string
+      recrutement: string
+      rendez_vous: string
+      suivi: string
+    }
+  }
+  content: { visible: boolean }
+}
+
 type CustomBlock = LayoutItem & {
   id: string
   type: CustomBlockType
@@ -42,6 +58,7 @@ type SiteSettings = {
   show_suivi: boolean
   layout_json: SiteLayout
   custom_blocks: CustomBlock[]
+  built_in_blocks: BuiltInBlocksConfig
 }
 
 const DEFAULT_LAYOUT: SiteLayout = {
@@ -49,6 +66,22 @@ const DEFAULT_LAYOUT: SiteLayout = {
   contact: { x: 66, y: 0, w: 34, h: 300 },
   navigation: { x: 0, y: 320, w: 100, h: 64 },
   content: { x: 0, y: 404, w: 100, h: 520 },
+}
+
+const DEFAULT_BUILT_IN_BLOCKS: BuiltInBlocksConfig = {
+  hero: { visible: true },
+  contact: { visible: true },
+  navigation: {
+    visible: true,
+    labels: {
+      reglement: 'Règlement',
+      contact: 'Nous contacter',
+      recrutement: 'Recrutement',
+      rendez_vous: 'Rendez-vous',
+      suivi: 'Mes demandes',
+    },
+  },
+  content: { visible: true },
 }
 
 const DEFAULTS: SiteSettings = {
@@ -69,6 +102,7 @@ const DEFAULTS: SiteSettings = {
   show_suivi: true,
   layout_json: DEFAULT_LAYOUT,
   custom_blocks: [],
+  built_in_blocks: DEFAULT_BUILT_IN_BLOCKS,
 }
 
 function mergeLayout(value: unknown): SiteLayout {
@@ -78,6 +112,22 @@ function mergeLayout(value: unknown): SiteLayout {
     contact: { ...DEFAULT_LAYOUT.contact, ...(source.contact ?? {}) },
     navigation: { ...DEFAULT_LAYOUT.navigation, ...(source.navigation ?? {}) },
     content: { ...DEFAULT_LAYOUT.content, ...(source.content ?? {}) },
+  }
+}
+
+function normalizeBuiltInBlocks(value: unknown): BuiltInBlocksConfig {
+  const source = (value && typeof value === 'object' ? value : {}) as Partial<BuiltInBlocksConfig>
+  return {
+    hero: { visible: source.hero?.visible ?? true },
+    contact: { visible: source.contact?.visible ?? true },
+    navigation: {
+      visible: source.navigation?.visible ?? true,
+      labels: {
+        ...DEFAULT_BUILT_IN_BLOCKS.navigation.labels,
+        ...(source.navigation?.labels ?? {}),
+      },
+    },
+    content: { visible: source.content?.visible ?? true },
   }
 }
 
@@ -132,6 +182,7 @@ export function SiteManagementSection() {
       ...(data as SiteSettings),
       layout_json: mergeLayout(data.layout_json),
       custom_blocks: normalizeCustomBlocks(data.custom_blocks),
+      built_in_blocks: normalizeBuiltInBlocks(data.built_in_blocks),
     })
   }, [])
 
@@ -366,7 +417,40 @@ export function SiteManagementSection() {
     setSettings((current) => ({ ...current, [key]: !current[key] }))
   }
 
+  function setBuiltInVisibility(key: LayoutKey, visible: boolean) {
+    setSettings((current) => ({
+      ...current,
+      built_in_blocks: {
+        ...current.built_in_blocks,
+        [key]: {
+          ...current.built_in_blocks[key],
+          visible,
+        },
+      },
+    }))
+  }
+
+  function setNavigationLabel(
+    key: keyof BuiltInBlocksConfig['navigation']['labels'],
+    value: string,
+  ) {
+    setSettings((current) => ({
+      ...current,
+      built_in_blocks: {
+        ...current.built_in_blocks,
+        navigation: {
+          ...current.built_in_blocks.navigation,
+          labels: {
+            ...current.built_in_blocks.navigation.labels,
+            [key]: value,
+          },
+        },
+      },
+    }))
+  }
+
   const previewBlock = (key: LayoutKey, title: string, children: ReactNode) => {
+    if (!settings.built_in_blocks[key].visible) return null
     const item = settings.layout_json[key]
     return (
       <div
@@ -379,6 +463,14 @@ export function SiteManagementSection() {
           className="absolute z-20 top-2 left-2 flex items-center gap-1.5 rounded-lg bg-black/55 px-2 py-1 text-[10px] text-white/75 cursor-grab active:cursor-grabbing"
         >
           <GripVertical size={11} /> {title}
+        </button>
+        <button
+          type="button"
+          onClick={() => setBuiltInVisibility(key, false)}
+          className="absolute z-20 top-2 right-2 w-7 h-7 rounded-lg bg-red-500/80 text-white flex items-center justify-center cursor-pointer"
+          title="Supprimer ce bloc"
+        >
+          <Trash2 size={12} />
         </button>
         <button
           type="button"
@@ -452,7 +544,13 @@ export function SiteManagementSection() {
               'navigation',
               'Navigation',
               <div className="h-full px-5 flex items-center gap-2 flex-wrap">
-                {['Règlement', 'Nous contacter', 'Recrutement', 'Rendez-vous', 'Mes demandes'].map((label) => (
+                {[
+                  settings.built_in_blocks.navigation.labels.reglement,
+                  settings.built_in_blocks.navigation.labels.contact,
+                  settings.built_in_blocks.navigation.labels.recrutement,
+                  settings.built_in_blocks.navigation.labels.rendez_vous,
+                  settings.built_in_blocks.navigation.labels.suivi,
+                ].map((label) => (
                   <span key={label} className="rounded-lg bg-white/10 border border-white/10 px-3 py-2 text-xs text-white/70">{label}</span>
                 ))}
               </div>,
@@ -515,6 +613,21 @@ export function SiteManagementSection() {
             ))}
           </div>
         </div>
+
+        {(['hero', 'contact', 'navigation', 'content'] as LayoutKey[]).some((key) => !settings.built_in_blocks[key].visible) && (
+          <div className="mt-4 rounded-xl border border-dashed border-[var(--ink)]/12 p-3">
+            <p className="text-[var(--ink)]/45 text-xs font-semibold mb-2">Blocs supprimés</p>
+            <div className="flex flex-wrap gap-2">
+              {(['hero', 'contact', 'navigation', 'content'] as LayoutKey[])
+                .filter((key) => !settings.built_in_blocks[key].visible)
+                .map((key) => (
+                  <Button key={key} size="sm" variant="ghost" onClick={() => setBuiltInVisibility(key, true)}>
+                    <Plus size={13} /> Réafficher {key === 'hero' ? 'Accueil' : key === 'contact' ? 'Contact' : key === 'navigation' ? 'Navigation' : 'Contenu'}
+                  </Button>
+                ))}
+            </div>
+          </div>
+        )}
       </Card>
 
       <Card className="p-5">
@@ -606,6 +719,17 @@ export function SiteManagementSection() {
               <span className="text-xs font-semibold text-[var(--ink)]/55">Texte bloc contact</span>
               <Input value={settings.contact_text} onChange={(e) => setSettings((current) => ({ ...current, contact_text: e.target.value }))} />
             </label>
+          </div>
+
+          <div className="rounded-xl border border-[var(--ink)]/8 p-4">
+            <p className="text-xs font-semibold text-[var(--ink)]/55 mb-3">Texte des boutons de navigation</p>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              <Input value={settings.built_in_blocks.navigation.labels.reglement} onChange={(e) => setNavigationLabel('reglement', e.target.value)} placeholder="Règlement" />
+              <Input value={settings.built_in_blocks.navigation.labels.contact} onChange={(e) => setNavigationLabel('contact', e.target.value)} placeholder="Nous contacter" />
+              <Input value={settings.built_in_blocks.navigation.labels.recrutement} onChange={(e) => setNavigationLabel('recrutement', e.target.value)} placeholder="Recrutement" />
+              <Input value={settings.built_in_blocks.navigation.labels.rendez_vous} onChange={(e) => setNavigationLabel('rendez_vous', e.target.value)} placeholder="Rendez-vous" />
+              <Input value={settings.built_in_blocks.navigation.labels.suivi} onChange={(e) => setNavigationLabel('suivi', e.target.value)} placeholder="Mes demandes" />
+            </div>
           </div>
         </div>
       </Card>
