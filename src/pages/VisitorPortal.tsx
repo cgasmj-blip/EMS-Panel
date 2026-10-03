@@ -148,7 +148,7 @@ function layoutStyle(item: { x: number; y: number; w: number; h: number }): CSSP
 
 export function VisitorPortal() {
   const navigate = useNavigate()
-  const { session, staff, signInVisitorWithDiscord, signOut } = useAuth()
+  const { session, staff, signInWithDiscord, signInVisitorWithDiscord, signOut } = useAuth()
   const [tab, setTab] = useState<PortalTab>(() => {
     if (typeof window === 'undefined') return 'reglement'
     const saved = window.sessionStorage.getItem('ems-public-tab') as PortalTab | null
@@ -186,6 +186,18 @@ export function VisitorPortal() {
   const discordId = String(metadata.provider_id ?? metadata.sub ?? '')
   const discordName = String(metadata.full_name ?? metadata.name ?? metadata.user_name ?? '')
   const discordAvatar = String(metadata.avatar_url ?? metadata.picture ?? '')
+
+  useEffect(() => {
+    if (!staff) return
+    if (window.sessionStorage.getItem('ems-auth-after') !== 'dashboard') return
+    window.sessionStorage.removeItem('ems-auth-after')
+    navigate('/dashboard')
+  }, [staff, navigate])
+
+  async function connectPanelDiscord() {
+    window.sessionStorage.setItem('ems-auth-after', 'dashboard')
+    await signInWithDiscord()
+  }
 
   useEffect(() => {
     supabase
@@ -401,7 +413,7 @@ export function VisitorPortal() {
             {staff ? (
               <Button size="sm" onClick={() => navigate('/dashboard')}>Ouvrir le panel</Button>
             ) : (
-              <Button size="sm" variant="ghost" onClick={() => navigate('/login')}>
+              <Button size="sm" variant="ghost" onClick={() => void connectPanelDiscord()}>
                 <LogIn size={14} /> Connexion EMS
               </Button>
             )}
