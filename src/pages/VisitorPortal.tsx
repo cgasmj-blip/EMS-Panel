@@ -30,7 +30,11 @@ const EMPTY_FORM: RequestForm = {
 export function VisitorPortal() {
   const navigate = useNavigate()
   const { session, staff, signInVisitorWithDiscord, signOut } = useAuth()
-  const [tab, setTab] = useState<PortalTab>('reglement')
+  const [tab, setTab] = useState<PortalTab>(() => {
+    if (typeof window === 'undefined') return 'reglement'
+    const saved = window.sessionStorage.getItem('ems-public-tab') as PortalTab | null
+    return saved && ['reglement', 'contact', 'recrutement', 'rendez_vous'].includes(saved) ? saved : 'reglement'
+  })
   const [reglement, setReglement] = useState('Chargement du règlement…')
   const [form, setForm] = useState<RequestForm>(EMPTY_FORM)
   const [sending, setSending] = useState(false)
@@ -53,12 +57,12 @@ export function VisitorPortal() {
   }, [])
 
   useEffect(() => {
-    if (tab === 'recrutement' && session && discordName) {
+    if ((tab === 'contact' || tab === 'recrutement') && session && discordName) {
       setForm((current) => ({
         ...current,
         fullName: current.fullName || discordName,
         contact: current.contact || `Discord · ${discordName}`,
-        subject: current.subject || 'Candidature EMS',
+        subject: current.subject || (tab === 'recrutement' ? 'Candidature EMS' : ''),
       }))
     }
   }, [tab, session, discordName])
@@ -73,9 +77,10 @@ export function VisitorPortal() {
     [],
   )
 
-  async function connectDiscord() {
+  async function connectDiscord(target: 'contact' | 'recrutement') {
     setConnecting(true)
     setError(null)
+    window.sessionStorage.setItem('ems-public-tab', target)
     await signInVisitorWithDiscord()
     setConnecting(false)
   }
@@ -84,12 +89,15 @@ export function VisitorPortal() {
     setError(null)
     setSuccess(null)
 
-    if (type === 'recrutement' && (!session || !discordId)) {
-      setError('Connecte ton compte Discord pour envoyer une candidature.')
+    if ((type === 'question' || type === 'recrutement') && (!session || !discordId)) {
+      setError(type === 'recrutement'
+        ? 'Connecte ton compte Discord pour envoyer une candidature.'
+        : 'Connecte ton compte Discord pour nous contacter.')
       return
     }
 
-    const fullName = (type === 'recrutement' ? discordName || form.fullName : form.fullName).trim()
+    const needsDiscord = type === 'question' || type === 'recrutement'
+    const fullName = (needsDiscord ? discordName || form.fullName : form.fullName).trim()
     if (fullName.length < 2) {
       setError('Indique ton nom.')
       return
@@ -107,9 +115,9 @@ export function VisitorPortal() {
       p_subject: form.subject.trim(),
       p_message: form.message.trim(),
       p_preferred_at: form.preferredAt ? new Date(form.preferredAt).toISOString() : null,
-      p_discord_id: type === 'recrutement' ? discordId : null,
-      p_discord_username: type === 'recrutement' ? discordName : null,
-      p_discord_avatar_url: type === 'recrutement' ? discordAvatar : null,
+      p_discord_id: needsDiscord ? discordId : null,
+      p_discord_username: needsDiscord ? discordName : null,
+      p_discord_avatar_url: needsDiscord ? discordAvatar : null,
       p_metadata: {},
     })
     setSending(false)
@@ -122,6 +130,7 @@ export function VisitorPortal() {
     const ticket = data?.[0]?.public_id ? String(data[0].public_id).slice(0, 8).toUpperCase() : null
     setSuccess(ticket ? `Demande envoyée · Référence ${ticket}` : 'Demande envoyée à l’EMS.')
     setForm(EMPTY_FORM)
+    window.sessionStorage.setItem('ems-public-tab', tab)
   }
 
   const requestType = tab === 'contact' ? 'question' : tab === 'recrutement' ? 'recrutement' : 'rendez_vous'
@@ -176,9 +185,14 @@ export function VisitorPortal() {
                 key={item.key}
                 type="button"
                 onClick={() => {
-                  setTab(item.key)
                   setError(null)
                   setSuccess(null)
+                  if ((item.key === 'contact' || item.key === 'recrutement') && !session) {
+                    void connectDiscord(item.key)
+                    return
+                  }
+                  window.sessionStorage.setItem('ems-public-tab', item.key)
+                  setTab(item.key)
                 }}
                 className={tab === item.key
                   ? 'shrink-0 flex items-center gap-2 rounded-xl bg-red px-4 py-2.5 text-white text-sm font-semibold'
@@ -207,17 +221,23 @@ export function VisitorPortal() {
                   : 'Remplis les informations ci-dessous et notre équipe pourra traiter ta demande depuis le panel.'}
               </p>
 
-              {tab === 'recrutement' && !session && (
+              {(tab === 'contact' || tab === 'recrutement') && !session && (
                 <div className="rounded-2xl border border-indigo-400/20 bg-indigo-400/5 p-4 mb-5 flex flex-col sm:flex-row sm:items-center gap-3">
                   <div className="flex-1">
-                    <p className="font-semibold text-sm">Lier ton compte Discord</p>
-                    <p className="text-[var(--ink)]/40 text-xs mt-1">Nécessaire pour identifier ta candidature et recevoir son statut par MP.</p>
+                    <p className="font-semibold text-sm">Authentification Discord requise</p>
+                    <p className="text-[var(--ink)]/40 text-xs mt-1">
+                      {tab === 'recrutement'
+                        ? 'Nécessaire pour identifier ta candidature et recevoir son suivi en message privé.'
+                        : 'Nécessaire pour identifier ta demande et permettre à l’EMS de te recontacter.'}
+                    </p>
                   </div>
-                  <Button onClick={connectDiscord} disabled={connecting}>{connecting ? 'Connexion…' : 'Se connecter avec Discord'}</Button>
+                  <Button onClick={() => void connectDiscord(tab)} disabled={connecting}>
+                    {connecting ? 'Connexion…' : 'Se connecter avec Discord'}
+                  </Button>
                 </div>
               )}
 
-              {tab === 'recrutement' && session && (
+              {(tab === 'contact' || tab === 'recrutement') && session && (
                 <div className="rounded-2xl border border-green-400/20 bg-green-400/5 p-4 mb-5 flex items-center gap-3">
                   {discordAvatar ? <img src={discordAvatar} alt="" className="w-10 h-10 rounded-full object-cover" /> : <span className="w-10 h-10 rounded-full bg-[var(--ink)]/10" />}
                   <div className="min-w-0 flex-1">
@@ -232,8 +252,8 @@ export function VisitorPortal() {
                 <label className="grid gap-1.5">
                   <span className="text-xs font-semibold text-[var(--ink)]/55">Nom</span>
                   <Input
-                    value={tab === 'recrutement' && discordName ? discordName : form.fullName}
-                    disabled={tab === 'recrutement' && Boolean(discordName)}
+                    value={(tab === 'contact' || tab === 'recrutement') && discordName ? discordName : form.fullName}
+                    disabled={(tab === 'contact' || tab === 'recrutement') && Boolean(discordName)}
                     onChange={(e) => setForm((current) => ({ ...current, fullName: e.target.value }))}
                   />
                 </label>
@@ -277,7 +297,7 @@ export function VisitorPortal() {
 
               <Button
                 className="mt-5"
-                disabled={sending || (tab === 'recrutement' && !session)}
+                disabled={sending || ((tab === 'contact' || tab === 'recrutement') && !session)}
                 onClick={() => void submit(requestType)}
               >
                 <Send size={15} /> {sending ? 'Envoi…' : 'Envoyer la demande'}
