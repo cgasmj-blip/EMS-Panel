@@ -14,6 +14,7 @@ import {
   FolderCog,
   ListChecks,
   Globe2,
+  ShieldCheck,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -33,6 +34,7 @@ export type GestionKey =
   | 'training'
   | 'checklists'
   | 'site'
+  | 'visitor_access'
 
 export interface GestionSection {
   key: GestionKey
@@ -61,4 +63,5 @@ export const GESTION_SECTIONS: GestionSection[] = [
   { key: 'training', label: 'Documents', icon: FolderCog, color: 'var(--tile-hierarchy)', directionOnly: true },
   { key: 'checklists', label: 'Checklists service', icon: ListChecks, color: 'var(--tile-services)', directionOnly: true },
   { key: 'site', label: 'Gestion site', icon: Globe2, color: '#16a34a', directionOnly: true },
+  { key: 'visitor_access', label: 'Autorisations demandes', icon: ShieldCheck, color: 'var(--tile-services)', directionOnly: true },
 ]
