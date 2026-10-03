@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/Button'
 import { Select } from '@/components/ui/Select'
 import { Badge } from '@/components/ui/Badge'
 
+type VisitorMessage = { id:number; request_id:number; sender:'visitor'|'ems'; body:string; staff_id:string|null; created_at:string }
+
 type VisitorRequest = {
   id: number
   public_id: string
@@ -57,6 +59,7 @@ export function VisitorRequestsSection({
   const [reply, setReply] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [messages, setMessages] = useState<VisitorMessage[]>([])
 
   const typeKey = types.join(',')
 
@@ -85,6 +88,18 @@ export function VisitorRequestsSection({
   }, [fetchAll])
 
   const selected = requests.find((request) => request.id === selectedId) ?? null
+
+  const fetchMessages = useCallback(async (requestId: number) => {
+    const {data}=await supabase.from('visitor_request_messages').select('*').eq('request_id',requestId).order('created_at',{ascending:true})
+    setMessages((data??[]) as VisitorMessage[])
+  }, [])
+
+  useEffect(() => {
+    if (!selectedId) { setMessages([]); return }
+    fetchMessages(selectedId)
+    const channel=supabase.channel(`visitor-thread-${selectedId}`).on('postgres_changes',{event:'INSERT',schema:'public',table:'visitor_request_messages',filter:`request_id=eq.${selectedId}`},()=>fetchMessages(selectedId)).subscribe()
+    return ()=>{supabase.removeChannel(channel)}
+  }, [selectedId, fetchMessages])
   const visible = useMemo(() => requests, [requests])
 
   async function setStatus(request: VisitorRequest, status: string) {
@@ -151,6 +166,7 @@ export function VisitorRequestsSection({
     setReply('')
     setBusy(false)
     await fetchAll()
+    await fetchMessages(request.id)
   }
 
   return (
@@ -241,8 +257,12 @@ export function VisitorRequestsSection({
               </Badge>
             </div>
 
+            <div className="rounded-xl border border-[var(--ink)]/8 bg-[var(--ink)]/[0.015] p-3 mb-4 max-h-72 overflow-y-auto flex flex-col gap-2">
+              {messages.map((message)=><div key={message.id} className={message.sender==='ems'?'flex justify-end':'flex justify-start'}><div className={message.sender==='ems'?'max-w-[82%] rounded-2xl bg-red text-white px-3.5 py-2.5':'max-w-[82%] rounded-2xl bg-[var(--ink)]/7 px-3.5 py-2.5'}><p className="text-[10px] opacity-60 mb-1">{message.sender==='ems'?'EMS':selected.full_name} · {new Date(message.created_at).toLocaleString('fr-FR')}</p><p className="text-sm whitespace-pre-wrap">{message.body}</p></div></div>)}
+              {messages.length===0&&<p className="text-center text-xs text-[var(--ink)]/30 py-5">Aucun message dans cette conversation.</p>}
+            </div>
             <label className="grid gap-2">
-              <span className="text-xs font-semibold text-[var(--ink)]/50">Réponse / message au visiteur</span>
+              <span className="text-xs font-semibold text-[var(--ink)]/50">Réponse / message au patient</span>
               <textarea
                 value={reply}
                 onChange={(e) => setReply(e.target.value)}
