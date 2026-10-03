@@ -35,7 +35,7 @@ export function CodeBlancAlertButton() {
         onClick={() => setOpen(true)}
         aria-label="Déclencher un Code Blanc"
         title="Code Blanc — demander du renfort"
-        className="w-10 h-10 rounded-xl bg-red/15 text-red-300 border border-red/20 hover:bg-red/25 transition-colors flex items-center justify-center cursor-pointer"
+        className="w-10 h-10 rounded-xl bg-red/15 text-red-300 border border-white hover:bg-red/25 transition-colors flex items-center justify-center cursor-pointer"
       >
         <Siren size={17} />
       </button>
