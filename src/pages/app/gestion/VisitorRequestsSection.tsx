@@ -29,7 +29,7 @@ const STATUS_OPTIONS = [
   ['repondu', 'Répondu'],
   ['ferme', 'Fermé'],
   ['candidature_recue', 'Candidature reçue'],
-  ['verification_dossier', 'Vérification dossier / casier'],
+  ['verification_dossier', 'En attente de casier judiciaire'],
   ['en_attente', 'En attente'],
   ['entretien', 'En attente d’entretien'],
   ['acceptee', 'Acceptée'],
