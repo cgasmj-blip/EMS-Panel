@@ -70,15 +70,15 @@ export function ServicesTab() {
 
   const [newUnitName, setNewUnitName] = useState('')
   const [newUnitLieu, setNewUnitLieu] = useState('Nord')
-
+  const [newCode, setNewCode] = useState<EmergencyCode | ''>('')
   const [vehicule, setVehicule] = useState('')
+  const [defibrillateurChoice, setDefibrillateurChoice] = useState<'' | 'oui' | 'non'>('')
   const [commentaire, setCommentaire] = useState('')
-  const [defibrillateur, setDefibrillateur] = useState(false)
-  const [detailsDirty, setDetailsDirty] = useState(false)
+  const [intervention, setIntervention] = useState('')
 
   const [codes, setCodes] = useState<EmergencyCodeRow[]>([])
   const [shortcuts, setShortcuts] = useState<InterventionShortcut[]>([])
-  const codeLabel = (code: EmergencyCode) => codes.find((c) => c.code === code)?.label ?? `Code ${code}`
+  const codeLabel = (code: EmergencyCode) => codes.find((c) => c.code === code)?.label ?? code
 
   const [sousGrades, setSousGrades] = useState<SousGrade[]>([])
   const [affiliations, setAffiliations] = useState<Affiliation[]>([])
@@ -183,14 +183,6 @@ export function ServicesTab() {
 
   const unitsById = useMemo(() => new Map(units.map((u) => [u.id, u])), [units])
 
-  useEffect(() => {
-    if (detailsDirty) return
-    const unit = staff?.unit_id ? unitsById.get(staff.unit_id) : null
-    setVehicule(unit?.vehicule ?? '')
-    setCommentaire(unit?.commentaire ?? '')
-    setDefibrillateur(unit?.defibrillateur ?? false)
-  }, [staff?.unit_id, unitsById, detailsDirty])
-
   const activeUnits = useMemo(() => units.filter((u) => roster.some((s) => s.unit_id === u.id)), [units, roster])
 
   const sortedRoster = useMemo(
@@ -209,6 +201,30 @@ export function ServicesTab() {
       ),
     [roster],
   )
+
+  function requestStartChecklist() {
+    if (!newUnitName.trim()) {
+      setError("Le nom de l’unité est obligatoire.")
+      return
+    }
+    if (!newUnitLieu) {
+      setError('Le lieu est obligatoire.')
+      return
+    }
+    if (!newCode) {
+      setError("Le code d’urgence est obligatoire.")
+      return
+    }
+    if (!vehicule) {
+      setError('Le véhicule est obligatoire.')
+      return
+    }
+    if (!defibrillateurChoice) {
+      setError('Indique si un défibrillateur est présent.')
+      return
+    }
+    openChecklist('start')
+  }
 
   function openChecklist(phase: ChecklistPhase, unit: Unit | null = null) {
     setChecklistPhase(phase)
@@ -259,54 +275,56 @@ export function ServicesTab() {
   }
 
   async function handlePrendreService() {
-    if (!staff || submitting) return
+    if (!staff || submitting || !newCode || !vehicule || !defibrillateurChoice || !newUnitName.trim()) return
     setSubmitting(true)
     setError(null)
     try {
-      let unitId = staff.unit_id
-      let unitName = staff.unit_id ? unitsById.get(staff.unit_id)?.name ?? null : null
-      let unitSector = staff.unit_id ? unitsById.get(staff.unit_id)?.sector ?? null : null
-
-      if (!unitId) {
-        const fallbackName = newUnitName.trim() || `Unité de ${staff.full_name}`
-        const { data, error: unitErr } = await supabase
-          .from('units')
-          .insert({ name: fallbackName, status: 'en_service', sector: newUnitLieu })
-          .select()
-          .single()
-        if (unitErr || !data) throw new Error(unitErr?.message ?? "Création d'unité impossible")
-        unitId = data.id
-        unitName = data.name
-        unitSector = data.sector
+      const startedAt = new Date().toISOString()
+      const unitPayload = {
+        name: newUnitName.trim(),
+        status: 'en_service' as DutyStatus,
+        sector: newUnitLieu,
+        code: newCode,
+        vehicule,
+        commentaire: commentaire.trim() || null,
+        intervention: intervention || null,
+        defibrillateur: defibrillateurChoice === 'oui',
       }
 
-      const isNewShift = !staff.shift_started_at
-      const startedAt = staff.shift_started_at ?? new Date().toISOString()
+      const { data: unit, error: unitErr } = await supabase
+        .from('units')
+        .insert(unitPayload)
+        .select()
+        .single()
+      if (unitErr || !unit) throw new Error(unitErr?.message ?? "Création d'unité impossible")
 
       const { error: staffErr } = await supabase
         .from('staff')
-        .update({ unit_id: unitId, status: 'en_service', shift_started_at: startedAt })
+        .update({ unit_id: unit.id, status: 'en_service', shift_started_at: startedAt })
         .eq('id', staff.id)
       if (staffErr) throw new Error(staffErr.message)
 
-      if (isNewShift) {
-        await supabase.from('shifts').insert({
-          staff_id: staff.id,
-          unit_name: unitName,
-          sector: unitSector,
-          status_label: 'en_service',
-          started_at: startedAt,
-        })
-      } else {
-        await supabase
-          .from('shifts')
-          .update({ status_label: 'en_service', unit_name: unitName, sector: unitSector })
-          .eq('staff_id', staff.id)
-          .is('ended_at', null)
-      }
+      const { error: shiftErr } = await supabase.from('shifts').insert({
+        staff_id: staff.id,
+        unit_name: unit.name,
+        sector: unit.sector,
+        code: newCode,
+        vehicule,
+        commentaire: commentaire.trim() || null,
+        intervention: intervention || null,
+        defibrillateur: defibrillateurChoice === 'oui',
+        status_label: 'en_service',
+        started_at: startedAt,
+      })
+      if (shiftErr) throw new Error(shiftErr.message)
 
       setNewUnitName('')
       setNewUnitLieu('Nord')
+      setNewCode('')
+      setVehicule('')
+      setDefibrillateurChoice('')
+      setCommentaire('')
+      setIntervention('')
       await Promise.all([refreshStaff(), fetchAll()])
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
@@ -353,43 +371,6 @@ export function ServicesTab() {
     }
   }
 
-  async function handleSetCode(code: EmergencyCode) {
-    if (!staff?.unit_id || submitting) return
-    setSubmitting(true)
-    try {
-      await supabase.from('units').update({ code }).eq('id', staff.unit_id)
-      await supabase.from('shifts').update({ code }).eq('staff_id', staff.id).is('ended_at', null)
-      await fetchAll()
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  async function handleMettreAJour() {
-    if (!staff?.unit_id || submitting) return
-    setSubmitting(true)
-    try {
-      await supabase
-        .from('units')
-        .update({ vehicule: vehicule.trim() || null, commentaire: commentaire.trim() || null, defibrillateur })
-        .eq('id', staff.unit_id)
-      await supabase
-        .from('shifts')
-        .update({ vehicule: vehicule.trim() || null, commentaire: commentaire.trim() || null, defibrillateur })
-        .eq('staff_id', staff.id)
-        .is('ended_at', null)
-      setDetailsDirty(false)
-      await fetchAll()
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  function applyShortcut(label: string) {
-    setCommentaire(label)
-    setDetailsDirty(true)
-  }
-
   async function handlePause() {
     if (!staff || submitting) return
     setSubmitting(true)
@@ -403,6 +384,19 @@ export function ServicesTab() {
     }
   }
 
+  async function handleResume() {
+    if (!staff || submitting) return
+    setSubmitting(true)
+    setError(null)
+    try {
+      await supabase.from('staff').update({ status: 'en_service' }).eq('id', staff.id)
+      await supabase.from('shifts').update({ status_label: 'en_service' }).eq('staff_id', staff.id).is('ended_at', null)
+      await Promise.all([refreshStaff(), fetchAll()])
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   async function handleFin() {
     if (!staff || submitting) return
     setSubmitting(true)
@@ -410,7 +404,6 @@ export function ServicesTab() {
     try {
       await supabase.from('staff').update({ unit_id: null, status: 'hors_service', shift_started_at: null }).eq('id', staff.id)
       await supabase.from('shifts').update({ ended_at: new Date().toISOString() }).eq('staff_id', staff.id).is('ended_at', null)
-      setDetailsDirty(false)
       await Promise.all([refreshStaff(), fetchAll()])
     } finally {
       setSubmitting(false)
@@ -431,51 +424,36 @@ export function ServicesTab() {
           </Button>
         </div>
         {error && <p className="text-red-300 text-xs mb-3">{error}</p>}
-        <div className="grid sm:grid-cols-2 gap-4 mb-4">
-          <Field label="Nom d'unité (optionnel)">
-            <Input value={newUnitName} onChange={(e) => setNewUnitName(e.target.value)} />
-          </Field>
-          <Field label="Lieu">
-            <Select value={newUnitLieu} onChange={(e) => setNewUnitLieu(e.target.value)}>
-              <option value="Nord">⛰️ Nord</option>
-              <option value="Sud">🏙️ Sud</option>
-              <option value="Nord-Sud">⛰️🏙️ Nord-Sud</option>
-            </Select>
-          </Field>
-        </div>
-        <p className="text-[var(--ink)]/30 text-xs mb-4">Le nom d'unité est facultatif. Pour rejoindre un service déjà actif, utilise le bouton "Rejoindre" ci-dessous.</p>
-        {staff.unit_id && staff.status === 'en_service' && (
-          <div className="mb-4">
-            <p className="text-xs uppercase tracking-[1.5px] text-[var(--ink)]/40 font-semibold mb-1.5">Code d'urgence</p>
-            <div className="flex gap-2">
-              {codes.map((c) => (
-                <Button
-                  key={c.code}
-                  type="button"
-                  size="sm"
-                  variant={unitsById.get(staff.unit_id!)?.code === c.code ? 'red' : 'ghost'}
-                  disabled={submitting}
-                  onClick={() => handleSetCode(c.code)}
-                  className="flex-1"
-                >
-                  {c.label}
-                </Button>
-              ))}
+        {staff.status === 'hors_service' ? (
+          <div className="flex flex-col gap-4 mb-4">
+            <div className="grid sm:grid-cols-2 gap-4">
+              <Field label="Nom de l’unité">
+                <Input value={newUnitName} onChange={(e) => setNewUnitName(e.target.value)} placeholder="Ex : Unité Nord 1" />
+              </Field>
+              <Field label="Lieu">
+                <Select value={newUnitLieu} onChange={(e) => setNewUnitLieu(e.target.value)}>
+                  <option value="Nord">⛰️ Nord</option>
+                  <option value="Sud">🏙️ Sud</option>
+                  <option value="Nord-Sud">⛰️🏙️ Nord-Sud</option>
+                </Select>
+              </Field>
             </div>
-          </div>
-        )}
-        {staff.unit_id && staff.status !== 'hors_service' && (
-          <div className="mb-4 flex flex-col gap-4">
+
+            <Field label="Code d’urgence">
+              <Select value={newCode} onChange={(e) => setNewCode(e.target.value)}>
+                <option value="">— Sélectionner un code —</option>
+                {codes.map((code) => (
+                  <option key={code.code} value={code.code}>
+                    {`CODE ${code.code} — ${code.label}`}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+
             <div className="grid sm:grid-cols-2 gap-4">
               <Field label="Véhicule">
-                <Select
-                  value={vehicule}
-                  onChange={(e) => {
-                    setVehicule(e.target.value)
-                    setDetailsDirty(true)
-                  }}
-                >
-                  <option value="">— Aucun —</option>
+                <Select value={vehicule} onChange={(e) => setVehicule(e.target.value)}>
+                  <option value="">— Sélectionner un véhicule —</option>
                   {eligibleVehicles.map((v) => (
                     <option key={v.id} value={v.name}>
                       {v.plate ? `${v.name} · ${v.plate}` : v.name}
@@ -484,52 +462,60 @@ export function ServicesTab() {
                 </Select>
               </Field>
               <Field label="Défibrillateur">
-                <Select
-                  value={defibrillateur ? 'oui' : 'non'}
-                  onChange={(e) => {
-                    setDefibrillateur(e.target.value === 'oui')
-                    setDetailsDirty(true)
-                  }}
-                >
-                  <option value="non">Non</option>
-                  <option value="oui">Oui</option>
+                <Select value={defibrillateurChoice} onChange={(e) => setDefibrillateurChoice(e.target.value as '' | 'oui' | 'non')}>
+                  <option value="">— Sélectionner —</option>
+                  <option value="oui">OUI</option>
+                  <option value="non">NON</option>
                 </Select>
               </Field>
             </div>
-            <Field label="Commentaires">
-              <Input
-                value={commentaire}
-                onChange={(e) => {
-                  setCommentaire(e.target.value)
-                  setDetailsDirty(true)
-                }}
-              />
+
+            <Field label="Commentaire (facultatif)">
+              <Input value={commentaire} onChange={(e) => setCommentaire(e.target.value)} />
             </Field>
+
             <div>
-              <p className="text-xs uppercase tracking-[1.5px] text-[var(--ink)]/40 font-semibold mb-1.5">Interventions</p>
+              <p className="text-xs uppercase tracking-[1.5px] text-[var(--ink)]/40 font-semibold mb-1.5">
+                Intervention / type d’intervention (facultatif)
+              </p>
               <div className="flex flex-wrap gap-2">
-                {shortcuts.filter((s) => staffMatchesEligibility(staff, s)).map((s) => (
+                {shortcuts.filter((s) => staffMatchesEligibility(staff, s)).map((shortcut) => (
                   <button
-                    key={s.id}
+                    key={shortcut.id}
                     type="button"
-                    onClick={() => applyShortcut(s.label)}
+                    onClick={() => setIntervention((current) => current === shortcut.label ? '' : shortcut.label)}
                     className={cn(
                       'rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer',
-                      commentaire === s.label
+                      intervention === shortcut.label
                         ? 'border-red/50 bg-red/10 text-neon-red'
                         : 'border-[var(--ink)]/10 bg-[var(--ink)]/[0.03] text-[var(--ink)]/60 hover:text-[var(--ink)] hover:bg-[var(--ink)]/[0.06]',
                     )}
                   >
-                    {s.label}
+                    {shortcut.label}
                   </button>
                 ))}
               </div>
             </div>
-            <Button variant="ghost" size="sm" disabled={submitting || !detailsDirty} onClick={handleMettreAJour}>
-              Mettre à jour
-            </Button>
           </div>
-        )}
+        ) : staff.unit_id ? (
+          <div className="mb-4 rounded-xl border border-[var(--ink)]/8 bg-[var(--ink)]/[0.02] p-4">
+            <p className="text-[var(--ink)] font-semibold text-sm mb-2">{unitsById.get(staff.unit_id)?.name ?? 'Unité en service'}</p>
+            <p className="text-[var(--ink)]/50 text-xs">
+              {[
+                unitsById.get(staff.unit_id)?.sector ? `Lieu : ${unitsById.get(staff.unit_id)?.sector}` : null,
+                unitsById.get(staff.unit_id)?.code ? `CODE ${unitsById.get(staff.unit_id)?.code} — ${codeLabel(unitsById.get(staff.unit_id)!.code!)}` : null,
+                unitsById.get(staff.unit_id)?.vehicule ? `Véhicule : ${vehicleLabel(unitsById.get(staff.unit_id)?.vehicule ?? null)}` : null,
+                `Défibrillateur : ${unitsById.get(staff.unit_id)?.defibrillateur ? 'OUI' : 'NON'}`,
+              ].filter(Boolean).join(' · ')}
+            </p>
+            {unitsById.get(staff.unit_id)?.intervention && (
+              <p className="text-[var(--ink)]/50 text-xs mt-2">Intervention : {unitsById.get(staff.unit_id)?.intervention}</p>
+            )}
+            {unitsById.get(staff.unit_id)?.commentaire && (
+              <p className="text-[var(--ink)]/45 text-xs mt-1 italic">{unitsById.get(staff.unit_id)?.commentaire}</p>
+            )}
+          </div>
+        ) : null}
         {checklistPhase && (
           <div className="mb-4 rounded-xl border border-cyan/20 bg-cyan/5 p-4">
             <div className="flex items-center justify-between gap-3 mb-3">
@@ -570,9 +556,9 @@ export function ServicesTab() {
         )}
 
         <div className="flex flex-col sm:flex-row gap-2">
-          {staff.status !== 'en_service' && (
-            <Button variant="green" disabled={submitting} onClick={() => openChecklist('start')} className="flex-1">
-              <Play size={14} /> Prendre service
+          {staff.status === 'hors_service' && (
+            <Button variant="green" disabled={submitting} onClick={requestStartChecklist} className="flex-1">
+              <Play size={14} /> PRENDRE LE SERVICE
             </Button>
           )}
           {staff.status === 'en_service' && (
@@ -580,9 +566,14 @@ export function ServicesTab() {
               <Pause size={14} /> En pause
             </Button>
           )}
+          {staff.status === 'en_pause' && (
+            <Button variant="green" disabled={submitting} onClick={handleResume} className="flex-1">
+              <Play size={14} /> Reprendre le service
+            </Button>
+          )}
           {staff.status !== 'hors_service' && (
             <Button variant="red" disabled={submitting} onClick={() => openChecklist('end')} className="flex-1">
-              <Square size={14} /> Fin de service
+              <Square size={14} /> FIN DE SERVICE
             </Button>
           )}
         </div>
@@ -604,7 +595,7 @@ export function ServicesTab() {
                 <div className="flex items-center justify-between mb-1 gap-2 flex-wrap">
                   <p className="text-[var(--ink)] text-sm font-semibold">{unit.name}</p>
                   <div className="flex items-center gap-1.5">
-                    {unit.code && <Badge variant="red">{codeLabel(unit.code)}</Badge>}
+                    {unit.code && <Badge variant="red">{`CODE ${unit.code} · ${codeLabel(unit.code)}`}</Badge>}
                     <Badge variant={STATUS_BADGE[unit.status]}>
                       {unit.status === 'en_service' && <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-status-pulse" />}
                       {STATUS_LABELS[unit.status]}
@@ -621,6 +612,7 @@ export function ServicesTab() {
                   Début : {formatTime(unit.created_at)} · {teamLabel(members.length)}
                   {unit.vehicule ? ` · Véhicule : ${vehicleLabel(unit.vehicule)}` : ''}
                 </p>
+                {unit.intervention && <p className="text-[var(--ink)]/55 text-xs mb-1">Intervention : {unit.intervention}</p>}
                 {unit.commentaire && <p className="text-[var(--ink)]/50 text-xs mb-1 italic">{unit.commentaire}</p>}
                 <div className="flex flex-col gap-1">
                   {members.map((s) => (
