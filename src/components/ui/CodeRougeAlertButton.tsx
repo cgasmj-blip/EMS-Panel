@@ -35,7 +35,7 @@ export function CodeRougeAlertButton() {
         onClick={() => setOpen(true)}
         aria-label="Déclencher un Code Rouge"
         title="Code Rouge — incendie"
-        className="w-10 h-10 rounded-xl bg-white text-red-600 border border-white hover:bg-white/90 transition-colors flex items-center justify-center cursor-pointer shadow-sm"
+        className="w-10 h-10 rounded-xl bg-red text-white border border-red hover:bg-red/90 transition-colors flex items-center justify-center cursor-pointer shadow-sm"
       >
         <Flame size={18} />
       </button>
