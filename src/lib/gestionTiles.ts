@@ -15,6 +15,7 @@ import {
   ListChecks,
   Globe2,
   ShieldCheck,
+  ArchiveRestore,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -35,6 +36,8 @@ export type GestionKey =
   | 'checklists'
   | 'site'
   | 'visitor_access'
+  | 'recruitment_archive'
+  | 'recruitment_archive_access'
 
 export interface GestionSection {
   key: GestionKey
@@ -63,5 +66,7 @@ export const GESTION_SECTIONS: GestionSection[] = [
   { key: 'training', label: 'Documents', icon: FolderCog, color: 'var(--tile-hierarchy)', directionOnly: true },
   { key: 'checklists', label: 'Checklists service', icon: ListChecks, color: 'var(--tile-services)', directionOnly: true },
   { key: 'site', label: 'Gestion site', icon: Globe2, color: '#16a34a', directionOnly: true },
+  { key: 'recruitment_archive', label: 'Archives candidatures', icon: ArchiveRestore, color: 'var(--tile-archive)' },
+  { key: 'recruitment_archive_access', label: 'Accès archives candidatures', icon: ShieldCheck, color: 'var(--tile-hierarchy)', directionOnly: true },
   { key: 'visitor_access', label: 'Autorisations demandes', icon: ShieldCheck, color: 'var(--tile-services)', directionOnly: true },
 ]
