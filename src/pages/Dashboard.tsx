@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type DragEvent, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { CalendarClock, History, LayoutGrid, LogOut, Megaphone, MessageCircle, RefreshCw, Search, ShieldCheck } from 'lucide-react'
 import { useAuth } from '@/auth/AuthContext'
@@ -268,7 +268,7 @@ export function Dashboard() {
     })
   }
 
-  function readDraggedTab(event: React.DragEvent): TabKey | null {
+  function readDraggedTab(event: DragEvent): TabKey | null {
     const key = event.dataTransfer.getData('application/x-ems-tab') || event.dataTransfer.getData('text/plain')
     return visibleTabs.includes(key as TabKey) ? (key as TabKey) : null
   }
