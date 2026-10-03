@@ -1,15 +1,46 @@
 import { useEffect, useMemo, useState } from 'react'
-import { CalendarClock, FileText, HeartHandshake, LogIn, MessageCircle, Send, Stethoscope, UserRoundPlus } from 'lucide-react'
+import { CalendarClock, FileText, HeartHandshake, History, LogIn, MessageCircle, Send, Stethoscope, UserRoundPlus } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/auth/AuthContext'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
+import { Select } from '@/components/ui/Select'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
 import logo from '@/assets/logo.webp'
 
-type PortalTab = 'reglement' | 'contact' | 'recrutement' | 'rendez_vous'
+type PortalTab = 'reglement' | 'contact' | 'recrutement' | 'rendez_vous' | 'suivi'
+
+type SubjectRow = {
+  id: number
+  request_type: 'question' | 'recrutement' | 'rendez_vous'
+  label: string
+}
+
+type TicketCredential = {
+  public_id: string
+  access_token: string
+}
+
+type ThreadData = {
+  request: {
+    public_id: string
+    request_type: 'question' | 'recrutement' | 'rendez_vous'
+    subject: string
+    message: string
+    status: string
+    preferred_at: string | null
+    created_at: string
+    updated_at: string
+  }
+  messages: Array<{
+    id: number
+    sender: 'visiteur' | 'ems'
+    body: string
+    created_at: string
+  }>
+}
 
 type RequestForm = {
   fullName: string
@@ -33,7 +64,7 @@ export function VisitorPortal() {
   const [tab, setTab] = useState<PortalTab>(() => {
     if (typeof window === 'undefined') return 'reglement'
     const saved = window.sessionStorage.getItem('ems-public-tab') as PortalTab | null
-    return saved && ['reglement', 'contact', 'recrutement', 'rendez_vous'].includes(saved) ? saved : 'reglement'
+    return saved && ['reglement', 'contact', 'recrutement', 'rendez_vous', 'suivi'].includes(saved) ? saved : 'reglement'
   })
   const [reglement, setReglement] = useState('Chargement du règlement…')
   const [form, setForm] = useState<RequestForm>(EMPTY_FORM)
@@ -41,6 +72,10 @@ export function VisitorPortal() {
   const [connecting, setConnecting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const [subjects, setSubjects] = useState<SubjectRow[]>([])
+  const [subjectId, setSubjectId] = useState<number | null>(null)
+  const [threads, setThreads] = useState<Array<{ credential: TicketCredential; data: ThreadData }>>([])
+  const [replyByTicket, setReplyByTicket] = useState<Record<string, string>>({})
 
   const metadata = (session?.user.user_metadata ?? {}) as Record<string, unknown>
   const discordId = String(metadata.provider_id ?? metadata.sub ?? '')
@@ -54,7 +89,22 @@ export function VisitorPortal() {
       .eq('key', 'reglement')
       .maybeSingle()
       .then(({ data }) => setReglement(data?.body || 'Le règlement EMS sera bientôt disponible.'))
+
+    supabase
+      .from('visitor_request_subjects')
+      .select('id,request_type,label')
+      .eq('active', true)
+      .order('request_type')
+      .order('position')
+      .then(({ data }) => setSubjects((data ?? []) as SubjectRow[]))
   }, [])
+
+  useEffect(() => {
+    const requestType = tab === 'contact' ? 'question' : tab === 'recrutement' ? 'recrutement' : tab === 'rendez_vous' ? 'rendez_vous' : null
+    if (!requestType) return
+    const available = subjects.filter((subject) => subject.request_type === requestType)
+    setSubjectId((current) => available.some((subject) => subject.id === current) ? current : available[0]?.id ?? null)
+  }, [tab, subjects])
 
   useEffect(() => {
     if ((tab === 'contact' || tab === 'recrutement') && session && discordName) {
@@ -73,6 +123,7 @@ export function VisitorPortal() {
       { key: 'contact' as const, label: 'Nous contacter', icon: MessageCircle },
       { key: 'recrutement' as const, label: 'Recrutement', icon: UserRoundPlus },
       { key: 'rendez_vous' as const, label: 'Rendez-vous', icon: CalendarClock },
+      { key: 'suivi' as const, label: 'Mes demandes', icon: History },
     ],
     [],
   )
@@ -84,6 +135,57 @@ export function VisitorPortal() {
     await signInVisitorWithDiscord()
     setConnecting(false)
   }
+
+  function readTicketCredentials(): TicketCredential[] {
+    try {
+      const value = JSON.parse(window.localStorage.getItem('ems-visitor-tickets') || '[]')
+      return Array.isArray(value) ? value.filter((item) => item?.public_id && item?.access_token) : []
+    } catch {
+      return []
+    }
+  }
+
+  function saveTicketCredential(credential: TicketCredential) {
+    const current = readTicketCredentials().filter((item) => item.public_id !== credential.public_id)
+    window.localStorage.setItem('ems-visitor-tickets', JSON.stringify([credential, ...current].slice(0, 30)))
+  }
+
+  async function loadThreads() {
+    const credentials = readTicketCredentials()
+    const rows = await Promise.all(
+      credentials.map(async (credential) => {
+        const { data } = await supabase.rpc('get_visitor_request_thread', {
+          p_public_id: credential.public_id,
+          p_access_token: credential.access_token,
+        })
+        return data ? { credential, data: data as ThreadData } : null
+      }),
+    )
+    setThreads(rows.filter(Boolean) as Array<{ credential: TicketCredential; data: ThreadData }>)
+  }
+
+  async function sendTrackingReply(item: { credential: TicketCredential; data: ThreadData }) {
+    const body = (replyByTicket[item.credential.public_id] ?? '').trim()
+    if (!body) return
+    const { error: replyError } = await supabase.rpc('reply_visitor_request', {
+      p_public_id: item.credential.public_id,
+      p_access_token: item.credential.access_token,
+      p_body: body,
+    })
+    if (replyError) {
+      setError(replyError.message)
+      return
+    }
+    setReplyByTicket((current) => ({ ...current, [item.credential.public_id]: '' }))
+    await loadThreads()
+  }
+
+  useEffect(() => {
+    if (tab !== 'suivi') return
+    void loadThreads()
+    const timer = window.setInterval(() => void loadThreads(), 10000)
+    return () => window.clearInterval(timer)
+  }, [tab])
 
   async function submit(type: 'question' | 'recrutement' | 'rendez_vous') {
     setError(null)
@@ -102,8 +204,14 @@ export function VisitorPortal() {
       setError('Indique ton nom.')
       return
     }
-    if (!form.subject.trim() || !form.message.trim()) {
+    if (!subjectId || !form.message.trim()) {
       setError('L’objet et le message sont nécessaires.')
+      return
+    }
+
+    const selectedSubject = subjects.find((subject) => subject.id === subjectId)
+    if (!selectedSubject) {
+      setError('Sélectionne un objet valide.')
       return
     }
 
@@ -112,13 +220,14 @@ export function VisitorPortal() {
       p_type: type,
       p_full_name: fullName,
       p_contact: form.contact.trim(),
-      p_subject: form.subject.trim(),
+      p_subject: selectedSubject.label,
       p_message: form.message.trim(),
       p_preferred_at: form.preferredAt ? new Date(form.preferredAt).toISOString() : null,
       p_discord_id: needsDiscord ? discordId : null,
       p_discord_username: needsDiscord ? discordName : null,
       p_discord_avatar_url: needsDiscord ? discordAvatar : null,
       p_metadata: {},
+      p_subject_id: subjectId,
     })
     setSending(false)
 
@@ -127,7 +236,11 @@ export function VisitorPortal() {
       return
     }
 
-    const ticket = data?.[0]?.public_id ? String(data[0].public_id).slice(0, 8).toUpperCase() : null
+    const publicId = data?.[0]?.public_id ? String(data[0].public_id) : null
+    const accessToken = data?.[0]?.access_token ? String(data[0].access_token) : null
+    if (publicId && accessToken) saveTicketCredential({ public_id: publicId, access_token: accessToken })
+
+    const ticket = publicId ? publicId.slice(0, 8).toUpperCase() : null
     setSuccess(ticket ? `Demande envoyée · Référence ${ticket}` : 'Demande envoyée à l’EMS.')
     setForm(EMPTY_FORM)
     window.sessionStorage.setItem('ems-public-tab', tab)
@@ -209,6 +322,63 @@ export function VisitorPortal() {
             <h2 className="font-display font-black text-xl mb-5">Règlement EMS</h2>
             <div className="whitespace-pre-wrap text-sm sm:text-base text-[var(--ink)]/65 leading-7">{reglement}</div>
           </Card>
+        ) : tab === 'suivi' ? (
+          <div className="grid gap-4">
+            {threads.map((item) => (
+              <Card key={item.credential.public_id} className="p-5 sm:p-6">
+                <div className="flex items-start justify-between gap-3 mb-4">
+                  <div>
+                    <p className="font-bold">{item.data.request.subject}</p>
+                    <p className="text-[var(--ink)]/35 text-xs mt-1">
+                      Réf. {item.data.request.public_id.slice(0, 8).toUpperCase()} · {new Date(item.data.request.created_at).toLocaleString('fr-FR')}
+                    </p>
+                  </div>
+                  <span className="rounded-full border border-[var(--ink)]/10 px-2.5 py-1 text-[11px] text-[var(--ink)]/60">
+                    {item.data.request.status.replaceAll('_', ' ')}
+                  </span>
+                </div>
+
+                <div className="grid gap-2 max-h-80 overflow-y-auto pr-1">
+                  {item.data.messages.map((message) => (
+                    <div
+                      key={message.id}
+                      className={message.sender === 'ems'
+                        ? 'rounded-xl bg-red/8 border border-red/10 px-3 py-2.5'
+                        : 'rounded-xl bg-[var(--ink)]/[0.035] border border-[var(--ink)]/8 px-3 py-2.5'}
+                    >
+                      <p className="text-[11px] font-semibold text-[var(--ink)]/40 mb-1">{message.sender === 'ems' ? 'EMS' : 'Vous'}</p>
+                      <p className="text-sm whitespace-pre-wrap">{message.body}</p>
+                      <p className="text-[10px] text-[var(--ink)]/25 mt-1">{new Date(message.created_at).toLocaleString('fr-FR')}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex gap-2 mt-4">
+                  <Input
+                    value={replyByTicket[item.credential.public_id] ?? ''}
+                    onChange={(e) => setReplyByTicket((current) => ({ ...current, [item.credential.public_id]: e.target.value }))}
+                    placeholder="Ajouter un message…"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        void sendTrackingReply(item)
+                      }
+                    }}
+                  />
+                  <Button onClick={() => void sendTrackingReply(item)} disabled={!(replyByTicket[item.credential.public_id] ?? '').trim()}>
+                    <Send size={15} />
+                  </Button>
+                </div>
+              </Card>
+            ))}
+            {threads.length === 0 && (
+              <Card className="p-8 text-center">
+                <History size={26} className="mx-auto text-[var(--ink)]/20 mb-3" />
+                <p className="font-semibold">Aucune demande enregistrée sur cet appareil.</p>
+                <p className="text-[var(--ink)]/35 text-xs mt-1">Tes demandes apparaîtront ici après leur envoi.</p>
+              </Card>
+            )}
+          </div>
         ) : (
           <Card className="p-6 sm:p-8">
             <div className="max-w-3xl">
@@ -269,7 +439,14 @@ export function VisitorPortal() {
 
               <label className="grid gap-1.5 mt-4">
                 <span className="text-xs font-semibold text-[var(--ink)]/55">Objet</span>
-                <Input value={form.subject} onChange={(e) => setForm((current) => ({ ...current, subject: e.target.value }))} />
+                <Select value={subjectId ?? ''} onChange={(e) => setSubjectId(Number(e.target.value))}>
+                  <option value="">— Sélectionner —</option>
+                  {subjects
+                    .filter((subject) => subject.request_type === requestType)
+                    .map((subject) => (
+                      <option key={subject.id} value={subject.id}>{subject.label}</option>
+                    ))}
+                </Select>
               </label>
 
               {tab === 'rendez_vous' && (
