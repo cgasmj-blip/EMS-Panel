@@ -55,7 +55,7 @@ export function Dashboard() {
   const [view, setViewState] = useState<TabKey | 'home'>(getStoredView)
   const [resyncing, setResyncing] = useState(false)
   const [unreadMessages, setUnreadMessages] = useState(0)
-  const [latestAnnouncement, setLatestAnnouncement] = useState<{ id: number; title: string; body: string } | null>(null)
+  const [latestAnnouncements, setLatestAnnouncements] = useState<{ id: number; title: string; body: string; created_at: string }[]>([])
   const [nextAppointment, setNextAppointment] = useState<{ scheduled_at: string; title: string | null; type: string } | null>(null)
   const previousUnreadRef = useRef<number | null>(null)
   const previousAnnouncementIdRef = useRef<number | null>(null)
@@ -123,12 +123,12 @@ export function Dashboard() {
     const userId = session?.user.id
     if (!userId) {
       setUnreadMessages(0)
-      setLatestAnnouncement(null)
+      setLatestAnnouncements([])
       setNextAppointment(null)
       return
     }
 
-    const [{ count }, { data: announcement }, { data: appointment }] = await Promise.all([
+    const [{ count }, { data: announcements }, { data: appointment }] = await Promise.all([
       supabase
         .from('internal_messages')
         .select('id', { count: 'exact', head: true })
@@ -136,10 +136,9 @@ export function Dashboard() {
         .is('read_at', null),
       supabase
         .from('internal_announcements')
-        .select('id,title,body')
+        .select('id,title,body,created_at')
         .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle(),
+        .limit(3),
       supabase
         .from('appointments')
         .select('scheduled_at,title,type')
@@ -152,7 +151,8 @@ export function Dashboard() {
     ])
 
     const nextUnread = count ?? 0
-    const nextAnnouncement = announcement ?? null
+    const nextAnnouncements = announcements ?? []
+    const nextAnnouncement = nextAnnouncements[0] ?? null
 
     if (previousUnreadRef.current !== null && nextUnread > previousUnreadRef.current) {
       playTone('message')
@@ -169,7 +169,7 @@ export function Dashboard() {
     previousUnreadRef.current = nextUnread
     previousAnnouncementIdRef.current = nextAnnouncement?.id ?? null
     setUnreadMessages(nextUnread)
-    setLatestAnnouncement(nextAnnouncement)
+    setLatestAnnouncements(nextAnnouncements)
     setNextAppointment(appointment ?? null)
   }, [session?.user.id, playTone])
 
@@ -580,17 +580,35 @@ export function Dashboard() {
                   {displayRoleLabel(staff.role) && <p className="text-[var(--ink)]/40 text-sm">{displayRoleLabel(staff.role)}</p>}
                 </div>
               </div>
-              {latestAnnouncement && (
-                <div className="rounded-2xl border border-red/20 bg-red/10 px-4 py-3 flex items-start gap-3">
+              <div className="rounded-2xl border border-red/20 bg-red/10 px-4 py-3">
+                <div className="flex items-center gap-3 mb-3">
                   <span className="w-9 h-9 rounded-xl bg-red/15 text-red-300 flex items-center justify-center shrink-0">
                     <Megaphone size={17} />
                   </span>
-                  <div className="min-w-0">
-                    <p className="text-[var(--ink)] font-bold text-sm">{latestAnnouncement.title}</p>
-                    <p className="text-[var(--ink)]/60 text-sm mt-1 whitespace-pre-wrap line-clamp-3">{latestAnnouncement.body}</p>
+                  <div>
+                    <p className="text-[var(--ink)] font-bold text-sm">Annonces EMS</p>
+                    <p className="text-[var(--ink)]/40 text-xs">Les dernières informations de la direction</p>
                   </div>
                 </div>
-              )}
+
+                {latestAnnouncements.length > 0 ? (
+                  <div className="grid gap-2">
+                    {latestAnnouncements.map((announcement) => (
+                      <div key={announcement.id} className="rounded-xl border border-[var(--ink)]/8 bg-[var(--bg)]/55 px-3 py-2.5">
+                        <div className="flex items-start justify-between gap-3">
+                          <p className="text-[var(--ink)] font-semibold text-sm">{announcement.title}</p>
+                          <span className="text-[var(--ink)]/30 text-[10px] shrink-0">
+                            {new Date(announcement.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}
+                          </span>
+                        </div>
+                        <p className="text-[var(--ink)]/60 text-sm mt-1 whitespace-pre-wrap line-clamp-3">{announcement.body}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-[var(--ink)]/35 text-sm">Aucune annonce EMS pour le moment.</p>
+                )}
+              </div>
               <HomeTiles
                 keys={navLayout.home}
                 onSelect={(key) => setView(key)}
