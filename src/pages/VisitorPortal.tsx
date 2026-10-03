@@ -12,6 +12,23 @@ import logo from '@/assets/logo.webp'
 
 type PortalTab = 'reglement' | 'contact' | 'recrutement' | 'rendez_vous' | 'suivi'
 
+type SiteSettings = {
+  hero_title: string
+  hero_subtitle: string
+  contact_title: string
+  contact_text: string
+  hero_image_path: string | null
+  background_image_path: string | null
+  background_position: 'center' | 'top' | 'bottom' | 'left' | 'right' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
+  background_opacity: number
+  hero_image_position: 'center' | 'top' | 'bottom' | 'left' | 'right' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
+  show_reglement: boolean
+  show_contact: boolean
+  show_recrutement: boolean
+  show_rendez_vous: boolean
+  show_suivi: boolean
+}
+
 type SubjectRow = {
   id: number
   request_type: 'question' | 'recrutement' | 'rendez_vous'
@@ -76,6 +93,9 @@ export function VisitorPortal() {
   const [subjectId, setSubjectId] = useState<number | null>(null)
   const [threads, setThreads] = useState<Array<{ credential: TicketCredential; data: ThreadData }>>([])
   const [replyByTicket, setReplyByTicket] = useState<Record<string, string>>({})
+  const [siteSettings, setSiteSettings] = useState<SiteSettings | null>(null)
+  const [heroImageUrl, setHeroImageUrl] = useState<string | null>(null)
+  const [backgroundImageUrl, setBackgroundImageUrl] = useState<string | null>(null)
 
   const metadata = (session?.user.user_metadata ?? {}) as Record<string, unknown>
   const discordId = String(metadata.provider_id ?? metadata.sub ?? '')
@@ -83,6 +103,19 @@ export function VisitorPortal() {
   const discordAvatar = String(metadata.avatar_url ?? metadata.picture ?? '')
 
   useEffect(() => {
+    supabase
+      .from('public_site_settings')
+      .select('*')
+      .eq('id', 1)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!data) return
+        const settings = data as SiteSettings
+        setSiteSettings(settings)
+        setHeroImageUrl(settings.hero_image_path ? supabase.storage.from('public-site-assets').getPublicUrl(settings.hero_image_path).data.publicUrl : null)
+        setBackgroundImageUrl(settings.background_image_path ? supabase.storage.from('public-site-assets').getPublicUrl(settings.background_image_path).data.publicUrl : null)
+      })
+
     supabase
       .from('public_portal_content')
       .select('body')
@@ -119,13 +152,13 @@ export function VisitorPortal() {
 
   const tabs = useMemo(
     () => [
-      { key: 'reglement' as const, label: 'Règlement', icon: FileText },
-      { key: 'contact' as const, label: 'Nous contacter', icon: MessageCircle },
-      { key: 'recrutement' as const, label: 'Recrutement', icon: UserRoundPlus },
-      { key: 'rendez_vous' as const, label: 'Rendez-vous', icon: CalendarClock },
-      { key: 'suivi' as const, label: 'Mes demandes', icon: History },
-    ],
-    [],
+      siteSettings?.show_reglement !== false ? { key: 'reglement' as const, label: 'Règlement', icon: FileText } : null,
+      siteSettings?.show_contact !== false ? { key: 'contact' as const, label: 'Nous contacter', icon: MessageCircle } : null,
+      siteSettings?.show_recrutement !== false ? { key: 'recrutement' as const, label: 'Recrutement', icon: UserRoundPlus } : null,
+      siteSettings?.show_rendez_vous !== false ? { key: 'rendez_vous' as const, label: 'Rendez-vous', icon: CalendarClock } : null,
+      siteSettings?.show_suivi !== false ? { key: 'suivi' as const, label: 'Mes demandes', icon: History } : null,
+    ].filter(Boolean) as Array<{ key: PortalTab; label: string; icon: typeof FileText }>,
+    [siteSettings],
   )
 
   async function connectDiscord(target: 'contact' | 'recrutement') {
@@ -249,7 +282,19 @@ export function VisitorPortal() {
   const requestType = tab === 'contact' ? 'question' : tab === 'recrutement' ? 'recrutement' : 'rendez_vous'
 
   return (
-    <div className="min-h-screen bg-[var(--bg)] text-[var(--ink)]">
+    <div className="relative min-h-screen bg-[var(--bg)] text-[var(--ink)]">
+      {backgroundImageUrl && (
+        <div
+          className="fixed inset-0 z-0 pointer-events-none"
+          style={{
+            backgroundImage: `url("${backgroundImageUrl}")`,
+            backgroundSize: 'cover',
+            backgroundRepeat: 'no-repeat',
+            backgroundPosition: (siteSettings?.background_position ?? 'center').replace('-', ' '),
+            opacity: Math.max(0, Math.min(100, siteSettings?.background_opacity ?? 100)) / 100,
+          }}
+        />
+      )}
       <header className="sticky top-0 z-40 border-b border-[var(--ink)]/8 bg-[var(--bg)]/90 backdrop-blur-xl">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-20 flex items-center gap-4">
           <img src={logo} alt="EMS" className="w-11 h-11 rounded-full object-cover" />
@@ -270,22 +315,32 @@ export function VisitorPortal() {
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+      <main className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
         <section className="grid lg:grid-cols-[1.15fr_.85fr] gap-6 items-stretch mb-8">
-          <Card className="p-7 sm:p-9 flex flex-col justify-center">
-            <div className="w-12 h-12 rounded-2xl bg-red/12 text-red-300 flex items-center justify-center mb-5">
-              <Stethoscope size={22} />
+          <Card className="p-0 overflow-hidden flex flex-col justify-center">
+            {heroImageUrl && (
+              <div
+                className="h-48 sm:h-56 w-full bg-cover bg-no-repeat"
+                style={{ backgroundImage: `url("${heroImageUrl}")`, backgroundPosition: (siteSettings?.hero_image_position ?? 'center').replace('-', ' ') }}
+              />
+            )}
+            <div className="p-7 sm:p-9">
+              <div className="w-12 h-12 rounded-2xl bg-red/12 text-red-300 flex items-center justify-center mb-5">
+                <Stethoscope size={22} />
+              </div>
+              <h1 className="font-display font-black text-3xl sm:text-4xl leading-tight">
+                {siteSettings?.hero_title ?? 'Bienvenue sur l’espace public EMS'}
+              </h1>
+              <p className="text-[var(--ink)]/55 mt-4 max-w-2xl leading-relaxed">
+                {siteSettings?.hero_subtitle ?? 'Consulte le règlement, pose une question, dépose une candidature ou demande un rendez-vous directement auprès de l’équipe EMS.'}
+              </p>
             </div>
-            <h1 className="font-display font-black text-3xl sm:text-4xl leading-tight">Bienvenue sur l’espace public EMS</h1>
-            <p className="text-[var(--ink)]/55 mt-4 max-w-2xl leading-relaxed">
-              Consulte le règlement, pose une question, dépose une candidature ou demande un rendez-vous directement auprès de l’équipe EMS.
-            </p>
           </Card>
           <Card className="p-7 sm:p-9 flex flex-col justify-center bg-red/5">
             <HeartHandshake size={25} className="text-red-300 mb-4" />
-            <p className="font-bold text-lg">Besoin de nous joindre ?</p>
+            <p className="font-bold text-lg">{siteSettings?.contact_title ?? 'Besoin de nous joindre ?'}</p>
             <p className="text-[var(--ink)]/50 text-sm mt-2 leading-relaxed">
-              Les demandes envoyées ici arrivent directement dans le panel EMS afin que l’équipe puisse les traiter et assurer leur suivi.
+              {siteSettings?.contact_text ?? 'Les demandes envoyées ici arrivent directement dans le panel EMS afin que l’équipe puisse les traiter et assurer leur suivi.'}
             </p>
           </Card>
         </section>
