@@ -66,9 +66,10 @@ export function Dashboard() {
     background_color: string | null
     background_image_path: string | null
     sidebar_color: string | null
+    sidebar_position: 'left' | 'right'
     tile_shape: 'square' | 'soft' | 'rounded' | 'pill'
     tile_colors: Record<string, string>
-  }>({ background_color: null, background_image_path: null, sidebar_color: null, tile_shape: 'rounded', tile_colors: {} })
+  }>({ background_color: null, background_image_path: null, sidebar_color: null, sidebar_position: 'left', tile_shape: 'rounded', tile_colors: {} })
   const [backgroundImageUrl, setBackgroundImageUrl] = useState<string | null>(null)
 
   const visibleTabs = TILE_SECTIONS
@@ -214,7 +215,7 @@ export function Dashboard() {
 
     supabase
       .from('user_ui_preferences')
-      .select('background_color,background_image_path,sidebar_color,tile_shape,tile_colors')
+      .select('background_color,background_image_path,sidebar_color,sidebar_position,tile_shape,tile_colors')
       .eq('staff_id', userId)
       .maybeSingle()
       .then(({ data }) => {
@@ -223,6 +224,7 @@ export function Dashboard() {
           background_color: data.background_color ?? null,
           background_image_path: data.background_image_path ?? null,
           sidebar_color: data.sidebar_color ?? null,
+          sidebar_position: (data.sidebar_position ?? 'left') as 'left' | 'right',
           tile_shape: (data.tile_shape ?? 'rounded') as 'square' | 'soft' | 'rounded' | 'pill',
           tile_colors: (data.tile_colors ?? {}) as Record<string, string>,
         })
@@ -365,7 +367,12 @@ export function Dashboard() {
       }}
     >
       <aside
-        className="hidden md:flex fixed inset-y-0 left-0 z-40 w-20 flex-col items-center py-4 gap-3 border-r border-[var(--ink)]/8 overflow-hidden"
+        className={cn(
+          'hidden md:flex fixed inset-y-0 z-40 w-20 flex-col items-center py-4 gap-3 overflow-hidden',
+          uiPreferences.sidebar_position === 'right'
+            ? 'right-0 border-l border-[var(--ink)]/8'
+            : 'left-0 border-r border-[var(--ink)]/8',
+        )}
         style={{ backgroundColor: uiPreferences.sidebar_color ?? 'var(--sidebar-bg)' }}
       >
         <img src={logo} alt="EMS" className="w-10 h-10 rounded-full object-cover" />
@@ -560,7 +567,8 @@ export function Dashboard() {
 
       <main
         className={cn(
-          'ml-0 md:ml-20 min-w-0 px-3 py-4 sm:px-5 sm:py-6 md:px-8 md:py-8 pb-24 md:pb-8 flex flex-col gap-4 sm:gap-6',
+          'min-w-0 px-3 py-4 sm:px-5 sm:py-6 md:px-8 md:py-8 pb-24 md:pb-8 flex flex-col gap-4 sm:gap-6',
+          uiPreferences.sidebar_position === 'right' ? 'md:mr-20' : 'md:ml-20',
           effectiveView === 'messages' ? 'h-screen overflow-hidden' : 'min-h-screen',
         )}
       >
