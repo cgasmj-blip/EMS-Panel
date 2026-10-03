@@ -29,6 +29,7 @@ import { SearchTab } from './app/SearchTab'
 import { MessagesTab } from './app/MessagesTab'
 import { RecruitmentRequestsTab } from './app/RecruitmentRequestsTab'
 import { VisitorAppointmentsTab } from './app/VisitorAppointmentsTab'
+import { ProfessionalMessagesTab } from './app/ProfessionalMessagesTab'
 
 const TAB_CONTENT: Record<TabKey, ReactNode> = {
   services: <ServicesTab />,
@@ -45,6 +46,7 @@ const TAB_CONTENT: Record<TabKey, ReactNode> = {
   gestion: <GestionTab />,
   visitor_rdv: <VisitorAppointmentsTab />,
   candidatures: <RecruitmentRequestsTab />,
+  professional_messages: <ProfessionalMessagesTab />,
 }
 
 const VIEW_STORAGE_KEY = 'ems-dashboard-view'
@@ -104,7 +106,7 @@ export function Dashboard() {
   const visibleTabs = TILE_SECTIONS
     .filter((section) => {
       if (section.key === 'candidatures') return canHandleRecruitment
-      if (section.key === 'visitor_rdv') return canHandleVisitorRdv
+      if (section.key === 'visitor_rdv' || section.key === 'professional_messages') return canHandleVisitorRdv
       return !section.seniorOnly || isAboveChirurgien(staff?.role)
     })
     .map((section) => section.key)
