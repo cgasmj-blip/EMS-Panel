@@ -402,19 +402,19 @@ export function VisitorPortal() {
         />
       )}
       <header className="sticky top-0 z-40 border-b border-[var(--ink)]/8 bg-[var(--bg)]/90 backdrop-blur-xl">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-20 flex items-center gap-4">
+        <div className="max-w-6xl mx-auto px-3 sm:px-6 min-h-16 sm:h-20 py-2 flex items-center gap-2 sm:gap-4">
           <img src={logo} alt="EMS" className="w-11 h-11 rounded-full object-cover" />
           <div className="min-w-0">
-            <p className="font-display font-black text-lg text-neon-red">EMS Los Santos</p>
-            <p className="text-[var(--ink)]/40 text-xs">Espace public · informations, contact et recrutement</p>
+            <p className="font-display font-black text-base sm:text-lg text-neon-red truncate">EMS Los Santos</p>
+            <p className="hidden sm:block text-[var(--ink)]/40 text-xs">Espace public · informations, contact et recrutement</p>
           </div>
           <div className="ml-auto flex items-center gap-2">
-            <ThemeToggle />
+            <span className="hidden sm:inline-flex"><ThemeToggle /></span>
             {staff ? (
-              <Button size="sm" onClick={() => navigate('/dashboard')}>Ouvrir le panel</Button>
+              <Button size="sm" onClick={() => navigate('/dashboard')}><span className="hidden sm:inline">Ouvrir le panel</span><span className="sm:hidden">Panel</span></Button>
             ) : (
               <Button size="sm" variant="ghost" onClick={() => void connectPanelDiscord()}>
-                <LogIn size={14} /> Connexion EMS
+                <LogIn size={14} /> <span className="hidden sm:inline">Connexion EMS</span><span className="sm:hidden">Connexion</span>
               </Button>
             )}
           </div>
@@ -422,7 +422,7 @@ export function VisitorPortal() {
       </header>
 
       <main
-        className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-12 md:pb-0"
+        className="relative z-10 max-w-6xl mx-auto px-3 sm:px-6 py-5 sm:py-12 md:pb-0"
         style={{ '--site-height': `${publicHeight}px` } as CSSProperties}
       >
         <div className="md:relative md:h-[var(--site-height)]">
@@ -467,7 +467,7 @@ export function VisitorPortal() {
 
         {builtInBlocks.navigation.visible && (
         <div
-          className="flex gap-2 overflow-x-auto pb-2 mb-5 md:mb-0 md:absolute md:left-[var(--site-x)] md:top-[var(--site-y)] md:w-[var(--site-w)] md:h-[var(--site-h)] md:items-center"
+          className="flex gap-2 overflow-x-auto snap-x pb-2 mb-5 -mx-3 px-3 sm:mx-0 sm:px-0 md:mb-0 md:absolute md:left-[var(--site-x)] md:top-[var(--site-y)] md:w-[var(--site-w)] md:h-[var(--site-h)] md:items-center"
           style={layoutStyle(publicLayout.navigation)}
         >
           {tabs.map((item) => {
@@ -483,8 +483,8 @@ export function VisitorPortal() {
                   setTab(item.key)
                 }}
                 className={tab === item.key
-                  ? 'shrink-0 flex items-center gap-2 rounded-xl bg-red px-4 py-2.5 text-white text-sm font-semibold'
-                  : 'shrink-0 flex items-center gap-2 rounded-xl border border-[var(--ink)]/10 bg-[var(--ink)]/[0.025] px-4 py-2.5 text-[var(--ink)]/60 text-sm font-semibold hover:bg-[var(--ink)]/[0.05]'}
+                  ? 'shrink-0 snap-start flex items-center gap-2 rounded-xl bg-red px-3.5 py-2.5 text-white text-sm font-semibold'
+                  : 'shrink-0 snap-start flex items-center gap-2 rounded-xl border border-[var(--ink)]/10 bg-[var(--ink)]/[0.025] px-3.5 py-2.5 text-[var(--ink)]/60 text-sm font-semibold hover:bg-[var(--ink)]/[0.05]'}
               >
                 <Icon size={15} /> {item.label}
               </button>
