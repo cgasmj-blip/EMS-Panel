@@ -13,16 +13,17 @@ type TileGeometry = {
 }
 
 function defaultGeometry(index: number, key: TabKey): TileGeometry {
-  const cols = 4
   const gap = 1.2
-  const w = key === 'services' ? 48.8 : 23.2
-  const col = index % cols
-  const row = Math.floor(index / cols)
+  const slotWidth = 23.2
+  const serviceIsFirst = key === 'services' && index === 0
+  const slot = serviceIsFirst ? 0 : index + (index > 0 ? 1 : 0)
+  const col = slot % 4
+  const row = Math.floor(slot / 4)
   return {
-    x: col * (23.2 + gap),
+    x: col * (slotWidth + gap),
     y: row * 170,
-    w,
-    h: key === 'services' ? 185 : 145,
+    w: serviceIsFirst ? 47.6 : slotWidth,
+    h: serviceIsFirst ? 145 : 145,
   }
 }
 
@@ -172,6 +173,24 @@ export function HomeTiles({
       const by2 = other.y + other.h
       return ax1 < bx2 && ax2 > bx1 && ay1 < by2 && ay2 > by1
     })
+  }
+
+  function findFreeSpot(key: TabKey, preferred: TileGeometry) {
+    if (!overlaps(key, preferred)) return preferred
+
+    const base = defaultGeometry(keys.length, key)
+    for (let row = 0; row < 6; row += 1) {
+      for (let col = 0; col < 4; col += 1) {
+        const candidate = {
+          ...base,
+          x: col * 24.4,
+          y: row * 170,
+        }
+        if (!overlaps(key, candidate)) return candidate
+      }
+    }
+
+    return base
   }
 
   async function swapGeometry(a: TabKey, b: TabKey) {
@@ -371,11 +390,12 @@ export function HomeTiles({
 
           if (!keys.includes(key)) {
             const rect = event.currentTarget.getBoundingClientRect()
-            const dropped = {
+            const preferred = {
               ...defaultGeometry(keys.length, key),
               x: Math.max(0, Math.min(76, ((event.clientX - rect.left) / rect.width) * 100 - 11)),
               y: Math.max(0, event.clientY - rect.top - 70),
             }
+            const dropped = findFreeSpot(key, preferred)
             setGeometry((current) => ({ ...current, [key]: dropped }))
             void persistGeometry(key, dropped)
             onMove(key, 'home')
