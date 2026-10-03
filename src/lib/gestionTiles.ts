@@ -13,6 +13,7 @@ import {
   Network,
   FolderCog,
   ListChecks,
+  MessagesSquare,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -31,6 +32,7 @@ export type GestionKey =
   | 'hierarchy'
   | 'training'
   | 'checklists'
+  | 'visitors'
 
 export interface GestionSection {
   key: GestionKey
@@ -58,4 +60,5 @@ export const GESTION_SECTIONS: GestionSection[] = [
   { key: 'hierarchy', label: 'Habilitations & Affiliations', icon: Network, color: 'var(--tile-hierarchy)', directionOnly: true },
   { key: 'training', label: 'Documents', icon: FolderCog, color: 'var(--tile-hierarchy)', directionOnly: true },
   { key: 'checklists', label: 'Checklists service', icon: ListChecks, color: 'var(--tile-services)', directionOnly: true },
+  { key: 'visitors', label: 'Demandes visiteurs', icon: MessagesSquare, color: 'var(--tile-rdv)', directionOnly: true },
 ]
