@@ -276,6 +276,9 @@ export interface Appointment {
   title: string | null
   scheduled_at: string
   status: AppointmentStatus
+  remind_day_before: boolean
+  reminder_day_before_sent_at: string | null
+  reminder_30m_sent_at: string | null
   created_at: string
 }
 
