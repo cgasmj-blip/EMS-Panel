@@ -390,7 +390,6 @@ export function HomeTiles({
           )
         })}
       </div>
-      </div>
     </div>
   )
 }
