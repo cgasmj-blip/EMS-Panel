@@ -358,7 +358,10 @@ export function Dashboard() {
 
   return (
     <div
-      className={cn('bg-[var(--bg)]', effectiveView === 'messages' ? 'h-screen overflow-hidden' : 'min-h-screen')}
+      className={cn(
+        'bg-[var(--bg)]',
+        effectiveView === 'home' || effectiveView === 'messages' ? 'h-screen overflow-hidden' : 'min-h-screen',
+      )}
       style={{
         backgroundColor: uiPreferences.background_color ?? undefined,
         backgroundImage: backgroundImageUrl ? `linear-gradient(rgba(0,0,0,.18), rgba(0,0,0,.18)), url("${backgroundImageUrl}")` : undefined,
@@ -577,7 +580,13 @@ export function Dashboard() {
           uiPreferences.sidebar_position === 'left' && 'md:ml-20',
           uiPreferences.sidebar_position === 'top' && 'md:mt-20',
           uiPreferences.sidebar_position === 'bottom' && 'md:mb-20',
-          effectiveView === 'messages' ? 'h-screen overflow-hidden' : 'min-h-screen',
+          effectiveView === 'home'
+            ? sidebarHorizontal
+              ? 'h-[calc(100vh-5rem)] overflow-hidden'
+              : 'h-screen overflow-hidden'
+            : effectiveView === 'messages'
+              ? 'h-screen overflow-hidden'
+              : 'min-h-screen',
         )}
       >
         <AnimatePresence mode="wait">
@@ -588,7 +597,7 @@ export function Dashboard() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.25 }}
-              className="flex flex-col gap-6 w-full"
+              className="flex flex-col gap-6 w-full h-full min-h-0 overflow-hidden"
             >
               <div className="relative overflow-hidden rounded-2xl">
                 <div className="absolute inset-0 h-full">
