@@ -15,6 +15,7 @@ import {
   ListChecks,
   Globe2,
   ShieldCheck,
+  Send,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -36,6 +37,7 @@ export type GestionKey =
   | 'site'
   | 'visitor_access'
   | 'recruitment_archive_access'
+  | 'lspd_transfer_access'
 
 export interface GestionSection {
   key: GestionKey
@@ -65,5 +67,6 @@ export const GESTION_SECTIONS: GestionSection[] = [
   { key: 'checklists', label: 'Checklists service', icon: ListChecks, color: 'var(--tile-services)', directionOnly: true },
   { key: 'site', label: 'Gestion site', icon: Globe2, color: '#16a34a', directionOnly: true },
   { key: 'recruitment_archive_access', label: 'Accès archive', icon: ShieldCheck, color: 'var(--tile-hierarchy)', directionOnly: true },
+  { key: 'lspd_transfer_access', label: 'Accès transferts LSPD', icon: Send, color: 'var(--tile-gestion)', directionOnly: true },
   { key: 'visitor_access', label: 'Autorisations demandes', icon: ShieldCheck, color: 'var(--tile-services)', directionOnly: true },
 ]
