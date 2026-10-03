@@ -61,6 +61,7 @@ export function Dashboard() {
   const previousAnnouncementIdRef = useRef<number | null>(null)
   const [navLayout, setNavLayout] = useState<{ home: TabKey[]; sidebar: TabKey[] }>({ home: [], sidebar: [] })
   const [showCustomization, setShowCustomization] = useState(false)
+  const [layoutEditMode, setLayoutEditMode] = useState(false)
   const [uiPreferences, setUiPreferences] = useState<{
     background_color: string | null
     background_image_path: string | null
@@ -618,6 +619,11 @@ export function Dashboard() {
                 nextAppointment={nextAppointment}
                 tileColors={uiPreferences.tile_colors}
                 tileShape={uiPreferences.tile_shape}
+                editMode={layoutEditMode}
+                onFinishEdit={() => {
+                  setLayoutEditMode(false)
+                  setShowCustomization(true)
+                }}
               />
             </motion.div>
           ) : (
@@ -652,6 +658,11 @@ export function Dashboard() {
           visibleTabs={visibleTabs}
           initial={uiPreferences}
           onClose={() => setShowCustomization(false)}
+          onEditLayout={() => {
+            setShowCustomization(false)
+            setView('home')
+            setLayoutEditMode(true)
+          }}
           onSaved={(next) => {
             setUiPreferences(next)
             setShowCustomization(false)
