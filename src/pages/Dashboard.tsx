@@ -599,18 +599,18 @@ export function Dashboard() {
                   {displayRoleLabel(staff.role) && <p className="text-[var(--ink)]/40 text-sm">{displayRoleLabel(staff.role)}</p>}
                 </div>
               </div>
-              <div className="rounded-2xl border border-red/20 bg-red/10 px-4 py-3">
-                <div className="flex items-center gap-3 mb-3">
-                  <span className="w-9 h-9 rounded-xl bg-red/15 text-red-300 flex items-center justify-center shrink-0">
-                    <Megaphone size={17} />
-                  </span>
-                  <div>
-                    <p className="text-[var(--ink)] font-bold text-sm">Annonces EMS</p>
-                    <p className="text-[var(--ink)]/40 text-xs">Les dernières informations de la direction</p>
+              {latestAnnouncements.length > 0 && (
+                <div className="rounded-2xl border border-red/20 bg-red/10 px-4 py-3">
+                  <div className="flex items-center gap-3 mb-3">
+                    <span className="w-9 h-9 rounded-xl bg-red/15 text-red-300 flex items-center justify-center shrink-0">
+                      <Megaphone size={17} />
+                    </span>
+                    <div>
+                      <p className="text-[var(--ink)] font-bold text-sm">Annonces EMS</p>
+                      <p className="text-[var(--ink)]/40 text-xs">Les dernières informations de la direction</p>
+                    </div>
                   </div>
-                </div>
 
-                {latestAnnouncements.length > 0 ? (
                   <div className="grid gap-2">
                     {latestAnnouncements.map((announcement) => (
                       <div key={announcement.id} className="rounded-xl border border-[var(--ink)]/8 bg-[var(--bg)]/55 px-3 py-2.5">
@@ -624,10 +624,8 @@ export function Dashboard() {
                       </div>
                     ))}
                   </div>
-                ) : (
-                  <p className="text-[var(--ink)]/35 text-sm">Aucune annonce EMS pour le moment.</p>
-                )}
-              </div>
+                </div>
+              )}
               <HomeTiles
                 keys={navLayout.home}
                 onSelect={(key) => setView(key)}
