@@ -750,7 +750,6 @@ export function Dashboard() {
           }}
           onSaved={(next) => {
             setUiPreferences(next)
-            setShowCustomization(false)
           }}
         />
       )}
