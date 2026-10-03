@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type PointerEvent as ReactPointerEvent } from 'react'
-import { Check, Pencil } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/auth/AuthContext'
 import { TILE_SECTIONS, type TabKey } from '@/lib/tiles'
@@ -34,6 +33,8 @@ export function HomeTiles({
   nextAppointment,
   tileColors,
   tileShape,
+  editMode,
+  onFinishEdit,
 }: {
   keys: TabKey[]
   onSelect: (key: TabKey) => void
@@ -41,12 +42,13 @@ export function HomeTiles({
   nextAppointment: { scheduled_at: string; title: string | null; type: string } | null
   tileColors: Record<string, string>
   tileShape: 'square' | 'soft' | 'rounded' | 'pill'
+  editMode: boolean
+  onFinishEdit: () => void
 }) {
   const { session } = useAuth()
   const [enService, setEnService] = useState(0)
   const [mesAbsencesAVenir, setMesAbsencesAVenir] = useState(0)
   const [geometry, setGeometry] = useState<Record<string, TileGeometry>>({})
-  const [editMode, setEditMode] = useState(false)
   const canvasRef = useRef<HTMLDivElement | null>(null)
 
   const refreshStats = useCallback(async () => {
@@ -320,21 +322,6 @@ export function HomeTiles({
           }
         }}
       >
-        <button
-          type="button"
-          onClick={() => setEditMode((value) => !value)}
-          className={cn(
-            'fixed right-5 bottom-6 z-[60] hidden md:flex items-center gap-2 rounded-xl px-3.5 py-2.5 text-sm font-semibold shadow-xl backdrop-blur-md transition-colors cursor-pointer',
-            editMode
-              ? 'bg-red text-white'
-              : 'bg-[var(--surface)]/95 text-[var(--ink)] border border-[var(--ink)]/10 hover:bg-[var(--surface)]',
-          )}
-          title={editMode ? 'Terminer la modification' : 'Modifier la disposition'}
-        >
-          {editMode ? <Check size={16} /> : <Pencil size={16} />}
-          {editMode ? 'Terminer' : 'Modifier'}
-        </button>
-
         {sections.map((section, i) => {
           const item = effectiveGeometry[section.key]
           return (
@@ -395,6 +382,15 @@ export function HomeTiles({
             </div>
           )
         })}
+        {editMode && (
+          <button
+            type="button"
+            onClick={onFinishEdit}
+            className="fixed right-5 bottom-6 z-[60] hidden md:flex items-center gap-2 rounded-xl bg-red px-4 py-2.5 text-sm font-semibold text-white shadow-xl cursor-pointer"
+          >
+            Terminer
+          </button>
+        )}
       </div>
     </div>
   )
