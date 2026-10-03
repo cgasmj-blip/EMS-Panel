@@ -346,7 +346,9 @@ export function HomeTiles({
               }}
               className={cn(
                 'absolute',
-                editMode ? 'cursor-move select-none touch-none' : 'cursor-grab active:cursor-grabbing',
+                editMode
+                  ? 'cursor-move select-none touch-none ring-2 ring-white/40 ring-offset-2 ring-offset-transparent'
+                  : 'cursor-grab active:cursor-grabbing',
               )}
               style={{
                 left: `${item.x}%`,
@@ -379,12 +381,16 @@ export function HomeTiles({
               />
 
               {editMode && (
-                <span
+                <button
+                  type="button"
                   data-tile-resize
                   onPointerDown={(event) => startResize(event, section.key)}
-                  className="absolute bottom-0 right-0 z-30 w-7 h-7 cursor-se-resize touch-none"
+                  className="absolute -bottom-2 -right-2 z-30 w-6 h-6 rounded-full bg-white text-black border-2 border-black/15 shadow-lg cursor-se-resize touch-none flex items-center justify-center"
+                  title="Redimensionner"
                   aria-label={`Redimensionner ${section.label}`}
-                />
+                >
+                  <span className="block w-2.5 h-2.5 border-r-2 border-b-2 border-black/70" />
+                </button>
               )}
             </div>
           )
