@@ -27,6 +27,9 @@ import { AnimatedNumber } from '@/components/ui/AnimatedNumber'
 import { AnimatedList, AnimatedListItem } from '@/components/ui/AnimatedList'
 import { cn } from '@/lib/utils'
 
+type ChecklistPhase = 'start' | 'end'
+type ChecklistItem = { id: number; phase: ChecklistPhase; label: string; required: boolean; active: boolean; position: number }
+
 function teamLabel(count: number) {
   if (count <= 1) return 'Solo'
   if (count === 2) return 'Duo'
@@ -60,6 +63,10 @@ export function ServicesTab() {
   const [now, setNow] = useState(Date.now())
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>([])
+  const [checklistPhase, setChecklistPhase] = useState<ChecklistPhase | null>(null)
+  const [checklistChecked, setChecklistChecked] = useState<number[]>([])
+  const [pendingJoinUnit, setPendingJoinUnit] = useState<Unit | null>(null)
 
   const [newUnitName, setNewUnitName] = useState('')
   const [newUnitLieu, setNewUnitLieu] = useState('Nord')
@@ -141,6 +148,9 @@ export function ServicesTab() {
     supabase.from('vehicles').select('*').order('name').then(({ data }) => {
       if (data) setVehicles(data)
     })
+    supabase.from('service_checklist_items').select('*').eq('active', true).order('position').then(({ data }) => {
+      if (data) setChecklistItems(data as ChecklistItem[])
+    })
   }, [])
 
   useEffect(() => {
@@ -188,6 +198,54 @@ export function ServicesTab() {
       ),
     [roster],
   )
+
+  function openChecklist(phase: ChecklistPhase, unit: Unit | null = null) {
+    setChecklistPhase(phase)
+    setChecklistChecked([])
+    setPendingJoinUnit(unit)
+    setError(null)
+  }
+
+  function closeChecklist() {
+    setChecklistPhase(null)
+    setChecklistChecked([])
+    setPendingJoinUnit(null)
+  }
+
+  async function submitChecklist() {
+    if (!staff || !checklistPhase || submitting) return
+    const items = checklistItems.filter((item) => item.phase === checklistPhase)
+    const requiredIds = items.filter((item) => item.required).map((item) => item.id)
+    const missing = requiredIds.filter((id) => !checklistChecked.includes(id))
+
+    if (missing.length > 0) {
+      setError('Tous les points obligatoires de la checklist doivent être validés.')
+      return
+    }
+
+    const answers = Object.fromEntries(items.map((item) => [String(item.id), checklistChecked.includes(item.id)]))
+    const { error: checklistError } = await supabase.from('service_checklist_submissions').insert({
+      staff_id: staff.id,
+      phase: checklistPhase,
+      answers,
+    })
+
+    if (checklistError) {
+      setError(checklistError.message)
+      return
+    }
+
+    const phase = checklistPhase
+    const unit = pendingJoinUnit
+    closeChecklist()
+
+    if (phase === 'start') {
+      if (unit) await handleJoinUnit(unit)
+      else await handlePrendreService()
+    } else {
+      await handleFin()
+    }
+  }
 
   async function handlePrendreService() {
     if (!staff || submitting) return
@@ -461,9 +519,48 @@ export function ServicesTab() {
             </Button>
           </div>
         )}
+        {checklistPhase && (
+          <div className="mb-4 rounded-xl border border-cyan/20 bg-cyan/5 p-4">
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <div>
+                <p className="text-[var(--ink)] font-bold text-sm">
+                  Checklist {checklistPhase === 'start' ? 'début de service' : 'fin de service'}
+                </p>
+                <p className="text-[var(--ink)]/35 text-xs mt-0.5">Valide les points obligatoires avant de continuer.</p>
+              </div>
+              <Button size="sm" variant="ghost" onClick={closeChecklist}>Annuler</Button>
+            </div>
+            <div className="grid gap-2">
+              {checklistItems.filter((item) => item.phase === checklistPhase).map((item) => {
+                const checked = checklistChecked.includes(item.id)
+                return (
+                  <label key={item.id} className="flex items-center gap-3 rounded-lg border border-[var(--ink)]/8 bg-[var(--ink)]/[0.02] px-3 py-2.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => setChecklistChecked((current) => checked ? current.filter((id) => id !== item.id) : [...current, item.id])}
+                      className="h-4 w-4 accent-red"
+                    />
+                    <span className="text-[var(--ink)]/75 text-sm flex-1">{item.label}</span>
+                    {item.required && <span className="text-[10px] uppercase tracking-wide text-red-300">obligatoire</span>}
+                  </label>
+                )
+              })}
+            </div>
+            <Button
+              className="w-full mt-3"
+              variant={checklistPhase === 'start' ? 'green' : 'red'}
+              disabled={submitting}
+              onClick={submitChecklist}
+            >
+              {checklistPhase === 'start' ? 'Valider et prendre service' : 'Valider et terminer le service'}
+            </Button>
+          </div>
+        )}
+
         <div className="flex flex-col sm:flex-row gap-2">
           {staff.status !== 'en_service' && (
-            <Button variant="green" disabled={submitting} onClick={handlePrendreService} className="flex-1">
+            <Button variant="green" disabled={submitting} onClick={() => openChecklist('start')} className="flex-1">
               <Play size={14} /> Prendre service
             </Button>
           )}
@@ -473,7 +570,7 @@ export function ServicesTab() {
             </Button>
           )}
           {staff.status !== 'hors_service' && (
-            <Button variant="red" disabled={submitting} onClick={handleFin} className="flex-1">
+            <Button variant="red" disabled={submitting} onClick={() => openChecklist('end')} className="flex-1">
               <Square size={14} /> Fin de service
             </Button>
           )}
@@ -502,7 +599,7 @@ export function ServicesTab() {
                       {STATUS_LABELS[unit.status]}
                     </Badge>
                     {staff.unit_id !== unit.id && (
-                      <Button size="sm" variant="green" disabled={submitting} onClick={() => handleJoinUnit(unit)}>
+                      <Button size="sm" variant="green" disabled={submitting} onClick={() => openChecklist('start', unit)}>
                         Rejoindre
                       </Button>
                     )}
