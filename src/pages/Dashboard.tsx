@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type DragEvent, type ReactNod
 import { AnimatePresence, motion } from 'framer-motion'
 import { CalendarClock, LayoutGrid, LogOut, Megaphone, MessageCircle, Palette, RefreshCw, Search, ShieldCheck } from 'lucide-react'
 import { useAuth } from '@/auth/AuthContext'
-import { displayRoleLabel, isAboveChirurgien, supabase } from '@/lib/supabase'
+import { displayRoleLabel, isAboveChirurgien, staffMatchesEligibility, supabase, type StaffRole } from '@/lib/supabase'
 import { TILE_SECTIONS, type TabKey } from '@/lib/tiles'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
 import { HomeTiles } from '@/components/ui/HomeTiles'
@@ -26,6 +26,8 @@ import { AideTab } from './app/AideTab'
 import { DossiersFormationTab } from './app/DossiersFormationTab'
 import { SearchTab } from './app/SearchTab'
 import { MessagesTab } from './app/MessagesTab'
+import { RecruitmentRequestsTab } from './app/RecruitmentRequestsTab'
+import { VisitorAppointmentsTab } from './app/VisitorAppointmentsTab'
 
 const TAB_CONTENT: Record<TabKey, ReactNode> = {
   services: <ServicesTab />,
@@ -40,6 +42,8 @@ const TAB_CONTENT: Record<TabKey, ReactNode> = {
   aide: <AideTab />,
   historique: <HistoriqueTab />,
   gestion: <GestionTab />,
+  visitor_rdv: <VisitorAppointmentsTab />,
+  candidatures: <RecruitmentRequestsTab />,
 }
 
 const VIEW_STORAGE_KEY = 'ems-dashboard-view'
@@ -76,9 +80,25 @@ export function Dashboard() {
     tile_colors: Record<string, string>
   }>({ background_color: null, background_image_path: null, background_image_opacity: 100, background_position: 'center', sidebar_color: null, sidebar_position: 'left', tile_shape: 'rounded', tile_opacity: 100, tile_images: {}, tile_colors: {} })
   const [backgroundImageUrl, setBackgroundImageUrl] = useState<string | null>(null)
+  const [visitorSubjectRules, setVisitorSubjectRules] = useState<Array<{
+    request_type: 'question' | 'recrutement' | 'rendez_vous'
+    grade: StaffRole[] | null
+    sous_grade_id: string | null
+    affiliation_id: string | null
+  }>>([])
+
+  const canHandleVisitorRdv = !!staff && visitorSubjectRules.some(
+    (rule) =>
+      (rule.request_type === 'question' || rule.request_type === 'rendez_vous')
+      && staffMatchesEligibility(staff, rule),
+  )
 
   const visibleTabs = TILE_SECTIONS
-    .filter((section) => !section.seniorOnly || isAboveChirurgien(staff?.role))
+    .filter((section) => {
+      if (section.key === 'candidatures') return !!staff?.affiliation_ids.includes('recruteur')
+      if (section.key === 'visitor_rdv') return canHandleVisitorRdv
+      return !section.seniorOnly || isAboveChirurgien(staff?.role)
+    })
     .map((section) => section.key)
 
   const defaultSidebar = (['agenda', 'recherche', 'messages', 'historique', 'gestion'] as TabKey[])
@@ -186,6 +206,21 @@ export function Dashboard() {
     const timer = window.setInterval(refreshSidebarData, 5000)
     return () => window.clearInterval(timer)
   }, [refreshSidebarData])
+
+  useEffect(() => {
+    supabase
+      .from('visitor_request_subjects')
+      .select('request_type,grade,sous_grade_id,affiliation_id')
+      .eq('active', true)
+      .then(({ data }) => {
+        setVisitorSubjectRules((data ?? []) as Array<{
+          request_type: 'question' | 'recrutement' | 'rendez_vous'
+          grade: StaffRole[] | null
+          sous_grade_id: string | null
+          affiliation_id: string | null
+        }>)
+      })
+  }, [staff?.id, staff?.role, staff?.sous_grade_ids, staff?.affiliation_ids])
 
   useEffect(() => {
     const userId = session?.user.id
