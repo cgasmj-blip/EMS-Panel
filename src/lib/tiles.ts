@@ -24,6 +24,6 @@ export const TILE_SECTIONS: TileSection[] = [
   { key: 'historique', label: 'Historique', icon: History, color: 'var(--tile-historique)' },
   { key: 'gestion', label: 'Gestion', icon: ShieldCheck, color: 'var(--tile-gestion)', seniorOnly: true },
   { key: 'visitor_rdv', label: 'Rendez-vous', icon: ClipboardList, color: 'var(--tile-rdv)' },
-  { key: 'professional_messages', label: 'Messages professionnels', icon: BriefcaseBusiness, color: 'var(--tile-absence)' },
+  { key: 'professional_messages', label: 'Messages patients', icon: BriefcaseBusiness, color: 'var(--tile-absence)' },
   { key: 'candidatures', label: 'Candidatures', icon: UserRoundCheck, color: 'var(--tile-services)' },
 ]
