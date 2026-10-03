@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import type { LucideIcon } from 'lucide-react'
+import { Star, type LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export function Tile({
@@ -10,6 +10,8 @@ export function Tile({
   big,
   delay = 0,
   onClick,
+  favorite = false,
+  onToggleFavorite,
 }: {
   icon: LucideIcon
   label: string
@@ -18,6 +20,8 @@ export function Tile({
   big?: boolean
   delay?: number
   onClick: () => void
+  favorite?: boolean
+  onToggleFavorite?: () => void
 }) {
   return (
     <motion.button
@@ -37,6 +41,29 @@ export function Tile({
         boxShadow: `inset 0 1px 0 rgba(255,255,255,.2), 0 12px 26px -10px color-mix(in srgb, ${color} 65%, transparent)`,
       }}
     >
+      {onToggleFavorite && (
+        <span
+          role="button"
+          tabIndex={0}
+          aria-label={favorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+          title={favorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+          onClick={(e) => {
+            e.stopPropagation()
+            onToggleFavorite()
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault()
+              e.stopPropagation()
+              onToggleFavorite()
+            }
+          }}
+          className="absolute right-3 top-3 z-20 w-8 h-8 rounded-full bg-black/15 hover:bg-black/25 backdrop-blur-sm flex items-center justify-center cursor-pointer"
+        >
+          <Star size={16} fill={favorite ? 'currentColor' : 'none'} />
+        </span>
+      )}
+
       <div className="absolute inset-0 bg-gradient-to-br from-white/20 via-transparent to-black/10 pointer-events-none" />
       <div className="absolute -right-8 -top-8 w-28 h-28 rounded-full bg-white/15 blur-2xl pointer-events-none" />
 
