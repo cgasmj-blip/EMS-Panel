@@ -368,8 +368,8 @@ export function Dashboard() {
         <img src={logo} alt="EMS" className="w-10 h-10 rounded-full object-cover" />
 
         <CodeBlancAlertButton />
-        <StockAlertButton compact />
         <CodeRougeAlertButton />
+        <StockAlertButton compact />
 
         <button
           type="button"
@@ -502,8 +502,8 @@ export function Dashboard() {
 
       <div className="md:hidden fixed top-3 right-3 z-50 flex items-center gap-2">
         <CodeBlancAlertButton />
-        <StockAlertButton compact />
         <CodeRougeAlertButton />
+        <StockAlertButton compact />
       </div>
 
       <nav
