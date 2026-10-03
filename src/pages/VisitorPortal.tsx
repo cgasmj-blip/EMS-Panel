@@ -12,6 +12,21 @@ import logo from '@/assets/logo.webp'
 
 type PortalTab = 'reglement' | 'contact' | 'recrutement' | 'rendez_vous' | 'suivi'
 
+type CustomSiteBlock = {
+  id: string
+  type: 'title' | 'text' | 'image' | 'button'
+  x: number
+  y: number
+  w: number
+  h: number
+  title?: string
+  text?: string
+  image_path?: string | null
+  image_position?: 'center' | 'top' | 'bottom' | 'left' | 'right' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
+  label?: string
+  url?: string
+}
+
 type SiteSettings = {
   hero_title: string
   hero_subtitle: string
@@ -33,6 +48,7 @@ type SiteSettings = {
     navigation: { x: number; y: number; w: number; h: number }
     content: { x: number; y: number; w: number; h: number }
   }
+  custom_blocks: CustomSiteBlock[]
 }
 
 type SubjectRow = {
@@ -317,7 +333,12 @@ export function VisitorPortal() {
 
   const requestType = tab === 'contact' ? 'question' : tab === 'recrutement' ? 'recrutement' : 'rendez_vous'
   const publicLayout = siteSettings?.layout_json ?? DEFAULT_SITE_LAYOUT
-  const publicHeight = Math.max(760, ...Object.values(publicLayout).map((item) => item.y + item.h + 24))
+  const customBlocks = Array.isArray(siteSettings?.custom_blocks) ? siteSettings.custom_blocks : []
+  const publicHeight = Math.max(
+    760,
+    ...Object.values(publicLayout).map((item) => item.y + item.h + 24),
+    ...customBlocks.map((item) => Number(item.y || 0) + Number(item.h || 0) + 24),
+  )
 
   return (
     <div className="relative min-h-screen bg-[var(--bg)] text-[var(--ink)]">
@@ -573,6 +594,61 @@ export function VisitorPortal() {
           </Card>
         )}
         </div>
+
+        {customBlocks.map((block) => {
+          const blockStyle = layoutStyle({
+            x: Number(block.x || 0),
+            y: Number(block.y || 0),
+            w: Number(block.w || 30),
+            h: Number(block.h || 120),
+          })
+          const imageUrl = block.image_path
+            ? supabase.storage.from('public-site-assets').getPublicUrl(block.image_path).data.publicUrl
+            : null
+
+          return (
+            <div
+              key={block.id}
+              className="mb-4 md:mb-0 md:absolute md:left-[var(--site-x)] md:top-[var(--site-y)] md:w-[var(--site-w)] md:h-[var(--site-h)]"
+              style={blockStyle}
+            >
+              {block.type === 'title' && (
+                <div className="h-full flex items-center">
+                  <h2 className="font-display font-black text-3xl sm:text-4xl leading-tight">{block.title || 'Titre'}</h2>
+                </div>
+              )}
+
+              {block.type === 'text' && (
+                <Card className="h-full p-5 sm:p-6 overflow-auto">
+                  <p className="whitespace-pre-wrap text-[var(--ink)]/65 leading-relaxed">{block.text || ''}</p>
+                </Card>
+              )}
+
+              {block.type === 'image' && imageUrl && (
+                <div
+                  className="h-full min-h-[180px] rounded-2xl border border-[var(--ink)]/8 shadow-[var(--card-shadow)] bg-cover bg-no-repeat"
+                  style={{
+                    backgroundImage: `url("${imageUrl}")`,
+                    backgroundPosition: (block.image_position ?? 'center').replace('-', ' '),
+                  }}
+                />
+              )}
+
+              {block.type === 'button' && (
+                <div className="h-full flex items-center">
+                  <a
+                    href={block.url || '#'}
+                    target={block.url?.startsWith('http') ? '_blank' : undefined}
+                    rel={block.url?.startsWith('http') ? 'noreferrer' : undefined}
+                    className="inline-flex items-center justify-center rounded-xl bg-red px-5 py-3 text-white text-sm font-semibold shadow-lg hover:brightness-110 transition"
+                  >
+                    {block.label || 'Bouton'}
+                  </a>
+                </div>
+              )}
+            </div>
+          )
+        })}
         </div>
       </main>
     </div>
