@@ -9,6 +9,7 @@ type UiPreferences = {
   background_color: string | null
   background_image_path: string | null
   sidebar_color: string | null
+  tile_shape: 'square' | 'soft' | 'rounded' | 'pill'
   tile_colors: Record<string, string>
 }
 
@@ -45,8 +46,11 @@ export function CustomizationPanel({
   onSaved: (next: UiPreferences) => void
 }) {
   const [backgroundColor, setBackgroundColor] = useState(initial.background_color ?? '#1c2027')
+  const [backgroundDefault, setBackgroundDefault] = useState(initial.background_color == null)
   const [backgroundImagePath, setBackgroundImagePath] = useState<string | null>(initial.background_image_path)
   const [sidebarColor, setSidebarColor] = useState(initial.sidebar_color ?? '#16191f')
+  const [sidebarDefault, setSidebarDefault] = useState(initial.sidebar_color == null)
+  const [tileShape, setTileShape] = useState<'square' | 'soft' | 'rounded' | 'pill'>(initial.tile_shape ?? 'rounded')
   const [tileColors, setTileColors] = useState<Record<string, string>>(initial.tile_colors ?? {})
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
@@ -74,11 +78,13 @@ export function CustomizationPanel({
 
   function setRgb(channel: 'r' | 'g' | 'b', value: number) {
     const next = { ...rgb, [channel]: value }
+    setBackgroundDefault(false)
     setBackgroundColor(rgbToHex(next.r, next.g, next.b))
   }
 
   function setSidebarRgb(channel: 'r' | 'g' | 'b', value: number) {
     const next = { ...sidebarRgb, [channel]: value }
+    setSidebarDefault(false)
     setSidebarColor(rgbToHex(next.r, next.g, next.b))
   }
 
@@ -131,9 +137,10 @@ export function CustomizationPanel({
     }
 
     const next: UiPreferences = {
-      background_color: normalized,
+      background_color: backgroundDefault ? null : normalized,
       background_image_path: backgroundImagePath,
-      sidebar_color: normalizedSidebar,
+      sidebar_color: sidebarDefault ? null : normalizedSidebar,
+      tile_shape: tileShape,
       tile_colors: tileColors,
     }
 
@@ -170,12 +177,17 @@ export function CustomizationPanel({
           {error && <p className="text-red-300 text-xs">{error}</p>}
 
           <section className="rounded-2xl border border-[var(--ink)]/8 p-4">
-            <h3 className="text-[var(--ink)] font-bold text-sm mb-4">Couleur du fond</h3>
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <h3 className="text-[var(--ink)] font-bold text-sm">Couleur du fond</h3>
+              <Button size="sm" variant="ghost" onClick={() => { setBackgroundDefault(true); setBackgroundColor('#1c2027') }}>
+                <RotateCcw size={13} /> Par défaut
+              </Button>
+            </div>
             <div className="grid sm:grid-cols-[120px_1fr] gap-4">
               <input
                 type="color"
                 value={backgroundColor}
-                onChange={(e) => setBackgroundColor(e.target.value)}
+                onChange={(e) => { setBackgroundDefault(false); setBackgroundColor(e.target.value) }}
                 className="w-full h-24 rounded-xl border border-[var(--ink)]/10 bg-transparent cursor-pointer"
               />
 
@@ -202,7 +214,7 @@ export function CustomizationPanel({
                 ))}
                 <Input
                   value={backgroundColor}
-                  onChange={(e) => setBackgroundColor(e.target.value)}
+                  onChange={(e) => { setBackgroundDefault(false); setBackgroundColor(e.target.value) }}
                   onBlur={() => {
                     const normalized = normalizeHex(backgroundColor)
                     if (normalized) setBackgroundColor(normalized)
@@ -215,12 +227,17 @@ export function CustomizationPanel({
 
 
           <section className="rounded-2xl border border-[var(--ink)]/8 p-4">
-            <h3 className="text-[var(--ink)] font-bold text-sm mb-4">Couleur de la sidebar</h3>
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <h3 className="text-[var(--ink)] font-bold text-sm">Couleur de la sidebar</h3>
+              <Button size="sm" variant="ghost" onClick={() => { setSidebarDefault(true); setSidebarColor('#16191f') }}>
+                <RotateCcw size={13} /> Par défaut
+              </Button>
+            </div>
             <div className="grid sm:grid-cols-[120px_1fr] gap-4">
               <input
                 type="color"
                 value={sidebarColor}
-                onChange={(e) => setSidebarColor(e.target.value)}
+                onChange={(e) => { setSidebarDefault(false); setSidebarColor(e.target.value) }}
                 className="w-full h-24 rounded-xl border border-[var(--ink)]/10 bg-transparent cursor-pointer"
               />
 
@@ -247,7 +264,7 @@ export function CustomizationPanel({
                 ))}
                 <Input
                   value={sidebarColor}
-                  onChange={(e) => setSidebarColor(e.target.value)}
+                  onChange={(e) => { setSidebarDefault(false); setSidebarColor(e.target.value) }}
                   onBlur={() => {
                     const normalized = normalizeHex(sidebarColor)
                     if (normalized) setSidebarColor(normalized)
@@ -286,6 +303,37 @@ export function CustomizationPanel({
                 onChange={(e) => uploadBackground(e.target.files?.[0] ?? null)}
               />
             </label>
+          </section>
+
+
+          <section className="rounded-2xl border border-[var(--ink)]/8 p-4">
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <div>
+                <h3 className="text-[var(--ink)] font-bold text-sm">Forme des tuiles</h3>
+                <p className="text-[var(--ink)]/35 text-xs">Choisis l’arrondi général des tuiles de l’accueil.</p>
+              </div>
+              <Button size="sm" variant="ghost" onClick={() => setTileShape('rounded')}>
+                <RotateCcw size={13} /> Par défaut
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {([
+                ['square', 'Carrées', 'rounded-none'],
+                ['soft', 'Douces', 'rounded-lg'],
+                ['rounded', 'Arrondies', 'rounded-3xl'],
+                ['pill', 'Très rondes', 'rounded-[2.5rem]'],
+              ] as const).map(([value, label, radius]) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setTileShape(value)}
+                  className={`h-20 border transition-all cursor-pointer ${radius} ${tileShape === value ? 'border-red bg-red/10 ring-2 ring-red/20' : 'border-[var(--ink)]/10 bg-[var(--ink)]/[0.025] hover:bg-[var(--ink)]/[0.05]'}`}
+                >
+                  <span className="text-[var(--ink)]/75 text-xs font-semibold">{label}</span>
+                </button>
+              ))}
+            </div>
           </section>
 
           <section className="rounded-2xl border border-[var(--ink)]/8 p-4">
