@@ -121,11 +121,6 @@ export function HomeTiles({
     return next
   }, [sections, geometry])
 
-  const canvasHeight = useMemo(() => {
-    const bottoms = Object.values(effectiveGeometry).map((item) => item.y + item.h)
-    return Math.max(360, ...(bottoms.length ? bottoms : [360])) + 24
-  }, [effectiveGeometry])
-
   async function persistGeometry(key: TabKey, value: TileGeometry) {
     const userId = session?.user.id
     if (!userId) return
