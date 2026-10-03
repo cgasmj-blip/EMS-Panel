@@ -91,6 +91,17 @@ export function ServicesTab() {
     const l = affiliations.find((a) => a.id === id)?.label
     return l ? shortLabel(l) : undefined
   }
+  const vehicleLabel = (name: string | null) => {
+    if (!name) return null
+    const vehicle = vehicles.find((v) => v.name === name)
+    return vehicle?.plate ? `${name} · Plaque ${vehicle.plate}` : name
+  }
+  const memberNameClass = (status: DutyStatus) =>
+    status === 'en_service'
+      ? 'text-green-400'
+      : status === 'en_pause'
+        ? 'text-amber-300'
+        : 'text-[var(--ink)]'
 
   const fetchAll = useCallback(async () => {
     const [{ data: staffData, error: staffError }, { data: unitData }] = await Promise.all([
@@ -467,7 +478,7 @@ export function ServicesTab() {
                   <option value="">— Aucun —</option>
                   {eligibleVehicles.map((v) => (
                     <option key={v.id} value={v.name}>
-                      {v.name}
+                      {v.plate ? `${v.name} · ${v.plate}` : v.name}
                     </option>
                   ))}
                 </Select>
@@ -608,13 +619,13 @@ export function ServicesTab() {
                 <p className="text-[var(--ink)]/40 text-xs mb-1">
                   {unit.sector ? `Lieu : ${unit.sector} · ` : ''}
                   Début : {formatTime(unit.created_at)} · {teamLabel(members.length)}
-                  {unit.vehicule ? ` · Véhicule : ${unit.vehicule}` : ''}
+                  {unit.vehicule ? ` · Véhicule : ${vehicleLabel(unit.vehicule)}` : ''}
                 </p>
                 {unit.commentaire && <p className="text-[var(--ink)]/50 text-xs mb-1 italic">{unit.commentaire}</p>}
                 <div className="flex flex-col gap-1">
                   {members.map((s) => (
                     <div key={s.id} className="flex items-center gap-1.5 flex-wrap">
-                      <span className="text-[var(--ink)]/70 text-xs font-medium">{s.full_name}</span>
+                      <span className={cn('text-xs font-semibold', memberNameClass(s.status))}>{s.full_name}</span>
                       {displayRoleLabel(s.role) && <Badge variant="gray">{displayRoleLabel(s.role)}</Badge>}
                       {s.sous_grade_ids.map((id) => sousGradeLabel(id) && <Badge key={id} variant="cyan">{sousGradeLabel(id)}</Badge>)}
                       {s.affiliation_ids.map((id) => affiliationLabel(id) && <Badge key={id} variant="red">{affiliationLabel(id)}</Badge>)}
@@ -654,12 +665,12 @@ export function ServicesTab() {
                 <div className="w-9 h-9 rounded-full bg-[var(--ink)]/10 border border-[var(--ink)]/15" />
               )}
               <div className="flex-1 min-w-0">
-                <p className="text-[var(--ink)] text-sm font-semibold truncate">{member.full_name}</p>
+                <p className={cn('text-sm font-semibold truncate', memberNameClass(member.status))}>{member.full_name}</p>
                 <p className="text-[var(--ink)]/40 text-xs truncate">
                   {[
                     displayRoleLabel(member.role),
                     member.unit_id ? unitsById.get(member.unit_id)?.name : null,
-                    member.unit_id ? unitsById.get(member.unit_id)?.vehicule : null,
+                    member.unit_id ? vehicleLabel(unitsById.get(member.unit_id)?.vehicule ?? null) : null,
                   ]
                     .filter(Boolean)
                     .join(' · ')}
