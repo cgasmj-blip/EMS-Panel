@@ -98,6 +98,13 @@ export function LspdTransferTab() {
             </button>
           )
         })}
+        <button type="button" onClick={() => { setDirectionOpen(true); setSelected(null); setSuccess(null) }}
+          className="group rounded-2xl border border-[var(--ink)]/10 bg-[var(--ink)]/[0.025] p-4 text-left transition hover:-translate-y-0.5 hover:border-red/30 hover:bg-red/[0.06]">
+          <div className="flex min-h-28 flex-col items-center justify-center gap-3 text-center">
+            <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-red/15 text-red"><MessageSquareText size={20}/></span>
+            <p className="font-bold text-[var(--ink)]">Messagerie Direction</p>
+          </div>
+        </button>
       </div>
         </>
       )}
@@ -118,7 +125,8 @@ export function LspdTransferTab() {
                     <span className="text-[10px] text-[var(--ink)]/35">{new Date(item.createdAt).toLocaleString('fr-FR')}</span>
                   </div>
                   {item.files.length > 0 && <p className="mt-1 text-xs text-[var(--ink)]/45">{item.files.join(' • ')}</p>}
-                  <span className="mt-2 inline-block text-[10px] font-bold text-amber-600">EN ATTENTE LSPD</span>
+                  <span className="mt-2 inline-block text-[10px] font-bold text-amber-600">{current.key === 'criminal_record_request' ? 'EN ATTENTE DU CASIER LSPD' : 'EN ATTENTE LSPD'}</span>
+                  {current.key === 'criminal_record_request' && <p className="mt-2 text-xs text-[var(--ink)]/45">La réponse LSPD et le document du casier vierge apparaîtront sur cette demande dès réception.</p>}
                 </div>
               ))}
               {history.length === 0 && <p className="py-12 text-center text-sm text-[var(--ink)]/35">Aucun envoi pour le moment.</p>}
