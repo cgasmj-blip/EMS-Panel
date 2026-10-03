@@ -14,7 +14,9 @@ export function VehiclesSection() {
   const [sousGrades, setSousGrades] = useState<SousGrade[]>([])
   const [affiliations, setAffiliations] = useState<Affiliation[]>([])
   const [eligEdits, setEligEdits] = useState<Record<number, Eligibility>>({})
+  const [plateEdits, setPlateEdits] = useState<Record<number, string>>({})
   const [newName, setNewName] = useState('')
+  const [newPlate, setNewPlate] = useState('')
   const [newElig, setNewElig] = useState<Eligibility>(EMPTY)
 
   const fetchAll = () => {
@@ -36,14 +38,22 @@ export function VehiclesSection() {
   }
 
   async function saveVehicle(id: number) {
-    const elig = eligEdits[id]
-    if (elig === undefined) return
+    const vehicle = vehicles.find((v) => v.id === id)
+    if (!vehicle) return
+    const elig = eligEdits[id] ?? eligOf(vehicle)
+    const plate = plateEdits[id] ?? vehicle.plate ?? ''
     await supabase.from('vehicles').update({
+      plate: plate.trim() || null,
       grade: elig.grade.length > 0 ? elig.grade : null,
       sous_grade_id: elig.sous_grade_id || null,
       affiliation_id: elig.affiliation_id || null,
     }).eq('id', id)
     setEligEdits((prev) => {
+      const next = { ...prev }
+      delete next[id]
+      return next
+    })
+    setPlateEdits((prev) => {
       const next = { ...prev }
       delete next[id]
       return next
@@ -55,11 +65,13 @@ export function VehiclesSection() {
     if (!newName.trim()) return
     await supabase.from('vehicles').insert({
       name: newName.trim(),
+      plate: newPlate.trim() || null,
       grade: newElig.grade.length > 0 ? newElig.grade : null,
       sous_grade_id: newElig.sous_grade_id || null,
       affiliation_id: newElig.affiliation_id || null,
     })
     setNewName('')
+    setNewPlate('')
     setNewElig(EMPTY)
     fetchAll()
   }
@@ -86,6 +98,11 @@ export function VehiclesSection() {
                 </Button>
               </div>
             </div>
+            <Input
+              placeholder="Plaque d'immatriculation"
+              value={plateEdits[v.id] ?? v.plate ?? ''}
+              onChange={(e) => setPlateEdits((prev) => ({ ...prev, [v.id]: e.target.value }))}
+            />
             <EligibilitySelector
               value={eligOf(v)}
               onChange={(next) => setEligEdits((prev) => ({ ...prev, [v.id]: next }))}
@@ -99,7 +116,8 @@ export function VehiclesSection() {
 
       <div className="rounded-lg border border-[var(--ink)]/8 bg-[var(--ink)]/[0.02] p-3 flex flex-col gap-3">
         <p className="text-[var(--ink)]/40 text-xs uppercase tracking-[1.5px] font-semibold">Nouveau véhicule</p>
-        <Input placeholder="Nom (ex: VAPID JIY715)" value={newName} onChange={(e) => setNewName(e.target.value)} />
+        <Input placeholder="Nom du véhicule" value={newName} onChange={(e) => setNewName(e.target.value)} />
+        <Input placeholder="Plaque d'immatriculation" value={newPlate} onChange={(e) => setNewPlate(e.target.value)} />
         <EligibilitySelector value={newElig} onChange={setNewElig} sousGrades={sousGrades} affiliations={affiliations} />
         <Button size="sm" onClick={addVehicle}>Ajouter</Button>
       </div>
