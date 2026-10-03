@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { CalendarClock, FileText, HeartHandshake, History, LogIn, MessageCircle, Send, Stethoscope, UserRoundPlus } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/auth/AuthContext'
@@ -79,6 +79,22 @@ const EMPTY_FORM: RequestForm = {
   subject: '',
   message: '',
   preferredAt: '',
+}
+
+const DEFAULT_SITE_LAYOUT = {
+  hero: { x: 0, y: 0, w: 64, h: 300 },
+  contact: { x: 66, y: 0, w: 34, h: 300 },
+  navigation: { x: 0, y: 320, w: 100, h: 64 },
+  content: { x: 0, y: 404, w: 100, h: 520 },
+}
+
+function layoutStyle(item: { x: number; y: number; w: number; h: number }): CSSProperties {
+  return {
+    '--site-x': `${item.x}%`,
+    '--site-y': `${item.y}px`,
+    '--site-w': `${item.w}%`,
+    '--site-h': `${item.h}px`,
+  } as CSSProperties
 }
 
 export function VisitorPortal() {
@@ -300,6 +316,8 @@ export function VisitorPortal() {
   }
 
   const requestType = tab === 'contact' ? 'question' : tab === 'recrutement' ? 'recrutement' : 'rendez_vous'
+  const publicLayout = siteSettings?.layout_json ?? DEFAULT_SITE_LAYOUT
+  const publicHeight = Math.max(760, ...Object.values(publicLayout).map((item) => item.y + item.h + 24))
 
   return (
     <div className="relative min-h-screen bg-[var(--bg)] text-[var(--ink)]">
@@ -335,9 +353,16 @@ export function VisitorPortal() {
         </div>
       </header>
 
-      <main className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
-        <section className="grid lg:grid-cols-[1.15fr_.85fr] gap-6 items-stretch mb-8">
-          <Card className="p-0 overflow-hidden flex flex-col justify-center">
+      <main
+        className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-12 md:pb-0"
+        style={{ '--site-height': `${publicHeight}px` } as CSSProperties}
+      >
+        <div className="md:relative md:h-[var(--site-height)]">
+          <section className="contents">
+          <Card
+            className="p-0 overflow-hidden flex flex-col justify-center mb-6 md:mb-0 md:absolute md:left-[var(--site-x)] md:top-[var(--site-y)] md:w-[var(--site-w)] md:h-[var(--site-h)]"
+            style={layoutStyle(publicLayout.hero)}
+          >
             {heroImageUrl && (
               <div
                 className="h-48 sm:h-56 w-full bg-cover bg-no-repeat"
@@ -356,16 +381,22 @@ export function VisitorPortal() {
               </p>
             </div>
           </Card>
-          <Card className="p-7 sm:p-9 flex flex-col justify-center bg-red/5">
+          <Card
+            className="p-7 sm:p-9 flex flex-col justify-center bg-red/5 mb-6 md:mb-0 md:absolute md:left-[var(--site-x)] md:top-[var(--site-y)] md:w-[var(--site-w)] md:h-[var(--site-h)]"
+            style={layoutStyle(publicLayout.contact)}
+          >
             <HeartHandshake size={25} className="text-red-300 mb-4" />
             <p className="font-bold text-lg">{siteSettings?.contact_title ?? 'Besoin de nous joindre ?'}</p>
             <p className="text-[var(--ink)]/50 text-sm mt-2 leading-relaxed">
               {siteSettings?.contact_text ?? 'Les demandes envoyées ici arrivent directement dans le panel EMS afin que l’équipe puisse les traiter et assurer leur suivi.'}
             </p>
           </Card>
-        </section>
+          </section>
 
-        <div className="flex gap-2 overflow-x-auto pb-2 mb-5">
+        <div
+          className="flex gap-2 overflow-x-auto pb-2 mb-5 md:mb-0 md:absolute md:left-[var(--site-x)] md:top-[var(--site-y)] md:w-[var(--site-w)] md:h-[var(--site-h)] md:items-center"
+          style={layoutStyle(publicLayout.navigation)}
+        >
           {tabs.map((item) => {
             const Icon = item.icon
             return (
@@ -388,6 +419,10 @@ export function VisitorPortal() {
           })}
         </div>
 
+        <div
+          className="md:absolute md:left-[var(--site-x)] md:top-[var(--site-y)] md:w-[var(--site-w)] md:h-[var(--site-h)] md:overflow-auto"
+          style={layoutStyle(publicLayout.content)}
+        >
         {tab === 'reglement' ? (
           <Card className="p-6 sm:p-8">
             <h2 className="font-display font-black text-xl mb-5">Règlement EMS</h2>
@@ -537,6 +572,8 @@ export function VisitorPortal() {
             </div>
           </Card>
         )}
+        </div>
+        </div>
       </main>
     </div>
   )
