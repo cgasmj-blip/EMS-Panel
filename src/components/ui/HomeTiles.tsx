@@ -158,7 +158,7 @@ export function HomeTiles({ tabs, onSelect }: { tabs: TabKey[]; onSelect: (key: 
               }}
               onDragEnd={finishDrag}
               className={cn(
-                'relative cursor-grab active:cursor-grabbing transition-opacity',
+                'relative h-full cursor-grab active:cursor-grabbing transition-opacity',
                 section.key === 'services' && 'col-span-2',
                 draggingKey === section.key && 'opacity-55',
               )}
@@ -170,6 +170,7 @@ export function HomeTiles({ tabs, onSelect }: { tabs: TabKey[]; onSelect: (key: 
                 color={section.color}
                 big={section.key === 'services'}
                 delay={i * 0.04}
+                className="w-full h-full"
                 onClick={() => {
                   if (draggedRef.current) return
                   if (section.key === 'dossier_medical') {
