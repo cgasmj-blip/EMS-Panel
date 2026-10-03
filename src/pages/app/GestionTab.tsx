@@ -53,7 +53,6 @@ const EMPLOYEE_KEYS: GestionKey[] = [
   'users',
   'payes',
   'historique',
-  'visitor_access',
 ]
 
 const HOSPITAL_KEYS: GestionKey[] = [
@@ -65,6 +64,7 @@ const HOSPITAL_KEYS: GestionKey[] = [
   'training',
   'checklists',
   'recruitment_archive_access',
+  'visitor_access',
 ]
 
 const VIEW_STORAGE_KEY = 'ems-gestion-view'
