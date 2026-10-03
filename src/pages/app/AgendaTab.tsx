@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Ban, Check, ChevronLeft, ChevronRight, Clock3, Plus, Trash2 } from 'lucide-react'
 import { useAuth } from '@/auth/AuthContext'
 import {
@@ -74,6 +74,7 @@ export function AgendaTab() {
   const [remindDayBefore, setRemindDayBefore] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const formRef = useRef<HTMLDivElement | null>(null)
 
   const fetchAll = useCallback(async () => {
     if (!staff) return
@@ -136,6 +137,13 @@ export function AgendaTab() {
   }, [month])
 
   const selectedAppointments = appointmentsByDay.get(selectedKey) ?? []
+
+  useEffect(() => {
+    if (!showForm) return
+    requestAnimationFrame(() => {
+      formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
+  }, [showForm])
 
   function selectDay(day: Date) {
     const copy = new Date(day)
@@ -331,7 +339,7 @@ export function AgendaTab() {
         </div>
 
         {showForm && (
-          <div className="rounded-xl border border-red/15 bg-red/[0.035] p-4 mb-4">
+          <div ref={formRef} className="rounded-xl border border-red/15 bg-red/[0.035] p-4 mb-4 scroll-mt-4">
             <div className="flex items-center justify-between gap-2 mb-3">
               <p className="text-[var(--ink)] font-bold text-sm">
                 {editingId ? 'Déplacer le rendez-vous' : 'Nouveau rendez-vous'}
