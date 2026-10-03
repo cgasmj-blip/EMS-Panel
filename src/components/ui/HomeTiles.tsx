@@ -11,12 +11,14 @@ export function HomeTiles({
   onMove,
   nextAppointment,
   tileColors,
+  tileShape,
 }: {
   keys: TabKey[]
   onSelect: (key: TabKey) => void
   onMove: (key: TabKey, zone: 'home' | 'sidebar', target?: TabKey) => void
   nextAppointment: { scheduled_at: string; title: string | null; type: string } | null
   tileColors: Record<string, string>
+  tileShape: 'square' | 'soft' | 'rounded' | 'pill'
 }) {
   const { session } = useAuth()
   const [enService, setEnService] = useState(0)
@@ -125,7 +127,13 @@ export function HomeTiles({
                 color={tileColors[section.key] ?? section.color}
                 big={section.key === 'services'}
                 delay={i * 0.04}
-                className="w-full h-full"
+                className={cn(
+                  'w-full h-full',
+                  tileShape === 'square' && 'rounded-none',
+                  tileShape === 'soft' && 'rounded-lg',
+                  tileShape === 'rounded' && 'rounded-3xl',
+                  tileShape === 'pill' && 'rounded-[2.5rem]',
+                )}
                 onClick={() => {
                   if (section.key === 'dossier_medical') {
                     window.open('https://ljlife.online/admin/pages/ambulance/ems.php', '_blank', 'noopener,noreferrer')
