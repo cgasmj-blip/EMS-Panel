@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type DragEvent, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { CalendarClock, History, LayoutGrid, LogOut, Megaphone, MessageCircle, RefreshCw, Search, ShieldCheck } from 'lucide-react'
+import { CalendarClock, LayoutGrid, LogOut, Megaphone, MessageCircle, RefreshCw, Search, ShieldCheck } from 'lucide-react'
 import { useAuth } from '@/auth/AuthContext'
 import { displayRoleLabel, isAboveChirurgien, supabase } from '@/lib/supabase'
 import { TILE_SECTIONS, type TabKey } from '@/lib/tiles'
