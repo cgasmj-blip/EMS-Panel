@@ -57,6 +57,15 @@ export function Dashboard() {
   const [nextAppointment, setNextAppointment] = useState<{ scheduled_at: string; title: string | null; type: string } | null>(null)
   const previousUnreadRef = useRef<number | null>(null)
   const previousAnnouncementIdRef = useRef<number | null>(null)
+  const [navLayout, setNavLayout] = useState<{ home: TabKey[]; sidebar: TabKey[] }>({ home: [], sidebar: [] })
+
+  const visibleTabs = TILE_SECTIONS
+    .filter((section) => !section.seniorOnly || isAboveChirurgien(staff?.role))
+    .map((section) => section.key)
+
+  const defaultSidebar = (['agenda', 'recherche', 'messages', 'historique', 'gestion'] as TabKey[])
+    .filter((key) => visibleTabs.includes(key))
+  const defaultHome = visibleTabs.filter((key) => !defaultSidebar.includes(key))
 
   const playTone = useCallback((kind: 'message' | 'announcement') => {
     try {
@@ -187,6 +196,83 @@ export function Dashboard() {
     }
   }, [session?.user.id])
 
+  useEffect(() => {
+    const userId = session?.user.id
+    if (!userId || visibleTabs.length === 0) return
+
+    supabase
+      .from('user_nav_layout')
+      .select('tab_key,zone,position')
+      .eq('staff_id', userId)
+      .order('position')
+      .then(({ data }) => {
+        const rows = data ?? []
+        if (rows.length === 0) {
+          setNavLayout({ home: defaultHome, sidebar: defaultSidebar })
+          void supabase.from('user_nav_layout').upsert([
+            ...defaultHome.map((tab_key, position) => ({ staff_id: userId, tab_key, zone: 'home', position })),
+            ...defaultSidebar.map((tab_key, position) => ({ staff_id: userId, tab_key, zone: 'sidebar', position })),
+          ])
+          return
+        }
+
+        const savedHome = rows
+          .filter((row) => row.zone === 'home' && visibleTabs.includes(row.tab_key as TabKey))
+          .map((row) => row.tab_key as TabKey)
+        const savedSidebar = rows
+          .filter((row) => row.zone === 'sidebar' && visibleTabs.includes(row.tab_key as TabKey))
+          .map((row) => row.tab_key as TabKey)
+        const known = new Set([...savedHome, ...savedSidebar])
+        const missing = visibleTabs.filter((key) => !known.has(key))
+        setNavLayout({ home: [...savedHome, ...missing], sidebar: savedSidebar })
+      })
+  }, [session?.user.id, staff?.role])
+
+  async function persistNavLayout(next: { home: TabKey[]; sidebar: TabKey[] }) {
+    const userId = session?.user.id
+    if (!userId) return
+
+    await supabase.from('user_nav_layout').upsert([
+      ...next.home.map((tab_key, position) => ({
+        staff_id: userId,
+        tab_key,
+        zone: 'home',
+        position,
+        updated_at: new Date().toISOString(),
+      })),
+      ...next.sidebar.map((tab_key, position) => ({
+        staff_id: userId,
+        tab_key,
+        zone: 'sidebar',
+        position,
+        updated_at: new Date().toISOString(),
+      })),
+    ])
+  }
+
+  function moveNavItem(key: TabKey, zone: 'home' | 'sidebar', target?: TabKey) {
+    if (!visibleTabs.includes(key)) return
+
+    setNavLayout((current) => {
+      const home = current.home.filter((item) => item !== key)
+      const sidebar = current.sidebar.filter((item) => item !== key)
+      const destination = zone === 'home' ? home : sidebar
+
+      let index = target ? destination.indexOf(target) : -1
+      if (index < 0) index = destination.length
+      destination.splice(index, 0, key)
+
+      const next = { home, sidebar }
+      void persistNavLayout(next)
+      return next
+    })
+  }
+
+  function readDraggedTab(event: React.DragEvent): TabKey | null {
+    const key = event.dataTransfer.getData('application/x-ems-tab') || event.dataTransfer.getData('text/plain')
+    return visibleTabs.includes(key as TabKey) ? (key as TabKey) : null
+  }
+
   async function handleResync() {
     setResyncing(true)
     // Re-runs the Discord OAuth flow. Since consent is already granted this
@@ -209,7 +295,6 @@ export function Dashboard() {
     )
   }
 
-  const visibleTabs = TILE_SECTIONS.filter((s) => !s.seniorOnly || isAboveChirurgien(staff.role)).map((s) => s.key)
   const effectiveView = view !== 'home' && !visibleTabs.includes(view) ? 'home' : view
   const activeSection = effectiveView === 'home' ? null : TILE_SECTIONS.find((s) => s.key === effectiveView) ?? null
 
@@ -232,80 +317,62 @@ export function Dashboard() {
           <LayoutGrid size={18} />
         </button>
 
-        <div className="flex flex-col items-center gap-1.5">
-          <button
-            type="button"
-            onClick={() => setView('agenda')}
-            aria-label="Agenda"
-            title="Agenda"
-            className={cn(
-              'w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer transition-colors',
-              effectiveView === 'agenda' ? 'bg-red text-white' : 'bg-[var(--ink)]/5 text-[var(--ink)]/60 hover:bg-[var(--ink)]/10 hover:text-[var(--ink)]',
-            )}
-          >
-            <CalendarClock size={17} />
-          </button>
+        <div
+          className="flex flex-col items-center gap-1.5 min-h-12 w-full px-2"
+          onDragOver={(event) => {
+            event.preventDefault()
+            event.dataTransfer.dropEffect = 'move'
+          }}
+          onDrop={(event) => {
+            event.preventDefault()
+            const key = readDraggedTab(event)
+            if (key) moveNavItem(key, 'sidebar')
+          }}
+        >
+          {navLayout.sidebar.map((key) => {
+            const section = TILE_SECTIONS.find((item) => item.key === key)
+            if (!section) return null
+            const Icon = section.icon
 
-          <button
-            type="button"
-            onClick={() => setView('recherche')}
-            aria-label="Recherche globale"
-            title="Recherche globale"
-            className={cn(
-              'w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer transition-colors',
-              effectiveView === 'recherche' ? 'bg-red text-white' : 'bg-[var(--ink)]/5 text-[var(--ink)]/60 hover:bg-[var(--ink)]/10 hover:text-[var(--ink)]',
-            )}
-          >
-            <Search size={17} />
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setView('messages')}
-            aria-label="Messages"
-            title="Messages"
-            className={cn(
-              'relative w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer transition-colors',
-              effectiveView === 'messages' ? 'bg-red text-white' : 'bg-[var(--ink)]/5 text-[var(--ink)]/60 hover:bg-[var(--ink)]/10 hover:text-[var(--ink)]',
-            )}
-          >
-            <MessageCircle size={17} />
-            {unreadMessages > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 min-w-5 h-5 px-1 rounded-full bg-red text-white text-[10px] font-bold flex items-center justify-center border-2 border-[var(--sidebar-bg)]">
-                +{unreadMessages}
-              </span>
-            )}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setView('historique')}
-            aria-label="Historique"
-            title="Historique"
-            className={cn(
-              'w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer transition-colors',
-              effectiveView === 'historique' ? 'bg-red text-white' : 'bg-[var(--ink)]/5 text-[var(--ink)]/60 hover:bg-[var(--ink)]/10 hover:text-[var(--ink)]',
-            )}
-          >
-            <History size={17} />
-          </button>
+            return (
+              <button
+                key={key}
+                type="button"
+                draggable
+                onDragStart={(event) => {
+                  event.dataTransfer.effectAllowed = 'move'
+                  event.dataTransfer.setData('application/x-ems-tab', key)
+                  event.dataTransfer.setData('text/plain', key)
+                }}
+                onDragOver={(event) => {
+                  event.preventDefault()
+                  event.stopPropagation()
+                }}
+                onDrop={(event) => {
+                  event.preventDefault()
+                  event.stopPropagation()
+                  const dragged = readDraggedTab(event)
+                  if (dragged) moveNavItem(dragged, 'sidebar', key)
+                }}
+                onClick={() => setView(key)}
+                aria-label={section.label}
+                title={section.label}
+                className={cn(
+                  'relative w-10 h-10 rounded-xl flex items-center justify-center cursor-grab active:cursor-grabbing transition-colors shrink-0',
+                  effectiveView === key ? 'bg-red text-white' : 'bg-[var(--ink)]/5 text-[var(--ink)]/60 hover:bg-[var(--ink)]/10 hover:text-[var(--ink)]',
+                )}
+              >
+                <Icon size={17} />
+                {key === 'messages' && unreadMessages > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 min-w-5 h-5 px-1 rounded-full bg-red text-white text-[10px] font-bold flex items-center justify-center border-2 border-[var(--sidebar-bg)]">
+                    +{unreadMessages}
+                  </span>
+                )}
+              </button>
+            )
+          })}
 
           <StockAlertButton compact />
-
-          {isAboveChirurgien(staff.role) && (
-            <button
-              type="button"
-              onClick={() => setView('gestion')}
-              aria-label="Gestion"
-              title="Gestion"
-              className={cn(
-                'w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer transition-colors',
-                effectiveView === 'gestion' ? 'bg-red text-white' : 'bg-[var(--ink)]/5 text-[var(--ink)]/60 hover:bg-[var(--ink)]/10 hover:text-[var(--ink)]',
-              )}
-            >
-              <ShieldCheck size={17} />
-            </button>
-          )}
         </div>
 
         <div className="flex-1" />
@@ -445,7 +512,7 @@ export function Dashboard() {
                   </div>
                 </div>
               )}
-              <HomeTiles tabs={visibleTabs} onSelect={(key) => setView(key)} />
+              <HomeTiles keys={navLayout.home} onSelect={(key) => setView(key)} onMove={moveNavItem} />
             </motion.div>
           ) : (
             <motion.div
