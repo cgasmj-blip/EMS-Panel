@@ -65,11 +65,13 @@ export function Dashboard() {
   const [uiPreferences, setUiPreferences] = useState<{
     background_color: string | null
     background_image_path: string | null
+    background_image_opacity: number
+    background_position: 'center' | 'top' | 'bottom' | 'left' | 'right' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
     sidebar_color: string | null
     sidebar_position: 'left' | 'right' | 'top' | 'bottom'
     tile_shape: 'square' | 'soft' | 'rounded' | 'pill'
     tile_colors: Record<string, string>
-  }>({ background_color: null, background_image_path: null, sidebar_color: null, sidebar_position: 'left', tile_shape: 'rounded', tile_colors: {} })
+  }>({ background_color: null, background_image_path: null, background_image_opacity: 100, background_position: 'center', sidebar_color: null, sidebar_position: 'left', tile_shape: 'rounded', tile_colors: {} })
   const [backgroundImageUrl, setBackgroundImageUrl] = useState<string | null>(null)
 
   const visibleTabs = TILE_SECTIONS
@@ -215,7 +217,7 @@ export function Dashboard() {
 
     supabase
       .from('user_ui_preferences')
-      .select('background_color,background_image_path,sidebar_color,sidebar_position,tile_shape,tile_colors')
+      .select('background_color,background_image_path,background_image_opacity,background_position,sidebar_color,sidebar_position,tile_shape,tile_colors')
       .eq('staff_id', userId)
       .maybeSingle()
       .then(({ data }) => {
@@ -223,6 +225,8 @@ export function Dashboard() {
         setUiPreferences({
           background_color: data.background_color ?? null,
           background_image_path: data.background_image_path ?? null,
+          background_image_opacity: data.background_image_opacity ?? 100,
+          background_position: (data.background_position ?? 'center') as 'center' | 'top' | 'bottom' | 'left' | 'right' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right',
           sidebar_color: data.sidebar_color ?? null,
           sidebar_position: (data.sidebar_position ?? 'left') as 'left' | 'right' | 'top' | 'bottom',
           tile_shape: (data.tile_shape ?? 'rounded') as 'square' | 'soft' | 'rounded' | 'pill',
@@ -364,12 +368,20 @@ export function Dashboard() {
       )}
       style={{
         backgroundColor: uiPreferences.background_color ?? undefined,
-        backgroundImage: backgroundImageUrl ? `linear-gradient(rgba(0,0,0,.18), rgba(0,0,0,.18)), url("${backgroundImageUrl}")` : undefined,
-        backgroundSize: backgroundImageUrl ? 'cover' : undefined,
-        backgroundPosition: backgroundImageUrl ? 'center' : undefined,
-        backgroundAttachment: backgroundImageUrl ? 'fixed' : undefined,
       }}
     >
+      {backgroundImageUrl && (
+        <div
+          className="fixed inset-0 z-0 pointer-events-none"
+          style={{
+            backgroundImage: `url("${backgroundImageUrl}")`,
+            backgroundSize: 'cover',
+            backgroundRepeat: 'no-repeat',
+            backgroundPosition: uiPreferences.background_position.replace('-', ' '),
+            opacity: Math.max(0, Math.min(100, uiPreferences.background_image_opacity)) / 100,
+          }}
+        />
+      )}
       <aside
         className={cn(
           'hidden md:flex fixed z-40 items-center gap-3 overflow-hidden',
@@ -575,6 +587,7 @@ export function Dashboard() {
 
       <main
         className={cn(
+          'relative z-10',
           'min-w-0 px-3 py-4 sm:px-5 sm:py-6 md:px-8 md:py-8 pb-24 md:pb-8 flex flex-col gap-4 sm:gap-6',
           uiPreferences.sidebar_position === 'right' && 'md:mr-20',
           uiPreferences.sidebar_position === 'left' && 'md:ml-20',
