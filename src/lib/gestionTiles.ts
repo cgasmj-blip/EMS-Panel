@@ -12,6 +12,7 @@ import {
   Car,
   Network,
   FolderCog,
+  ListChecks,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -29,6 +30,7 @@ export type GestionKey =
   | 'historique'
   | 'hierarchy'
   | 'training'
+  | 'checklists'
 
 export interface GestionSection {
   key: GestionKey
@@ -55,4 +57,5 @@ export const GESTION_SECTIONS: GestionSection[] = [
   { key: 'historique', label: 'Historique', icon: History, color: 'var(--tile-historique)' },
   { key: 'hierarchy', label: 'Habilitations & Affiliations', icon: Network, color: 'var(--tile-hierarchy)', directionOnly: true },
   { key: 'training', label: 'Documents', icon: FolderCog, color: 'var(--tile-hierarchy)', directionOnly: true },
+  { key: 'checklists', label: 'Checklists service', icon: ListChecks, color: 'var(--tile-services)', directionOnly: true },
 ]
