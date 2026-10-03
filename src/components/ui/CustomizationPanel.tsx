@@ -9,7 +9,7 @@ type UiPreferences = {
   background_color: string | null
   background_image_path: string | null
   sidebar_color: string | null
-  sidebar_position: 'left' | 'right'
+  sidebar_position: 'left' | 'right' | 'top' | 'bottom'
   tile_shape: 'square' | 'soft' | 'rounded' | 'pill'
   tile_colors: Record<string, string>
 }
@@ -53,7 +53,7 @@ export function CustomizationPanel({
   const [backgroundImagePath, setBackgroundImagePath] = useState<string | null>(initial.background_image_path)
   const [sidebarColor, setSidebarColor] = useState(initial.sidebar_color ?? '#16191f')
   const [sidebarDefault, setSidebarDefault] = useState(initial.sidebar_color == null)
-  const [sidebarPosition, setSidebarPosition] = useState<'left' | 'right'>(initial.sidebar_position ?? 'left')
+  const [sidebarPosition, setSidebarPosition] = useState<'left' | 'right' | 'top' | 'bottom'>(initial.sidebar_position ?? 'left')
   const [tileShape, setTileShape] = useState<'square' | 'soft' | 'rounded' | 'pill'>(initial.tile_shape ?? 'rounded')
   const [tileColors, setTileColors] = useState<Record<string, string>>(initial.tile_colors ?? {})
   const [saving, setSaving] = useState(false)
@@ -295,6 +295,8 @@ export function CustomizationPanel({
               {([
                 ['left', 'À gauche'],
                 ['right', 'À droite'],
+                ['top', 'En haut'],
+                ['bottom', 'En bas'],
               ] as const).map(([value, label]) => (
                 <button
                   key={value}
@@ -302,7 +304,17 @@ export function CustomizationPanel({
                   onClick={() => setSidebarPosition(value)}
                   className={`relative h-24 rounded-2xl border transition-all overflow-hidden cursor-pointer ${sidebarPosition === value ? 'border-red bg-red/10 ring-2 ring-red/20' : 'border-[var(--ink)]/10 bg-[var(--ink)]/[0.025] hover:bg-[var(--ink)]/[0.05]'}`}
                 >
-                  <span className={`absolute top-2 bottom-2 w-3 rounded-md bg-[var(--ink)]/45 ${value === 'left' ? 'left-2' : 'right-2'}`} />
+                  <span
+                    className={`absolute rounded-md bg-[var(--ink)]/45 ${
+                      value === 'left'
+                        ? 'top-2 bottom-2 left-2 w-3'
+                        : value === 'right'
+                          ? 'top-2 bottom-2 right-2 w-3'
+                          : value === 'top'
+                            ? 'left-2 right-2 top-2 h-3'
+                            : 'left-2 right-2 bottom-2 h-3'
+                    }`}
+                  />
                   <span className="text-[var(--ink)]/75 text-sm font-semibold">{label}</span>
                 </button>
               ))}
