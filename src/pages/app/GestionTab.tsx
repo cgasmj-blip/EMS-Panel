@@ -63,7 +63,6 @@ const HOSPITAL_KEYS: GestionKey[] = [
   'training',
   'checklists',
   'visitor_subjects',
-  'site',
 ]
 
 const VIEW_STORAGE_KEY = 'ems-gestion-view'
@@ -144,6 +143,7 @@ export function GestionTab() {
   const validSectionKeys = sections.map((s) => s.key)
   const employeeSections = EMPLOYEE_KEYS.map((key) => sections.find((s) => s.key === key)).filter(Boolean) as typeof sections
   const hospitalSections = HOSPITAL_KEYS.map((key) => sections.find((s) => s.key === key)).filter(Boolean) as typeof sections
+  const siteSection = sections.find((s) => s.key === 'site') ?? null
 
   const effectiveView: GestionView =
     view === 'home' || view === 'employees' || view === 'hospital' || validSectionKeys.includes(view as GestionKey)
@@ -156,11 +156,13 @@ export function GestionTab() {
       : null
 
   const parentView =
-    activeSection && EMPLOYEE_KEYS.includes(activeSection.key)
-      ? 'employees'
-      : activeSection
-        ? 'hospital'
-        : 'home'
+    activeSection?.key === 'site'
+      ? 'home'
+      : activeSection && EMPLOYEE_KEYS.includes(activeSection.key)
+        ? 'employees'
+        : activeSection
+          ? 'hospital'
+          : 'home'
 
   const renderSectionTiles = (items: typeof sections) => (
     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
@@ -209,6 +211,15 @@ export function GestionTab() {
             delay={0.04}
             onClick={() => setView('hospital')}
           />
+          {siteSection && (
+            <Tile
+              icon={siteSection.icon}
+              label={siteSection.label}
+              color="var(--tile-services)"
+              delay={0.08}
+              onClick={() => setView('site')}
+            />
+          )}
         </motion.div>
       ) : effectiveView === 'employees' || effectiveView === 'hospital' ? (
         <motion.div
