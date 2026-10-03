@@ -285,6 +285,7 @@ export interface Appointment {
 export interface Vehicle {
   id: number
   name: string
+  plate: string | null
   grade: StaffRole[] | null
   sous_grade_id: string | null
   affiliation_id: string | null
