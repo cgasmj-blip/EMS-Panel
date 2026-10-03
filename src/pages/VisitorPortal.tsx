@@ -260,6 +260,19 @@ export function VisitorPortal() {
     [siteSettings, builtInBlocks],
   )
 
+  async function connectVisitorSpace() {
+    setConnecting(true)
+    setError(null)
+    window.sessionStorage.setItem('ems-public-tab', 'suivi')
+    await signInVisitorWithDiscord()
+    setConnecting(false)
+  }
+
+  async function openVisitorSpace() {
+    window.sessionStorage.setItem('ems-public-tab', 'suivi')
+    setTab('suivi')
+  }
+
   async function connectDiscord(target: 'contact' | 'recrutement' | 'rendez_vous') {
     setConnecting(true)
     setError(null)
@@ -284,6 +297,16 @@ export function VisitorPortal() {
   }
 
   async function loadThreads() {
+    if (session && discordId) {
+      const { data, error: accountError } = await supabase.rpc('get_my_visitor_requests')
+      if (!accountError && Array.isArray(data)) {
+        const accountThreads = data as Array<{ credential: TicketCredential; data: ThreadData }>
+        setThreads(accountThreads)
+        for (const item of accountThreads) saveTicketCredential(item.credential)
+        return
+      }
+    }
+
     const credentials = readTicketCredentials()
     const rows = await Promise.all(
       credentials.map(async (credential) => {
@@ -318,7 +341,7 @@ export function VisitorPortal() {
     void loadThreads()
     const timer = window.setInterval(() => void loadThreads(), 10000)
     return () => window.clearInterval(timer)
-  }, [tab])
+  }, [tab, session?.user.id, discordId])
 
   async function submit(type: 'question' | 'recrutement' | 'rendez_vous') {
     setError(null)
@@ -412,10 +435,25 @@ export function VisitorPortal() {
             <span className="hidden sm:inline-flex"><ThemeToggle /></span>
             {staff ? (
               <Button size="sm" onClick={() => navigate('/dashboard')}><span className="hidden sm:inline">Ouvrir le panel</span><span className="sm:hidden">Panel</span></Button>
+            ) : session ? (
+              <>
+                <Button size="sm" onClick={() => void openVisitorSpace()}>
+                  {discordAvatar ? <img src={discordAvatar} alt="" className="w-5 h-5 rounded-full object-cover" /> : <MessageCircle size={14} />}
+                  <span className="hidden sm:inline">Mon espace</span><span className="sm:hidden">Espace</span>
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => void signOut()}>Déconnexion</Button>
+              </>
             ) : (
-              <Button size="sm" variant="ghost" onClick={() => void connectPanelDiscord()}>
-                <LogIn size={14} /> <span className="hidden sm:inline">Connexion EMS</span><span className="sm:hidden">Connexion</span>
-              </Button>
+              <>
+                <Button size="sm" onClick={() => void connectVisitorSpace()} disabled={connecting}>
+                  <MessageCircle size={14} />
+                  <span className="hidden sm:inline">{connecting ? 'Connexion…' : 'Se connecter à mon espace'}</span>
+                  <span className="sm:hidden">{connecting ? 'Connexion…' : 'Mon espace'}</span>
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => void connectPanelDiscord()}>
+                  <LogIn size={14} /> <span className="hidden sm:inline">Connexion EMS</span><span className="sm:hidden">EMS</span>
+                </Button>
+              </>
             )}
           </div>
         </div>
@@ -505,6 +543,27 @@ export function VisitorPortal() {
           </Card>
         ) : tab === 'suivi' ? (
           <div className="grid gap-4">
+            {session ? (
+              <Card className="p-4 sm:p-5 flex items-center gap-3">
+                {discordAvatar ? <img src={discordAvatar} alt="" className="w-11 h-11 rounded-full object-cover" /> : <span className="w-11 h-11 rounded-full bg-[var(--ink)]/10" />}
+                <div className="min-w-0 flex-1">
+                  <p className="font-bold text-sm">Mon espace visiteur</p>
+                  <p className="text-[var(--ink)]/40 text-xs truncate">{discordName || 'Compte Discord connecté'} · messages, rendez-vous et candidatures</p>
+                </div>
+                <Button size="sm" variant="ghost" onClick={() => void signOut()}>Déconnexion</Button>
+              </Card>
+            ) : (
+              <Card className="p-6 sm:p-8 text-center">
+                <MessageCircle size={28} className="mx-auto text-red-300 mb-3" />
+                <p className="font-bold">Connecte-toi à ton espace</p>
+                <p className="text-[var(--ink)]/45 text-sm mt-1 max-w-xl mx-auto">
+                  La connexion Discord permet de retrouver tes messages, tes rendez-vous et tes candidatures en cours, y compris depuis un autre appareil.
+                </p>
+                <Button className="mt-4" onClick={() => void connectVisitorSpace()} disabled={connecting}>
+                  <LogIn size={15} /> {connecting ? 'Connexion Discord…' : 'Se connecter avec Discord'}
+                </Button>
+              </Card>
+            )}
             {threads.map((item) => (
               <Card key={item.credential.public_id} className="p-5 sm:p-6">
                 <div className="flex items-start justify-between gap-3 mb-4">
@@ -534,6 +593,23 @@ export function VisitorPortal() {
                   ))}
                 </div>
 
+                {(item.data.request.status === 'refusee' || item.data.request.status === 'acceptee') && (
+                  <div className="mt-4">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setReplyByTicket((current) => ({
+                        ...current,
+                        [item.credential.public_id]: item.data.request.status === 'refusee'
+                          ? 'Bonjour, pouvez-vous m’expliquer la raison du refus de ma candidature ?'
+                          : 'Bonjour, pouvez-vous m’indiquer la suite à donner à ma candidature ?',
+                      }))}
+                    >
+                      <MessageCircle size={14} /> {item.data.request.status === 'refusee' ? 'Demander pourquoi' : 'Demander la suite'}
+                    </Button>
+                  </div>
+                )}
+
                 <div className="flex gap-2 mt-4">
                   <Input
                     value={replyByTicket[item.credential.public_id] ?? ''}
@@ -555,8 +631,8 @@ export function VisitorPortal() {
             {threads.length === 0 && (
               <Card className="p-8 text-center">
                 <History size={26} className="mx-auto text-[var(--ink)]/20 mb-3" />
-                <p className="font-semibold">Aucune demande enregistrée sur cet appareil.</p>
-                <p className="text-[var(--ink)]/35 text-xs mt-1">Tes demandes apparaîtront ici après leur envoi.</p>
+                <p className="font-semibold">{session ? 'Aucune demande liée à ce compte Discord.' : 'Aucune demande enregistrée sur cet appareil.'}</p>
+                <p className="text-[var(--ink)]/35 text-xs mt-1">{session ? 'Tes messages, rendez-vous et candidatures apparaîtront ici.' : 'Connecte-toi à ton espace pour retrouver tes demandes sur tous tes appareils.'}</p>
               </Card>
             )}
           </div>
