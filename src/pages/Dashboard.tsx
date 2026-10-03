@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type DragEvent, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
+import { useNavigate } from 'react-router-dom'
 import { CalendarClock, LayoutGrid, LogOut, Megaphone, MessageCircle, Palette, RefreshCw, Search, ShieldCheck } from 'lucide-react'
 import { useAuth } from '@/auth/AuthContext'
 import { displayRoleLabel, isAboveChirurgien, staffMatchesEligibility, supabase, type StaffRole } from '@/lib/supabase'
@@ -55,6 +56,7 @@ function getStoredView(): TabKey | 'home' {
 }
 
 export function Dashboard() {
+  const navigate = useNavigate()
   const { staff, session, signOut, signInWithDiscord } = useAuth()
   const [view, setViewState] = useState<TabKey | 'home'>(getStoredView)
   const [resyncing, setResyncing] = useState(false)
@@ -93,9 +95,15 @@ export function Dashboard() {
       && staffMatchesEligibility(staff, rule),
   )
 
+  const canHandleRecruitment = !!staff && visitorSubjectRules.some(
+    (rule) =>
+      rule.request_type === 'recrutement'
+      && staffMatchesEligibility(staff, rule),
+  )
+
   const visibleTabs = TILE_SECTIONS
     .filter((section) => {
-      if (section.key === 'candidatures') return !!staff?.affiliation_ids.includes('recruteur')
+      if (section.key === 'candidatures') return canHandleRecruitment
       if (section.key === 'visitor_rdv') return canHandleVisitorRdv
       return !section.seniorOnly || isAboveChirurgien(staff?.role)
     })
@@ -374,6 +382,13 @@ export function Dashboard() {
     return visibleTabs.includes(key as TabKey) ? (key as TabKey) : null
   }
 
+  async function handleSignOut() {
+    await signOut()
+    window.sessionStorage.removeItem('ems-auth-after')
+    window.sessionStorage.setItem('ems-public-tab', 'reglement')
+    navigate('/', { replace: true })
+  }
+
   async function handleResync() {
     setResyncing(true)
     // Re-runs the Discord OAuth flow. Since consent is already granted this
@@ -562,7 +577,7 @@ export function Dashboard() {
 
         <button
           type="button"
-          onClick={signOut}
+          onClick={() => void handleSignOut()}
           aria-label="Déconnexion"
           className="w-10 h-10 rounded-xl bg-[var(--ink)]/5 text-[var(--ink)]/60 hover:bg-[var(--ink)]/10 hover:text-[var(--ink)] transition-colors flex items-center justify-center cursor-pointer"
         >
