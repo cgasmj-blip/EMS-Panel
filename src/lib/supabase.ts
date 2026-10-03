@@ -165,6 +165,7 @@ export interface Unit {
   code: EmergencyCode | null
   vehicule: string | null
   commentaire: string | null
+  intervention: string | null
   defibrillateur: boolean
   status: DutyStatus
   created_at: string
@@ -178,6 +179,7 @@ export interface Shift {
   code: EmergencyCode | null
   vehicule: string | null
   commentaire: string | null
+  intervention: string | null
   defibrillateur: boolean
   status_label: string | null
   started_at: string
