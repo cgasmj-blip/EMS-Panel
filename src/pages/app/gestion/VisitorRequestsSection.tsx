@@ -31,9 +31,8 @@ const STATUS_OPTIONS = [
   ['en_cours', 'En cours'],
   ['repondu', 'Répondu'],
   ['ferme', 'Fermé'],
-  ['candidature_recue', 'Candidature reçue'],
-  ['verification_dossier', 'En attente de casier judiciaire'],
   ['en_attente', 'En attente'],
+  ['verification_dossier', 'En attente du casier judiciaire'],
   ['entretien', 'En attente d’entretien'],
   ['acceptee', 'Acceptée'],
   ['refusee', 'Refusée'],
@@ -71,7 +70,7 @@ export function VisitorRequestsSection({
       setError(fetchError.message)
       return
     }
-    setRequests((data ?? []) as VisitorRequest[])
+    setRequests(((data ?? []) as VisitorRequest[]).filter((request) => !(request.request_type === 'recrutement' && ['acceptee','refusee'].includes(request.status))))
   }, [typeKey])
 
   useEffect(() => {
@@ -233,7 +232,7 @@ export function VisitorRequestsSection({
               <Select value={selected.status} disabled={busy} onChange={(e) => void setStatus(selected, e.target.value)}>
                 {STATUS_OPTIONS
                   .filter(([value]) => selected.request_type === 'recrutement'
-                    ? ['candidature_recue','verification_dossier','en_attente','entretien','acceptee','refusee'].includes(value)
+                    ? ['en_attente','verification_dossier','entretien','acceptee','refusee'].includes(value)
                     : ['nouveau','en_cours','repondu','ferme'].includes(value))
                   .map(([value, label]) => <option key={value} value={value}>{label}</option>)}
               </Select>
