@@ -435,8 +435,6 @@ export function Dashboard() {
               </button>
             )
           })}
-
-          <StockAlertButton compact />
         </div>
 
         <div className="flex-1" />
@@ -477,6 +475,8 @@ export function Dashboard() {
         >
           <RefreshCw size={16} className={resyncing ? 'animate-spin' : ''} />
         </button>
+
+        <StockAlertButton compact />
 
         <button
           type="button"
