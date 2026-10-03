@@ -13,7 +13,7 @@ import { TarifsSection } from './gestion/TarifsSection'
 import { CodesSection } from './gestion/CodesSection'
 import { AideSection } from './gestion/AideSection'
 import { PayesSection } from './gestion/PayesSection'
-import { ArchiveSection } from './gestion/ArchiveSection'
+import { ManagementArchiveSection } from './gestion/ManagementArchiveSection'
 import { RdvSection } from './gestion/RdvSection'
 import { VehiclesSection } from './gestion/VehiclesSection'
 import { HistoriqueSection } from './gestion/HistoriqueSection'
@@ -22,7 +22,6 @@ import { TrainingFoldersSection } from './gestion/TrainingFoldersSection'
 import { ChecklistsSection } from './gestion/ChecklistsSection'
 import { SiteManagementSection } from './gestion/SiteManagementSection'
 import { VisitorAccessSection } from './gestion/VisitorAccessSection'
-import { RecruitmentArchiveSection } from './gestion/RecruitmentArchiveSection'
 import { RecruitmentArchiveAccessSection } from './gestion/RecruitmentArchiveAccessSection'
 
 const SECTION_CONTENT: Record<GestionKey, ReactNode> = {
@@ -33,7 +32,7 @@ const SECTION_CONTENT: Record<GestionKey, ReactNode> = {
   codes: <CodesSection />,
   aide: <AideSection />,
   payes: <PayesSection />,
-  archive: <ArchiveSection />,
+  archive: <ManagementArchiveSection />,
   rdv: <RdvSection />,
   vehicles: <VehiclesSection />,
   historique: <HistoriqueSection />,
@@ -42,7 +41,6 @@ const SECTION_CONTENT: Record<GestionKey, ReactNode> = {
   checklists: <ChecklistsSection />,
   site: <SiteManagementSection />,
   visitor_access: <VisitorAccessSection />,
-  recruitment_archive: <RecruitmentArchiveSection />,
   recruitment_archive_access: <RecruitmentArchiveAccessSection />,
 }
 
@@ -54,7 +52,6 @@ const EMPLOYEE_KEYS: GestionKey[] = [
   'absences',
   'users',
   'payes',
-  'archive',
   'historique',
   'visitor_access',
 ]
@@ -67,7 +64,6 @@ const HOSPITAL_KEYS: GestionKey[] = [
   'aide',
   'training',
   'checklists',
-  'recruitment_archive',
   'recruitment_archive_access',
 ]
 
@@ -150,6 +146,7 @@ export function GestionTab() {
   const employeeSections = EMPLOYEE_KEYS.map((key) => sections.find((s) => s.key === key)).filter(Boolean) as typeof sections
   const hospitalSections = HOSPITAL_KEYS.map((key) => sections.find((s) => s.key === key)).filter(Boolean) as typeof sections
   const siteSection = sections.find((s) => s.key === 'site') ?? null
+  const archiveSection = sections.find((s) => s.key === 'archive') ?? null
 
   const effectiveView: GestionView =
     view === 'home' || view === 'employees' || view === 'hospital' || validSectionKeys.includes(view as GestionKey)
@@ -162,7 +159,7 @@ export function GestionTab() {
       : null
 
   const parentView =
-    activeSection?.key === 'site'
+    activeSection?.key === 'site' || activeSection?.key === 'archive'
       ? 'home'
       : activeSection && EMPLOYEE_KEYS.includes(activeSection.key)
         ? 'employees'
@@ -217,12 +214,15 @@ export function GestionTab() {
             delay={0.04}
             onClick={() => setView('hospital')}
           />
+          {archiveSection && (
+            <Tile icon={archiveSection.icon} label={archiveSection.label} color={archiveSection.color} delay={0.08} onClick={() => setView('archive')} />
+          )}
           {siteSection && (
             <Tile
               icon={siteSection.icon}
               label={siteSection.label}
               color="#16a34a"
-              delay={0.08}
+              delay={0.12}
               onClick={() => setView('site')}
             />
           )}
