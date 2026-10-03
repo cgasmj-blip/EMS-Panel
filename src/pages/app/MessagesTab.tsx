@@ -51,6 +51,7 @@ export function MessagesTab() {
   const [publishing, setPublishing] = useState(false)
   const messagesScrollRef = useRef<HTMLDivElement | null>(null)
   const latestIncomingIdRef = useRef<number | null>(null)
+  const latestGroupIdRef = useRef<number | null>(null)
   const imageInputRef = useRef<HTMLInputElement | null>(null)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const recordingStreamRef = useRef<MediaStream | null>(null)
@@ -84,7 +85,14 @@ export function MessagesTab() {
 
   const selected = staff.find((person) => person.id === selectedId) ?? null
 
-  const fetchGroup = useCallback(async () => { const {data}=await supabase.from('internal_group_messages').select('*').order('created_at',{ascending:true}).limit(300); setGroupMessages((data??[]) as GroupMessageRow[]) }, [])
+  const fetchGroup = useCallback(async () => {
+    const {data}=await supabase.from('internal_group_messages').select('*').order('created_at',{ascending:true}).limit(300)
+    const rows=(data??[]) as GroupMessageRow[]
+    const latest=rows.at(-1)
+    if (latest && latestGroupIdRef.current !== null && latest.id !== latestGroupIdRef.current && latest.sender_id !== me && document.visibilityState === 'visible') playIncomingMessageTone()
+    latestGroupIdRef.current=latest?.id ?? null
+    setGroupMessages(rows)
+  }, [me, playIncomingMessageTone])
 
   const fetchPeople = useCallback(async () => {
     if (!me) return
