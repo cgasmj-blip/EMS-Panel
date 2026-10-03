@@ -4,7 +4,6 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/auth/AuthContext'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
-import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { Badge } from '@/components/ui/Badge'
 
@@ -43,26 +42,34 @@ function typeLabel(type: VisitorRequest['request_type']) {
   return 'Question'
 }
 
-export function VisitorRequestsSection() {
+export function VisitorRequestsSection({
+  types,
+  title,
+}: {
+  types: VisitorRequest['request_type'][]
+  title: string
+}) {
   const { staff } = useAuth()
   const [requests, setRequests] = useState<VisitorRequest[]>([])
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [reply, setReply] = useState('')
   const [busy, setBusy] = useState(false)
-  const [filter, setFilter] = useState<'all' | VisitorRequest['request_type']>('all')
   const [error, setError] = useState<string | null>(null)
+
+  const typeKey = types.join(',')
 
   const fetchAll = useCallback(async () => {
     const { data, error: fetchError } = await supabase
       .from('visitor_requests')
       .select('*')
+      .in('request_type', types)
       .order('created_at', { ascending: false })
     if (fetchError) {
       setError(fetchError.message)
       return
     }
     setRequests((data ?? []) as VisitorRequest[])
-  }, [])
+  }, [typeKey])
 
   useEffect(() => {
     fetchAll()
@@ -76,10 +83,7 @@ export function VisitorRequestsSection() {
   }, [fetchAll])
 
   const selected = requests.find((request) => request.id === selectedId) ?? null
-  const visible = useMemo(
-    () => filter === 'all' ? requests : requests.filter((request) => request.request_type === filter),
-    [requests, filter],
-  )
+  const visible = useMemo(() => requests, [requests])
 
   async function setStatus(request: VisitorRequest, status: string) {
     setBusy(true)
@@ -110,32 +114,36 @@ export function VisitorRequestsSection() {
     setBusy(true)
     setError(null)
 
-    const { error: insertError } = await supabase.from('visitor_request_messages').insert({
-      request_id: request.id,
-      sender: 'ems',
-      body: message,
-      staff_id: staff.id,
-    })
-
-    if (insertError) {
-      setBusy(false)
-      setError(insertError.message)
-      return
-    }
-
-    await supabase.from('visitor_requests').update({
-      status: 'repondu',
-      updated_at: new Date().toISOString(),
-    }).eq('id', request.id)
-
     if (request.discord_id) {
-      await supabase.functions.invoke('notify-visitor-request', {
+      const { error: invokeError } = await supabase.functions.invoke('notify-visitor-request', {
         body: {
           request_id: request.id,
-          status: request.status,
+          status: request.request_type === 'recrutement' ? request.status : 'repondu',
           custom_message: message,
         },
       })
+      if (invokeError) {
+        setBusy(false)
+        setError(invokeError.message)
+        return
+      }
+    } else {
+      const { error: insertError } = await supabase.from('visitor_request_messages').insert({
+        request_id: request.id,
+        sender: 'ems',
+        body: message,
+        staff_id: staff.id,
+      })
+      if (insertError) {
+        setBusy(false)
+        setError(insertError.message)
+        return
+      }
+
+      await supabase.from('visitor_requests').update({
+        status: 'repondu',
+        updated_at: new Date().toISOString(),
+      }).eq('id', request.id)
     }
 
     setReply('')
@@ -148,20 +156,10 @@ export function VisitorRequestsSection() {
       <Card className="p-4 flex flex-col min-h-0">
         <div className="flex items-center gap-2 mb-3">
           <UserRoundCheck size={16} className="text-[var(--ink)]/45" />
-          <h2 className="text-sm font-bold">Demandes visiteurs</h2>
+          <h2 className="text-sm font-bold">{title}</h2>
           <Button size="sm" variant="ghost" className="ml-auto" onClick={fetchAll}>
             <RefreshCw size={13} />
           </Button>
-        </div>
-
-        <div className="grid grid-cols-2 gap-2 mb-3">
-          <Button size="sm" variant={filter === 'all' ? 'red' : 'ghost'} onClick={() => setFilter('all')}>Toutes</Button>
-          <Select value={filter} onChange={(e) => setFilter(e.target.value as typeof filter)}>
-            <option value="all">Tous types</option>
-            <option value="question">Questions</option>
-            <option value="recrutement">Recrutement</option>
-            <option value="rendez_vous">Rendez-vous</option>
-          </Select>
         </div>
 
         <div className="flex-1 min-h-0 overflow-y-auto grid gap-2 pr-1">
