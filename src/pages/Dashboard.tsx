@@ -30,6 +30,7 @@ import { MessagesTab } from './app/MessagesTab'
 import { RecruitmentRequestsTab } from './app/RecruitmentRequestsTab'
 import { VisitorAppointmentsTab } from './app/VisitorAppointmentsTab'
 import { ProfessionalMessagesTab } from './app/ProfessionalMessagesTab'
+import { LspdTransferTab } from './app/LspdTransferTab'
 
 const TAB_CONTENT: Record<TabKey, ReactNode> = {
   services: <ServicesTab />,
@@ -47,6 +48,7 @@ const TAB_CONTENT: Record<TabKey, ReactNode> = {
   visitor_rdv: <VisitorAppointmentsTab />,
   candidatures: <RecruitmentRequestsTab />,
   professional_messages: <ProfessionalMessagesTab />,
+  lspd_transfer: <LspdTransferTab />,
 }
 
 const VIEW_STORAGE_KEY = 'ems-dashboard-view'
