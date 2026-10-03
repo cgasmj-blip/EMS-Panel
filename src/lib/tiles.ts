@@ -1,6 +1,6 @@
-import { Siren, UserX, Receipt, CalendarClock, BriefcaseBusiness, HelpCircle, History, ShieldCheck, Stethoscope, FileHeart, FolderOpen, Search, MessageCircle, UserRoundCheck, type LucideIcon } from 'lucide-react'
+import { Siren, UserX, Receipt, CalendarClock, BriefcaseBusiness, HelpCircle, History, ShieldCheck, Stethoscope, FileHeart, FolderOpen, Search, MessageCircle, UserRoundCheck, Send, type LucideIcon } from 'lucide-react'
 
-export type TabKey = 'services' | 'absence' | 'prestations' | 'agenda' | 'dossier' | 'dossier_medical' | 'formations' | 'recherche' | 'messages' | 'aide' | 'historique' | 'gestion' | 'visitor_rdv' | 'candidatures' | 'professional_messages'
+export type TabKey = 'services' | 'absence' | 'prestations' | 'agenda' | 'dossier' | 'dossier_medical' | 'formations' | 'recherche' | 'messages' | 'aide' | 'historique' | 'gestion' | 'visitor_rdv' | 'candidatures' | 'professional_messages' | 'lspd_transfer'
 
 export interface TileSection {
   key: TabKey
@@ -11,6 +11,7 @@ export interface TileSection {
 }
 
 export const TILE_SECTIONS: TileSection[] = [
+  { key: 'lspd_transfer', label: 'Liaison LSPD — Transfert de documents', icon: Send, color: 'var(--tile-services)' },
   { key: 'services', label: 'Services', icon: Siren, color: 'var(--tile-services)' },
   { key: 'absence', label: 'Absence', icon: UserX, color: 'var(--tile-absence)' },
   { key: 'prestations', label: 'Prestations', icon: Receipt, color: 'var(--tile-prestations)' },
