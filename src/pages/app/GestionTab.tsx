@@ -20,7 +20,7 @@ import { HistoriqueSection } from './gestion/HistoriqueSection'
 import { HierarchySection } from './gestion/HierarchySection'
 import { TrainingFoldersSection } from './gestion/TrainingFoldersSection'
 import { ChecklistsSection } from './gestion/ChecklistsSection'
-import { VisitorRequestsSection } from './gestion/VisitorRequestsSection'
+import { VisitorSubjectsSection } from './gestion/VisitorSubjectsSection'
 
 const SECTION_CONTENT: Record<GestionKey, ReactNode> = {
   users: <UsersSection />,
@@ -37,7 +37,7 @@ const SECTION_CONTENT: Record<GestionKey, ReactNode> = {
   hierarchy: <HierarchySection />,
   training: <TrainingFoldersSection />,
   checklists: <ChecklistsSection />,
-  visitors: <VisitorRequestsSection />,
+  visitor_subjects: <VisitorSubjectsSection />,
 }
 
 type GestionView = GestionKey | 'home' | 'employees' | 'hospital'
@@ -50,7 +50,6 @@ const EMPLOYEE_KEYS: GestionKey[] = [
   'payes',
   'archive',
   'historique',
-  'visitors',
 ]
 
 const HOSPITAL_KEYS: GestionKey[] = [
@@ -61,6 +60,7 @@ const HOSPITAL_KEYS: GestionKey[] = [
   'aide',
   'training',
   'checklists',
+  'visitor_subjects',
 ]
 
 const VIEW_STORAGE_KEY = 'ems-gestion-view'
