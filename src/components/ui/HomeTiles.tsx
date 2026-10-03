@@ -361,7 +361,7 @@ export function HomeTiles({
   return (
     <div className="flex flex-col gap-2 flex-1 min-h-0">
       <div
-        className="md:hidden grid grid-cols-2 gap-3 min-h-[120px] rounded-2xl"
+        className="md:hidden grid grid-cols-2 gap-2.5 auto-rows-[118px] rounded-2xl pb-2"
         onDragOver={(event) => {
           event.preventDefault()
           event.dataTransfer.dropEffect = 'move'
@@ -377,7 +377,7 @@ export function HomeTiles({
             key={section.key}
             draggable
             onDragStart={(event) => dragKey(event, section.key)}
-            className={cn('relative h-full cursor-grab active:cursor-grabbing', section.key === 'services' && 'col-span-2')}
+            className={cn('relative min-h-0 cursor-grab active:cursor-grabbing', section.key === 'services' && 'col-span-2')}
           >
             <Tile
               icon={section.icon}
@@ -386,7 +386,7 @@ export function HomeTiles({
               color={tileColors[section.key] ?? section.color}
               big={section.key === 'services'}
               delay={i * 0.04}
-              className={cn('w-full h-full', tileRadius)}
+              className={cn('w-full h-full min-h-0', tileRadius)}
               onClick={() => openSection(section.key)}
             />
           </div>
