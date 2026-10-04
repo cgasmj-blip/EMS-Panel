@@ -3,7 +3,7 @@ import { Bone, CalendarCheck, CheckCircle2, FileBadge, FileCheck2, FileClock, Fi
 
 const folders = [
   { key: 'veterinary_followup', label: 'Suivi vétérinaire', detail: 'Prénom de l’animal + document', subject: 'animal', reference: false, fileRequired: true, access: 'Vétérinaire', icon: Bone },
-  { key: 'periodic_medical_visit', label: 'Visite médicale périodique', detail: 'Nom, prénom + document', subject: 'person', reference: false, fileRequired: true, access: 'Médecin', icon: CalendarCheck },
+  { key: 'periodic_medical_visit', label: 'Visite médicale périodique', detail: 'Nom, prénom + document', subject: 'person', reference: false, fileRequired: true, access: 'Tous les EMS', icon: CalendarCheck },
   { key: 'cas', label: 'C.A.S.', detail: 'Nom, prénom + document', subject: 'person', reference: false, fileRequired: true, access: 'APU + affiliation C.A.S.', icon: FileBadge },
   { key: 'cappa', label: 'C.A.P.P.A.', detail: 'Nom, prénom + document', subject: 'person', reference: false, fileRequired: true, access: 'AU + affiliation C.A.P.P.A.', icon: FileCheck2 },
   { key: 'work_stoppage', label: 'Arrêt de travail', detail: 'Nom, prénom + document', subject: 'person', reference: false, fileRequired: true, access: 'Tous les EMS', icon: FileClock },
@@ -78,6 +78,7 @@ export function LspdTransferTab() {
     window.setTimeout(() => setSuccess(null), 4500)
   }
 
+  function removeDocumentSend(id: string) { if (!window.confirm('Supprimer définitivement cet envoi ?')) return; deleteDraft(id); setRevision((value) => value + 1) }
   function removeDirectionMessage(id: string) { if (!window.confirm('Supprimer ce message pour les deux services ?')) return; deleteDraft(id); setRevision((value) => value + 1) }
 
   async function simulateDirectionSend(event: FormEvent) {
@@ -139,10 +140,13 @@ export function LspdTransferTab() {
             <p className="mb-4 font-bold text-[var(--ink)]">Historique — {current.label}</p>
             <div className="max-h-[430px] space-y-2 overflow-y-auto">
               {history.map((item) => (
-                <div key={item.id} className="rounded-xl border border-[var(--ink)]/8 bg-[var(--bg)] p-3">
-                  <div className="flex justify-between gap-2">
+                <div key={item.id} className="group relative rounded-xl border border-[var(--ink)]/8 bg-[var(--bg)] p-3">
+                  <div className="flex items-start justify-between gap-2">
                     <span className="text-sm font-semibold">{item.summary}</span>
-                    <span className="text-[10px] text-[var(--ink)]/35">{new Date(item.createdAt).toLocaleString('fr-FR')}</span>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <span className="text-[10px] text-[var(--ink)]/35">{new Date(item.createdAt).toLocaleString('fr-FR')}</span>
+                      <button type="button" onClick={() => removeDocumentSend(item.id)} className="rounded-lg p-1.5 text-[var(--ink)]/35 transition hover:bg-red/10 hover:text-red" title="Supprimer cet envoi" aria-label="Supprimer cet envoi"><Trash2 size={14}/></button>
+                    </div>
                   </div>
                   {item.images && item.images.length > 0 && <div className="mt-2 flex flex-wrap gap-2">{item.images.map((image) => <button key={image.name} type="button" onClick={() => setPreviewImage(image.dataUrl)} className="overflow-hidden rounded-lg border border-[var(--ink)]/10"><img src={image.dataUrl} alt={image.name} className="h-20 w-24 object-cover"/></button>)}</div>}
                   {item.files.length > 0 && <p className="mt-1 text-xs text-[var(--ink)]/45">{item.files.join(' • ')}</p>}
