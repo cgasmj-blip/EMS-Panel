@@ -76,6 +76,7 @@ export function Dashboard() {
   const [recentMessages, setRecentMessages] = useState<Array<{ id:number; sender_id:string; sender_name:string; body:string; media_type:string|null; created_at:string }>>([])
   const [recentStockAlerts, setRecentStockAlerts] = useState<Array<{ id:number; item_key:string; quantity_remaining:number|null; note:string|null; created_at:string }>>([])
   const [recentLspdMessages, setRecentLspdMessages] = useState<Array<{ id:string; sender_display_name:string|null; body:string|null; created_at:string; files?: unknown[] }>>([])
+  const [recentCriminalRecordReplies, setRecentCriminalRecordReplies] = useState<Array<{ id:string; subject_first_name:string|null; subject_last_name:string|null; created_at:string }>>([])
   const [latestAnnouncements, setLatestAnnouncements] = useState<{ id: number; title: string; body: string; created_at: string }[]>([])
   const [nextAppointment, setNextAppointment] = useState<{ scheduled_at: string; title: string | null; type: string } | null>(null)
   const previousUnreadRef = useRef<number | null>(null)
@@ -239,6 +240,9 @@ export function Dashboard() {
         const response = await fetch('https://pvahrnrtivzbkipborcd.supabase.co/functions/v1/ems-lspd-send', { headers: { Authorization: 'Bearer ' + bridgeSession.access_token } })
         const payload = await response.json()
         if (response.ok) setRecentLspdMessages((payload.items ?? []).filter((item: any) => item.sender_service === 'LSPD').slice(0, 12))
+        const recordResponse = await fetch('https://pvahrnrtivzbkipborcd.supabase.co/functions/v1/ems-lspd-send?notifications=1', { headers: { Authorization: 'Bearer ' + bridgeSession.access_token } })
+        const recordPayload = await recordResponse.json()
+        if (recordResponse.ok) setRecentCriminalRecordReplies((recordPayload.items ?? []).slice(0, 12))
       }
     } catch { /* Le centre continue de fonctionner si la liaison LSPD est temporairement indisponible. */ }
     const senderIds = [...new Set((messageRows ?? []).map((item) => item.sender_id).filter(Boolean))]
@@ -446,6 +450,7 @@ export function Dashboard() {
 
   const allNotificationItems = [
     ...recentLspdMessages.map((item) => ({ id: `lspd-direction-${item.id}`, kind: 'lspd' as const, title: 'Nouveau message — Direction LSPD', detail: item.body || 'Pièce jointe reçue du LSPD', created_at: item.created_at, target: 'lspd_transfer' as TabKey })),
+    ...recentCriminalRecordReplies.map((item) => ({ id: `lspd-criminal-record-${item.id}`, kind: 'lspd' as const, title: `Casier judiciaire reçu${item.subject_last_name || item.subject_first_name ? ` — ${[item.subject_last_name, item.subject_first_name].filter(Boolean).join(' ')}` : ''}`, detail: 'Le LSPD a répondu à une demande de casier judiciaire.', created_at: item.created_at, target: 'lspd_transfer' as TabKey })),
     ...recentMessages.map((item) => ({ id: `message-${item.id}`, kind: 'message' as const, title: `Nouveau message — ${item.sender_name}`, detail: item.body || (item.media_type === 'image' ? 'Image reçue' : item.media_type === 'audio' ? 'Message vocal reçu' : 'Nouveau message'), created_at: item.created_at, target: 'messages' as TabKey })),
     ...latestAnnouncements.map((item) => ({ id: `announcement-${item.id}`, kind: 'announcement' as const, title: item.title, detail: item.body, created_at: item.created_at, target: 'messages' as TabKey })),
     ...recentStockAlerts.map((item) => ({ id: `stock-${item.id}`, kind: 'stock' as const, title: 'Alerte stock', detail: `${item.item_key}${item.quantity_remaining != null ? ` — reste ${item.quantity_remaining}` : ''}${item.note ? ` · ${item.note}` : ''}`, created_at: item.created_at, target: 'gestion' as TabKey })),
@@ -611,7 +616,7 @@ export function Dashboard() {
         <div className="flex-1" />
 
         <div className={cn('flex items-center gap-1.5', sidebarHorizontal ? 'flex-row' : 'flex-col')}>
-          <button type="button" onClick={openNotifications} className="relative w-10 h-10 rounded-xl bg-[var(--ink)]/5 text-[var(--ink)]/60 hover:bg-[var(--ink)]/10 hover:text-[var(--ink)] transition-colors flex items-center justify-center cursor-pointer" title="Centre de notifications" aria-label="Centre de notifications">
+          <button type="button" onClick={openNotifications} className={cn('relative w-10 h-10 rounded-xl transition-colors flex items-center justify-center cursor-pointer', unreadNotifications > 0 ? 'bg-red/15 text-red ring-2 ring-red/70 animate-pulse shadow-[0_0_16px_rgba(239,68,68,0.55)]' : 'bg-[var(--ink)]/5 text-[var(--ink)]/60 hover:bg-[var(--ink)]/10 hover:text-[var(--ink)]')} title="Centre de notifications" aria-label="Centre de notifications">
             <Bell size={17} />
             {unreadNotifications > 0 && <span className="absolute -top-1.5 -right-1.5 min-w-5 h-5 px-1 rounded-full bg-red text-white text-[10px] font-bold flex items-center justify-center border-2 border-[var(--sidebar-bg)]">{unreadNotifications > 99 ? '99+' : unreadNotifications}</span>}
           </button>
@@ -676,7 +681,7 @@ export function Dashboard() {
         <CodeBlancAlertButton />
         <CodeRougeAlertButton />
         <StockAlertButton compact />
-        <button type="button" onClick={openNotifications} className="relative w-10 h-10 rounded-xl bg-[var(--ink)]/5 text-[var(--ink)]/60 flex items-center justify-center" aria-label="Centre de notifications"><Bell size={17}/>{unreadNotifications > 0 && <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-red text-white text-[9px] font-bold flex items-center justify-center">{unreadNotifications > 99 ? '99+' : unreadNotifications}</span>}</button>
+        <button type="button" onClick={openNotifications} className={cn('relative w-10 h-10 rounded-xl flex items-center justify-center', unreadNotifications > 0 ? 'bg-red/15 text-red ring-2 ring-red/70 animate-pulse shadow-[0_0_16px_rgba(239,68,68,0.55)]' : 'bg-[var(--ink)]/5 text-[var(--ink)]/60')} aria-label="Centre de notifications"><Bell size={17}/>{unreadNotifications > 0 && <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-red text-white text-[9px] font-bold flex items-center justify-center">{unreadNotifications > 99 ? '99+' : unreadNotifications}</span>}</button>
       </div>
 
       <nav
