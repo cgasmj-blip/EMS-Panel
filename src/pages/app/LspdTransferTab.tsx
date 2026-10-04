@@ -19,22 +19,9 @@ type Draft = { id: string; senderId?: string; kind: string; summary: string; fil
 
 const TILE_COLORS = ['bg-blue-900', 'bg-indigo-900', 'bg-slate-900', 'bg-blue-800', 'bg-indigo-950', 'bg-sky-900', 'bg-blue-950', 'bg-slate-800'] as const
 
-function readImage(file: File) {
-  return new Promise<{ name: string; dataUrl: string }>((resolve) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve({ name: file.name, dataUrl: String(reader.result ?? '') })
-    reader.readAsDataURL(file)
-  })
-}
-
 const OUTBOX_KEY = 'ems-lspd-outbox'
 
 function deleteDraft(id: string) { const existing = JSON.parse(window.localStorage.getItem(OUTBOX_KEY) || '[]') as Draft[]; window.localStorage.setItem(OUTBOX_KEY, JSON.stringify(existing.filter((item) => item.id !== id))) }
-
-function saveDraft(draft: Draft) {
-  const existing = JSON.parse(window.localStorage.getItem(OUTBOX_KEY) || '[]') as Draft[]
-  window.localStorage.setItem(OUTBOX_KEY, JSON.stringify([draft, ...existing].slice(0, 100)))
-}
 
 export function LspdTransferTab() {
   const { session, staff } = useAuth()
@@ -82,7 +69,6 @@ export function LspdTransferTab() {
   }
 
   function removeDocumentSend(id: string) { if (!window.confirm('Supprimer définitivement cet envoi ?')) return; deleteDraft(id); setRevision((value) => value + 1) }
-  function removeDirectionMessage(id: string) { if (!window.confirm('Supprimer ce message pour les deux services ?')) return; deleteDraft(id); setRevision((value) => value + 1) }
 
   async function simulateDirectionSend(event: FormEvent) {
     event.preventDefault()
