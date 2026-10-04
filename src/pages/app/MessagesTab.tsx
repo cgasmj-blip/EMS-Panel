@@ -57,6 +57,7 @@ export function MessagesTab() {
   const recordingStreamRef = useRef<MediaStream | null>(null)
   const recordingChunksRef = useRef<Blob[]>([])
   const recordingStartedAtRef = useRef<number>(0)
+  const playingAudioIdsRef = useRef<Set<number>>(new Set())
   const [recording, setRecording] = useState(false)
   const [mediaError, setMediaError] = useState<string | null>(null)
 
@@ -181,7 +182,22 @@ export function MessagesTab() {
       }),
     )
 
-    setMessages(withUrls)
+    setMessages((previous) => {
+      const previousById = new Map(previous.map((message) => [message.id, message]))
+      return withUrls.map((message) => {
+        const existing = previousById.get(message.id)
+        if (!existing) return message
+        // Keep the exact media URL while a vocal is playing so React does not reload the audio element.
+        if (playingAudioIdsRef.current.has(message.id) && existing.media_url) {
+          return { ...message, media_url: existing.media_url }
+        }
+        // Reuse unchanged signed URLs between polls to avoid needlessly reloading media.
+        if (existing.media_path === message.media_path && existing.media_url) {
+          return { ...message, media_url: existing.media_url }
+        }
+        return message
+      })
+    })
 
     await supabase
       .from('internal_messages')
@@ -574,7 +590,15 @@ export function MessagesTab() {
                       )}
                       {message.media_type === 'audio' && message.media_url && (
                         <div className="mt-1 min-w-[220px]">
-                          <audio controls preload="metadata" src={message.media_url} className="w-full h-10" />
+                          <audio
+                            controls
+                            preload="metadata"
+                            src={message.media_url}
+                            className="w-full h-10"
+                            onPlay={() => playingAudioIdsRef.current.add(message.id)}
+                            onPause={() => playingAudioIdsRef.current.delete(message.id)}
+                            onEnded={() => playingAudioIdsRef.current.delete(message.id)}
+                          />
                           <p className={mine ? 'text-white/60 text-[10px] mt-1' : 'text-[var(--ink)]/40 text-[10px] mt-1'}>
                             Message vocal{message.media_duration_seconds ? ` · ${message.media_duration_seconds}s` : ''}
                           </p>
