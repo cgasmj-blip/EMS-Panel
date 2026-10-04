@@ -478,7 +478,7 @@ export function ServicesTab() {
   if (!staff) return null
 
   const eligibleVehicles = vehicles.filter((v) => staffMatchesEligibility(staff, v))
-  const selectableVehicles = eligibleVehicles.filter((v) => !occupiedVehicles.has(v.name) || v.name === vehicule)
+  const selectableVehicles = eligibleVehicles.filter((v) => !occupiedVehicles.has(v.name))
 
   return (
     <div className="flex flex-col gap-6">
@@ -703,8 +703,12 @@ export function ServicesTab() {
                 <p className="text-[var(--ink)]/40 text-xs mb-1">
                   {unit.sector ? `Lieu : ${unit.sector} · ` : ''}
                   Début : {formatTime(unit.created_at)} · {teamLabel(members.length)}
-                  {unit.vehicule ? ` · Véhicule : ${vehicleLabel(unit.vehicule)}` : ''}
                 </p>
+                {unit.vehicule && (
+                  <div className="mt-1.5 mb-1">
+                    <Badge variant="cyan">{`🚑 ${vehicleLabel(unit.vehicule)}`}</Badge>
+                  </div>
+                )}
                 {unit.intervention && <p className="text-[var(--ink)]/55 text-xs mb-1">Intervention : {unit.intervention}</p>}
                 {unit.commentaire && <p className="text-[var(--ink)]/50 text-xs mb-1 italic">{unit.commentaire}</p>}
                 <div className="flex flex-col gap-1">
