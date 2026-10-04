@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/auth/AuthContext'
 import { Bone, CalendarCheck, CheckCircle2, FileBadge, FileCheck2, FileClock, FileText, ArrowLeft, ImagePlus, MessageSquareText, Paperclip, Trash2, Receipt, Send, ShieldCheck } from 'lucide-react'
@@ -51,11 +51,15 @@ export function LspdTransferTab() {
   const [success, setSuccess] = useState<string | null>(null)
   const [revision, setRevision] = useState(0)
   const [previewImage, setPreviewImage] = useState<string | null>(null)
+  const [bridgeDirection, setBridgeDirection] = useState<any[]>([])
 
   const current = useMemo(() => folders.find((folder) => folder.key === selected) ?? null, [selected])
   const currentTileColor = current ? TILE_COLORS[folders.findIndex((folder) => folder.key === current.key) % TILE_COLORS.length] : 'bg-blue-950'
   const history = useMemo(() => selected ? (JSON.parse(window.localStorage.getItem(OUTBOX_KEY) || '[]') as Draft[]).filter((item) => item.kind === selected) : [], [selected, revision])
-  const directionHistory = useMemo(() => (JSON.parse(window.localStorage.getItem(OUTBOX_KEY) || '[]') as Draft[]).filter((item) => item.kind === 'direction_message').reverse(), [revision])
+  const directionHistory = bridgeDirection
+
+  async function loadDirectionHistory(){ const {data:{session}}=await supabase.auth.getSession(); if(!session)return; try{const r=await fetch('https://pvahrnrtivzbkipborcd.supabase.co/functions/v1/ems-lspd-send',{headers:{Authorization:'Bearer '+session.access_token}});const data=await r.json();if(r.ok)setBridgeDirection(data.items||[])}catch{} }
+  useEffect(()=>{if(directionOpen)void loadDirectionHistory()},[directionOpen,revision])
 
   function resetDocumentForm() {
     setFirstName(''); setLastName(''); setAnimalName(''); setReference(''); setFiles([])
@@ -89,7 +93,7 @@ export function LspdTransferTab() {
     if(error||data?.error){setSuccess(`Erreur d’envoi : ${data?.error||error?.message||'inconnue'}`);return}
     setSuccess('Message Direction envoyé au LSPD.')
     setRevision((value) => value + 1)
-    setDirectionText(''); setDirectionFiles([])
+    setDirectionText(''); setDirectionFiles([]); await loadDirectionHistory()
     window.setTimeout(() => setSuccess(null), 4500)
   }
 
@@ -192,7 +196,7 @@ export function LspdTransferTab() {
             <div><p className="font-bold text-[var(--ink)]">Direction LSPD</p><p className="text-xs text-[var(--ink)]/45">Liaison interservices</p></div>
           </div>
           <div className="flex-1 space-y-3 overflow-y-auto p-4">
-            {directionHistory.map((item) => <div key={item.id} className="group relative ml-auto max-w-[80%] rounded-2xl rounded-br-md bg-red px-4 py-2.5 text-white">{canDeleteDraft(item) && <button type="button" onClick={() => removeDirectionMessage(item.id)} className="absolute -left-9 top-2 rounded-lg p-2 text-[var(--ink)]/40 opacity-0 transition hover:text-red group-hover:opacity-100" title="Supprimer pour les deux services"><Trash2 size={15}/></button>}<p className="whitespace-pre-wrap text-sm">{item.summary}</p>{item.images && item.images.length > 0 && <div className="mt-2 flex flex-wrap gap-2">{item.images.map((image) => <button key={image.name} type="button" onClick={() => setPreviewImage(image.dataUrl)} className="overflow-hidden rounded-lg border border-white/20"><img src={image.dataUrl} alt={image.name} className="h-24 w-28 object-cover"/></button>)}</div>}{item.files.length > 0 && <p className="mt-1 text-xs text-white/70">{item.files.join(' • ')}</p>}<p className="mt-1 text-right text-[10px] text-white/60">{new Date(item.createdAt).toLocaleString('fr-FR')}</p></div>)}
+            {directionHistory.map((item:any) => {const mine=item.sender_service==='EMS';return <div key={item.id} className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-white ${mine?'ml-auto rounded-br-md bg-red':'mr-auto rounded-bl-md bg-slate-800'}`}><p className="mb-1 text-[10px] text-white/60">{item.sender_service} · {item.sender_display_name||'Expéditeur'}</p>{item.body&&<p className="whitespace-pre-wrap text-sm">{item.body}</p>}{item.files?.length>0&&<div className="mt-2 flex flex-wrap gap-2">{item.files.map((file:any)=>file.mime_type?.startsWith('image/')?<button key={file.id} type="button" onClick={()=>setPreviewImage(file.url)} className="overflow-hidden rounded-lg border border-white/20"><img src={file.url} alt={file.original_name} className="h-24 w-28 object-cover"/></button>:<a key={file.id} href={file.url} target="_blank" rel="noreferrer" className="text-xs underline">{file.original_name}</a>)}</div>}<p className="mt-1 text-right text-[10px] text-white/60">{new Date(item.created_at).toLocaleString('fr-FR')}</p></div>})}
             {directionHistory.length === 0 && <p className="pt-12 text-center text-sm text-[var(--ink)]/35">Aucun message pour le moment.</p>}
           </div>
           {directionFiles.length > 0 && <div className="border-t border-[var(--ink)]/8 px-4 py-2 text-xs text-[var(--ink)]/50">{directionFiles.map(file => file.name).join(' • ')}</div>}
