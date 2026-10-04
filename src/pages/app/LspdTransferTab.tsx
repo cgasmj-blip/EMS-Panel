@@ -40,8 +40,8 @@ export function LspdTransferTab() {
 
   async function loadDirectionHistory(){ const {data:{session}}=await supabase.auth.getSession(); if(!session)return; try{const r=await fetch('https://pvahrnrtivzbkipborcd.supabase.co/functions/v1/ems-lspd-send',{headers:{Authorization:'Bearer '+session.access_token}});const data=await r.json();if(r.ok)setBridgeDirection(data.items||[])}catch{} }
   async function loadTransferHistory(){if(!selected)return;const {data:{session}}=await supabase.auth.getSession();if(!session)return;try{const r=await fetch('https://pvahrnrtivzbkipborcd.supabase.co/functions/v1/ems-lspd-send?category='+encodeURIComponent(selected),{headers:{Authorization:'Bearer '+session.access_token}});const data=await r.json();if(r.ok)setBridgeHistory(data.items||[])}catch{}}
-  useEffect(()=>{if(directionOpen)void loadDirectionHistory()},[directionOpen,revision])
-  useEffect(()=>{if(selected)void loadTransferHistory();else setBridgeHistory([])},[selected,revision])
+  useEffect(()=>{if(!directionOpen)return;void loadDirectionHistory();const timer=window.setInterval(()=>void loadDirectionHistory(),2000);return()=>window.clearInterval(timer)},[directionOpen,revision])
+  useEffect(()=>{if(!selected){setBridgeHistory([]);return}void loadTransferHistory();const timer=window.setInterval(()=>void loadTransferHistory(),3000);return()=>window.clearInterval(timer)},[selected,revision])
 
   function resetDocumentForm() {
     setFirstName(''); setLastName(''); setAnimalName(''); setReference(''); setFiles([])
