@@ -197,7 +197,11 @@ export function ServicesTab() {
     setIntervention(unit.intervention ?? '')
   }, [staff?.unit_id, unitsById, detailsDirty])
 
-  const activeUnits = useMemo(() => units.filter((u) => roster.some((s) => s.unit_id === u.id)), [units, roster])
+  const activeUnits = useMemo(() => units.filter((u) => roster.some((s) => s.unit_id === u.id && s.status !== 'hors_service')), [units, roster])
+  const occupiedVehicles = useMemo(
+    () => new Set(activeUnits.filter((u) => u.id !== staff?.unit_id && u.vehicule).map((u) => u.vehicule as string)),
+    [activeUnits, staff?.unit_id],
+  )
 
   const sortedRoster = useMemo(
     () => [...roster].sort((a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status] || a.full_name.localeCompare(b.full_name)),
@@ -347,13 +351,18 @@ export function ServicesTab() {
           staff_id: staff.id,
           unit_name: unit.name,
           sector: unit.sector,
+          vehicule: unit.vehicule,
+          code: unit.code,
+          commentaire: unit.commentaire,
+          intervention: unit.intervention,
+          defibrillateur: unit.defibrillateur,
           status_label: 'en_service',
           started_at: startedAt,
         })
       } else {
         await supabase
           .from('shifts')
-          .update({ status_label: 'en_service', unit_name: unit.name, sector: unit.sector })
+          .update({ status_label: 'en_service', unit_name: unit.name, sector: unit.sector, vehicule: unit.vehicule, code: unit.code, commentaire: unit.commentaire, intervention: unit.intervention, defibrillateur: unit.defibrillateur })
           .eq('staff_id', staff.id)
           .is('ended_at', null)
       }
@@ -398,6 +407,24 @@ export function ServicesTab() {
         .eq('staff_id', staff.id)
         .is('ended_at', null)
       if (shiftError) throw new Error(shiftError.message)
+
+      const memberIds = roster.filter((member) => member.unit_id === staff.unit_id).map((member) => member.id)
+      if (memberIds.length > 0) {
+        const { error: unitShiftError } = await supabase
+          .from('shifts')
+          .update({
+            unit_name: patch.name,
+            sector: patch.sector,
+            code: patch.code,
+            vehicule: patch.vehicule,
+            defibrillateur: patch.defibrillateur,
+            commentaire: patch.commentaire,
+            intervention: patch.intervention,
+          })
+          .in('staff_id', memberIds)
+          .is('ended_at', null)
+        if (unitShiftError) throw new Error(unitShiftError.message)
+      }
 
       setDetailsDirty(false)
       await fetchAll()
@@ -451,6 +478,7 @@ export function ServicesTab() {
   if (!staff) return null
 
   const eligibleVehicles = vehicles.filter((v) => staffMatchesEligibility(staff, v))
+  const selectableVehicles = eligibleVehicles.filter((v) => !occupiedVehicles.has(v.name) || v.name === vehicule)
 
   return (
     <div className="flex flex-col gap-6">
@@ -519,7 +547,7 @@ export function ServicesTab() {
                 }}
               >
                 <option value="">— Aucun / non renseigné —</option>
-                {eligibleVehicles.map((v) => (
+                {selectableVehicles.map((v) => (
                   <option key={v.id} value={v.name}>
                     {v.plate ? v.name + ' · ' + v.plate : v.name}
                   </option>
