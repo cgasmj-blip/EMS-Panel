@@ -18,7 +18,6 @@ type FolderKey = (typeof folders)[number]['key']
 const TILE_COLORS = ['bg-blue-900', 'bg-indigo-900', 'bg-slate-900', 'bg-blue-800', 'bg-indigo-950', 'bg-sky-900', 'bg-blue-950', 'bg-slate-800'] as const
 
 export function LspdTransferTab() {
-  useAuth()
   const [selected, setSelected] = useState<FolderKey | null>(null)
   const [directionOpen, setDirectionOpen] = useState(false)
   const [firstName, setFirstName] = useState('')
