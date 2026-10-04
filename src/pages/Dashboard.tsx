@@ -68,7 +68,7 @@ export function Dashboard() {
   const [unreadMessages, setUnreadMessages] = useState(0)
   const [showNotifications, setShowNotifications] = useState(false)
   const [notificationSeenAt, setNotificationSeenAt] = useState(() => window.localStorage.getItem('ems-notifications-seen-at') ?? '')
-  const [recentMessages, setRecentMessages] = useState<Array<{ id:number; sender_id:string; body:string; media_type:string|null; created_at:string }>>([])
+  const [recentMessages, setRecentMessages] = useState<Array<{ id:number; sender_id:string; sender_name:string; body:string; media_type:string|null; created_at:string }>>([])
   const [recentStockAlerts, setRecentStockAlerts] = useState<Array<{ id:number; item_key:string; quantity_remaining:number|null; note:string|null; created_at:string }>>([])
   const [latestAnnouncements, setLatestAnnouncements] = useState<{ id: number; title: string; body: string; created_at: string }[]>([])
   const [nextAppointment, setNextAppointment] = useState<{ scheduled_at: string; title: string | null; type: string } | null>(null)
@@ -227,7 +227,12 @@ export function Dashboard() {
     setUnreadMessages(nextUnread)
     setLatestAnnouncements(nextAnnouncements)
     setNextAppointment(appointment ?? null)
-    setRecentMessages((messageRows ?? []) as Array<{ id:number; sender_id:string; body:string; media_type:string|null; created_at:string }>)
+    const senderIds = [...new Set((messageRows ?? []).map((item) => item.sender_id).filter(Boolean))]
+    const { data: senders } = senderIds.length
+      ? await supabase.from('staff').select('id,full_name').in('id', senderIds)
+      : { data: [] as Array<{ id:string; full_name:string }> }
+    const senderNames = new Map((senders ?? []).map((sender) => [sender.id, sender.full_name]))
+    setRecentMessages((messageRows ?? []).map((item) => ({ ...item, sender_name: senderNames.get(item.sender_id) ?? 'EMS' })) as Array<{ id:number; sender_id:string; sender_name:string; body:string; media_type:string|null; created_at:string }>)
     setRecentStockAlerts((stockRows ?? []) as Array<{ id:number; item_key:string; quantity_remaining:number|null; note:string|null; created_at:string }>)
   }, [session?.user.id, playTone])
 
@@ -426,7 +431,7 @@ export function Dashboard() {
   }
 
   const notificationItems = [
-    ...recentMessages.map((item) => ({ id: `message-${item.id}`, kind: 'message' as const, title: 'Nouveau message EMS', detail: item.body || (item.media_type === 'image' ? 'Image reçue' : item.media_type === 'audio' ? 'Message vocal reçu' : 'Nouveau message'), created_at: item.created_at, target: 'messages' as TabKey })),
+    ...recentMessages.map((item) => ({ id: `message-${item.id}`, kind: 'message' as const, title: `Nouveau message — ${item.sender_name}`, detail: item.body || (item.media_type === 'image' ? 'Image reçue' : item.media_type === 'audio' ? 'Message vocal reçu' : 'Nouveau message'), created_at: item.created_at, target: 'messages' as TabKey })),
     ...latestAnnouncements.map((item) => ({ id: `announcement-${item.id}`, kind: 'announcement' as const, title: item.title, detail: item.body, created_at: item.created_at, target: 'messages' as TabKey })),
     ...recentStockAlerts.map((item) => ({ id: `stock-${item.id}`, kind: 'stock' as const, title: 'Alerte stock', detail: `${item.item_key}${item.quantity_remaining != null ? ` — reste ${item.quantity_remaining}` : ''}${item.note ? ` · ${item.note}` : ''}`, created_at: item.created_at, target: 'gestion' as TabKey })),
     ...(nextAppointment ? [{ id: `appointment-${nextAppointment.scheduled_at}`, kind: 'appointment' as const, title: 'Prochain rendez-vous', detail: nextAppointment.title || nextAppointment.type, created_at: nextAppointment.scheduled_at, target: 'agenda' as TabKey }] : []),
