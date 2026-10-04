@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { supabase } from '@/lib/supabase'
-import { useAuth } from '@/auth/AuthContext'
 import { Bone, CalendarCheck, CheckCircle2, FileBadge, FileCheck2, FileClock, FileText, ArrowLeft, ImagePlus, MessageSquareText, Paperclip, Trash2, Receipt, Send, ShieldCheck } from 'lucide-react'
 
 const folders = [
@@ -15,17 +14,11 @@ const folders = [
 ] as const
 
 type FolderKey = (typeof folders)[number]['key']
-type Draft = { id: string; senderId?: string; kind: string; summary: string; files: string[]; images?: { name: string; dataUrl: string }[]; createdAt: string }
 
 const TILE_COLORS = ['bg-blue-900', 'bg-indigo-900', 'bg-slate-900', 'bg-blue-800', 'bg-indigo-950', 'bg-sky-900', 'bg-blue-950', 'bg-slate-800'] as const
 
-const OUTBOX_KEY = 'ems-lspd-outbox'
-
-function deleteDraft(id: string) { const existing = JSON.parse(window.localStorage.getItem(OUTBOX_KEY) || '[]') as Draft[]; window.localStorage.setItem(OUTBOX_KEY, JSON.stringify(existing.filter((item) => item.id !== id))) }
-
 export function LspdTransferTab() {
-  const { session, staff } = useAuth()
-  const canDeleteDraft = (item: Draft) => staff?.role === 'directeur' || (!!item.senderId && item.senderId === session?.user.id)
+  useAuth()
   const [selected, setSelected] = useState<FolderKey | null>(null)
   const [directionOpen, setDirectionOpen] = useState(false)
   const [firstName, setFirstName] = useState('')
@@ -71,7 +64,6 @@ export function LspdTransferTab() {
     window.setTimeout(() => setSuccess(null), 4500)
   }
 
-  function removeDocumentSend(id: string) { if (!window.confirm('Supprimer définitivement cet envoi ?')) return; deleteDraft(id); setRevision((value) => value + 1) }
 
   async function simulateDirectionSend(event: FormEvent) {
     event.preventDefault()
