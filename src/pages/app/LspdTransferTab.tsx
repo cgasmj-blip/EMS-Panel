@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent } from 'react'
-import { Bone, CalendarCheck, CheckCircle2, FileBadge, FileCheck2, FileClock, FileText, ArrowLeft, ImagePlus, MessageSquareText, Paperclip, Receipt, Send, ShieldCheck } from 'lucide-react'
+import { Bone, CalendarCheck, CheckCircle2, FileBadge, FileCheck2, FileClock, FileText, ArrowLeft, ImagePlus, MessageSquareText, Paperclip, Trash2, Receipt, Send, ShieldCheck } from 'lucide-react'
 
 const folders = [
   { key: 'veterinary_followup', label: 'Suivi vétérinaire', detail: 'Prénom de l’animal + document', subject: 'animal', reference: false, fileRequired: true, access: 'Vétérinaire', icon: Bone },
@@ -26,6 +26,8 @@ function readImage(file: File) {
 }
 
 const OUTBOX_KEY = 'ems-lspd-outbox'
+
+function deleteDraft(id: string) { const existing = JSON.parse(window.localStorage.getItem(OUTBOX_KEY) || '[]') as Draft[]; window.localStorage.setItem(OUTBOX_KEY, JSON.stringify(existing.filter((item) => item.id !== id))) }
 
 function saveDraft(draft: Draft) {
   const existing = JSON.parse(window.localStorage.getItem(OUTBOX_KEY) || '[]') as Draft[]
@@ -76,14 +78,18 @@ export function LspdTransferTab() {
     window.setTimeout(() => setSuccess(null), 4500)
   }
 
-  function simulateDirectionSend(event: FormEvent) {
+  function removeDirectionMessage(id: string) { if (!window.confirm('Supprimer ce message pour les deux services ?')) return; deleteDraft(id); setRevision((value) => value + 1) }
+
+  async function simulateDirectionSend(event: FormEvent) {
     event.preventDefault()
     if (!directionText.trim() && directionFiles.length === 0) return
+    const images = await Promise.all(directionFiles.filter((file) => file.type.startsWith('image/')).map(readImage))
     saveDraft({
       id: crypto.randomUUID(),
       kind: 'direction_message',
       summary: directionText.trim() || 'Pièce jointe Direction',
       files: directionFiles.map((file) => file.name),
+      images,
       createdAt: new Date().toISOString(),
     })
     setSuccess('Message Direction placé dans la file d’envoi LSPD.')
@@ -188,7 +194,7 @@ export function LspdTransferTab() {
             <div><p className="font-bold text-[var(--ink)]">Direction LSPD</p><p className="text-xs text-[var(--ink)]/45">Liaison interservices</p></div>
           </div>
           <div className="flex-1 space-y-3 overflow-y-auto p-4">
-            {directionHistory.map((item) => <div key={item.id} className="ml-auto max-w-[80%] rounded-2xl rounded-br-md bg-red px-4 py-2.5 text-white"><p className="whitespace-pre-wrap text-sm">{item.summary}</p>{item.files.length > 0 && <p className="mt-1 text-xs text-white/70">{item.files.join(' • ')}</p>}<p className="mt-1 text-right text-[10px] text-white/60">{new Date(item.createdAt).toLocaleString('fr-FR')}</p></div>)}
+            {directionHistory.map((item) => <div key={item.id} className="group relative ml-auto max-w-[80%] rounded-2xl rounded-br-md bg-red px-4 py-2.5 text-white"><button type="button" onClick={() => removeDirectionMessage(item.id)} className="absolute -left-9 top-2 rounded-lg p-2 text-[var(--ink)]/40 opacity-0 transition hover:text-red group-hover:opacity-100" title="Supprimer pour les deux services"><Trash2 size={15}/></button><p className="whitespace-pre-wrap text-sm">{item.summary}</p>{item.images && item.images.length > 0 && <div className="mt-2 flex flex-wrap gap-2">{item.images.map((image) => <button key={image.name} type="button" onClick={() => setPreviewImage(image.dataUrl)} className="overflow-hidden rounded-lg border border-white/20"><img src={image.dataUrl} alt={image.name} className="h-24 w-28 object-cover"/></button>)}</div>}{item.files.length > 0 && <p className="mt-1 text-xs text-white/70">{item.files.join(' • ')}</p>}<p className="mt-1 text-right text-[10px] text-white/60">{new Date(item.createdAt).toLocaleString('fr-FR')}</p></div>)}
             {directionHistory.length === 0 && <p className="pt-12 text-center text-sm text-[var(--ink)]/35">Aucun message pour le moment.</p>}
           </div>
           {directionFiles.length > 0 && <div className="border-t border-[var(--ink)]/8 px-4 py-2 text-xs text-[var(--ink)]/50">{directionFiles.map(file => file.name).join(' • ')}</div>}
