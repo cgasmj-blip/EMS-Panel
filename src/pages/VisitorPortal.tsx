@@ -448,6 +448,13 @@ export function VisitorPortal() {
     const accessToken = data?.[0]?.access_token ? String(data[0].access_token) : null
     if (publicId && accessToken) saveTicketCredential({ public_id: publicId, access_token: accessToken })
 
+    if (publicId) {
+      // Notification best-effort: the request is already saved even if Discord is temporarily unavailable.
+      void supabase.functions.invoke('notify-new-visitor-request', {
+        body: { public_id: publicId },
+      }).catch(() => {})
+    }
+
     const ticket = publicId ? publicId.slice(0, 8).toUpperCase() : null
     setSuccess(ticket ? `Demande envoyée · Référence ${ticket}` : 'Demande envoyée à l’EMS.')
     setForm(EMPTY_FORM)
