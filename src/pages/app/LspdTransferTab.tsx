@@ -1,4 +1,5 @@
 import { useMemo, useState, type FormEvent } from 'react'
+import { useAuth } from '@/auth/AuthContext'
 import { Bone, CalendarCheck, CheckCircle2, FileBadge, FileCheck2, FileClock, FileText, ArrowLeft, ImagePlus, MessageSquareText, Paperclip, Trash2, Receipt, Send, ShieldCheck } from 'lucide-react'
 
 const folders = [
@@ -13,7 +14,7 @@ const folders = [
 ] as const
 
 type FolderKey = (typeof folders)[number]['key']
-type Draft = { id: string; kind: string; summary: string; files: string[]; images?: { name: string; dataUrl: string }[]; createdAt: string }
+type Draft = { id: string; senderId?: string; kind: string; summary: string; files: string[]; images?: { name: string; dataUrl: string }[]; createdAt: string }
 
 const TILE_COLORS = ['bg-blue-900', 'bg-indigo-900', 'bg-slate-900', 'bg-blue-800', 'bg-indigo-950', 'bg-sky-900', 'bg-blue-950', 'bg-slate-800'] as const
 
@@ -35,6 +36,8 @@ function saveDraft(draft: Draft) {
 }
 
 export function LspdTransferTab() {
+  const { session, staff } = useAuth()
+  const canDeleteDraft = (item: Draft) => staff?.role === 'directeur' || (!!item.senderId && item.senderId === session?.user.id)
   const [selected, setSelected] = useState<FolderKey | null>(null)
   const [directionOpen, setDirectionOpen] = useState(false)
   const [firstName, setFirstName] = useState('')
@@ -67,6 +70,7 @@ export function LspdTransferTab() {
     const images = await Promise.all(imageFiles.map(readImage))
     saveDraft({
       id: crypto.randomUUID(),
+      senderId: session?.user.id,
       kind: current.key,
       summary: current.reference ? `${subject} — ${reference.trim()}` : subject,
       files: files.map((file) => file.name),
@@ -88,6 +92,7 @@ export function LspdTransferTab() {
     const images = await Promise.all(directionFiles.filter((file) => file.type.startsWith('image/')).map(readImage))
     saveDraft({
       id: crypto.randomUUID(),
+      senderId: session?.user.id,
       kind: 'direction_message',
       summary: directionText.trim() || 'Pièce jointe Direction',
       files: directionFiles.map((file) => file.name),
@@ -146,7 +151,7 @@ export function LspdTransferTab() {
                     <span className="text-sm font-semibold">{item.summary}</span>
                     <div className="flex shrink-0 items-center gap-1">
                       <span className="text-[10px] text-[var(--ink)]/35">{new Date(item.createdAt).toLocaleString('fr-FR')}</span>
-                      <button type="button" onClick={() => removeDocumentSend(item.id)} className="rounded-lg p-1.5 text-[var(--ink)]/35 transition hover:bg-red/10 hover:text-red" title="Supprimer cet envoi" aria-label="Supprimer cet envoi"><Trash2 size={14}/></button>
+                      {canDeleteDraft(item) && <button type="button" onClick={() => removeDocumentSend(item.id)} className="rounded-lg p-1.5 text-[var(--ink)]/35 transition hover:bg-red/10 hover:text-red" title="Supprimer cet envoi" aria-label="Supprimer cet envoi"><Trash2 size={14}/></button>}
                     </div>
                   </div>
                   {item.images && item.images.length > 0 && <div className="mt-2 flex flex-wrap gap-2">{item.images.map((image) => <button key={image.name} type="button" onClick={() => setPreviewImage(image.dataUrl)} className="overflow-hidden rounded-lg border border-[var(--ink)]/10"><img src={image.dataUrl} alt={image.name} className="h-20 w-24 object-cover"/></button>)}</div>}
@@ -199,7 +204,7 @@ export function LspdTransferTab() {
             <div><p className="font-bold text-[var(--ink)]">Direction LSPD</p><p className="text-xs text-[var(--ink)]/45">Liaison interservices</p></div>
           </div>
           <div className="flex-1 space-y-3 overflow-y-auto p-4">
-            {directionHistory.map((item) => <div key={item.id} className="group relative ml-auto max-w-[80%] rounded-2xl rounded-br-md bg-red px-4 py-2.5 text-white"><button type="button" onClick={() => removeDirectionMessage(item.id)} className="absolute -left-9 top-2 rounded-lg p-2 text-[var(--ink)]/40 opacity-0 transition hover:text-red group-hover:opacity-100" title="Supprimer pour les deux services"><Trash2 size={15}/></button><p className="whitespace-pre-wrap text-sm">{item.summary}</p>{item.images && item.images.length > 0 && <div className="mt-2 flex flex-wrap gap-2">{item.images.map((image) => <button key={image.name} type="button" onClick={() => setPreviewImage(image.dataUrl)} className="overflow-hidden rounded-lg border border-white/20"><img src={image.dataUrl} alt={image.name} className="h-24 w-28 object-cover"/></button>)}</div>}{item.files.length > 0 && <p className="mt-1 text-xs text-white/70">{item.files.join(' • ')}</p>}<p className="mt-1 text-right text-[10px] text-white/60">{new Date(item.createdAt).toLocaleString('fr-FR')}</p></div>)}
+            {directionHistory.map((item) => <div key={item.id} className="group relative ml-auto max-w-[80%] rounded-2xl rounded-br-md bg-red px-4 py-2.5 text-white">{canDeleteDraft(item) && <button type="button" onClick={() => removeDirectionMessage(item.id)} className="absolute -left-9 top-2 rounded-lg p-2 text-[var(--ink)]/40 opacity-0 transition hover:text-red group-hover:opacity-100" title="Supprimer pour les deux services"><Trash2 size={15}/></button>}<p className="whitespace-pre-wrap text-sm">{item.summary}</p>{item.images && item.images.length > 0 && <div className="mt-2 flex flex-wrap gap-2">{item.images.map((image) => <button key={image.name} type="button" onClick={() => setPreviewImage(image.dataUrl)} className="overflow-hidden rounded-lg border border-white/20"><img src={image.dataUrl} alt={image.name} className="h-24 w-28 object-cover"/></button>)}</div>}{item.files.length > 0 && <p className="mt-1 text-xs text-white/70">{item.files.join(' • ')}</p>}<p className="mt-1 text-right text-[10px] text-white/60">{new Date(item.createdAt).toLocaleString('fr-FR')}</p></div>)}
             {directionHistory.length === 0 && <p className="pt-12 text-center text-sm text-[var(--ink)]/35">Aucun message pour le moment.</p>}
           </div>
           {directionFiles.length > 0 && <div className="border-t border-[var(--ink)]/8 px-4 py-2 text-xs text-[var(--ink)]/50">{directionFiles.map(file => file.name).join(' • ')}</div>}
