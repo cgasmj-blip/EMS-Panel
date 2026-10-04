@@ -49,6 +49,7 @@ export function LspdTransferTab() {
   const [previewImage, setPreviewImage] = useState<string | null>(null)
 
   const current = useMemo(() => folders.find((folder) => folder.key === selected) ?? null, [selected])
+  const currentTileColor = current ? TILE_COLORS[folders.findIndex((folder) => folder.key === current.key) % TILE_COLORS.length] : 'bg-blue-950'
   const history = useMemo(() => selected ? (JSON.parse(window.localStorage.getItem(OUTBOX_KEY) || '[]') as Draft[]).filter((item) => item.kind === selected) : [], [selected, revision])
   const directionHistory = useMemo(() => (JSON.parse(window.localStorage.getItem(OUTBOX_KEY) || '[]') as Draft[]).filter((item) => item.kind === 'direction_message').reverse(), [revision])
 
@@ -136,11 +137,11 @@ export function LspdTransferTab() {
             <ArrowLeft size={17}/> Retour à Liaison LSPD
           </button>
         <div className="grid gap-4 lg:grid-cols-2">
-          <div className="rounded-2xl border border-[var(--ink)]/10 bg-[var(--ink)]/[0.025] p-4">
-            <p className="mb-4 font-bold text-[var(--ink)]">Historique — {current.label}</p>
+          <div className={`rounded-2xl border border-white/10 ${currentTileColor} p-4 text-white`}>
+            <p className="mb-4 font-bold text-white">Historique — {current.label}</p>
             <div className="max-h-[430px] space-y-2 overflow-y-auto">
               {history.map((item) => (
-                <div key={item.id} className="group relative rounded-xl border border-[var(--ink)]/8 bg-[var(--bg)] p-3">
+                <div key={item.id} className="group relative rounded-xl border border-white/10 bg-black/20 p-3 text-white">
                   <div className="flex items-start justify-between gap-2">
                     <span className="text-sm font-semibold">{item.summary}</span>
                     <div className="flex shrink-0 items-center gap-1">
@@ -158,7 +159,7 @@ export function LspdTransferTab() {
             </div>
           </div>
 
-          <form onSubmit={simulateSend} className="space-y-4 rounded-2xl border border-red/20 bg-red/[0.05] p-4">
+          <form onSubmit={simulateSend} className={`space-y-4 rounded-2xl border border-white/10 ${currentTileColor} p-4 text-white`}>
             <p className="font-bold text-[var(--ink)]">{current.label}</p>
             {current.subject === 'animal' ? (
               <input required value={animalName} onChange={(e) => setAnimalName(e.target.value)} placeholder="Prénom de l’animal" className="w-full rounded-xl border border-[var(--ink)]/10 bg-[var(--bg)] px-3 py-2.5 text-sm outline-none focus:border-red/40" />
@@ -192,8 +193,8 @@ export function LspdTransferTab() {
           <button type="button" onClick={() => setDirectionOpen(false)} className="mb-1 flex items-center gap-2 text-sm font-semibold text-[var(--ink)]/60 hover:text-[var(--ink)]">
             <ArrowLeft size={17}/> Retour à Liaison LSPD
           </button>
-        <form onSubmit={simulateDirectionSend} className="flex min-h-[560px] flex-col overflow-hidden rounded-2xl border border-[var(--ink)]/10 bg-[var(--ink)]/[0.035]">
-          <div className="flex items-center gap-3 border-b border-[var(--ink)]/10 px-4 py-3">
+        <form onSubmit={simulateDirectionSend} className="flex min-h-[560px] flex-col overflow-hidden rounded-2xl border border-white/10 bg-blue-950 text-white">
+          <div className="flex items-center gap-3 border-b border-white/10 px-4 py-3">
             <span className="flex h-10 w-10 items-center justify-center rounded-full bg-red/15 text-red"><MessageSquareText size={18}/></span>
             <div><p className="font-bold text-[var(--ink)]">Direction LSPD</p><p className="text-xs text-[var(--ink)]/45">Liaison interservices</p></div>
           </div>
@@ -202,11 +203,11 @@ export function LspdTransferTab() {
             {directionHistory.length === 0 && <p className="pt-12 text-center text-sm text-[var(--ink)]/35">Aucun message pour le moment.</p>}
           </div>
           {directionFiles.length > 0 && <div className="border-t border-[var(--ink)]/8 px-4 py-2 text-xs text-[var(--ink)]/50">{directionFiles.map(file => file.name).join(' • ')}</div>}
-          <div className="flex items-end gap-2 border-t border-[var(--ink)]/10 p-3">
+          <div className="flex items-end gap-2 border-t border-white/10 bg-black/20 p-3">
             <label className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-[var(--ink)]/15 bg-[var(--ink)]/[0.035] text-[var(--ink)]/60 hover:border-red/30 hover:text-red" title="Ajouter une image ou un document">
               <ImagePlus size={18}/><input className="hidden" type="file" multiple accept="image/*,.pdf,.doc,.docx" onChange={(e) => setDirectionFiles(Array.from(e.target.files ?? []))}/>
             </label>
-            <textarea value={directionText} onChange={(e) => setDirectionText(e.target.value)} rows={2} placeholder="Écrire un message…" className="min-h-11 flex-1 resize-none rounded-xl border border-[var(--ink)]/10 bg-[var(--bg)] px-3 py-2.5 text-sm outline-none focus:border-red/40"/>
+            <textarea value={directionText} onChange={(e) => setDirectionText(e.target.value)} rows={2} placeholder="Écrire un message…" className="min-h-11 flex-1 resize-none rounded-xl border border-white/15 bg-black/25 px-3 py-2.5 text-sm text-white outline-none placeholder:text-white/50 focus:border-red/40"/>
             <button type="submit" className="flex h-11 w-14 shrink-0 items-center justify-center rounded-xl bg-red text-white transition hover:opacity-90" aria-label="Envoyer"><Send size={18}/></button>
           </div>
         </form>
