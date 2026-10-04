@@ -39,14 +39,17 @@ export function LspdTransferTab() {
   const [revision, setRevision] = useState(0)
   const [previewImage, setPreviewImage] = useState<string | null>(null)
   const [bridgeDirection, setBridgeDirection] = useState<any[]>([])
+  const [bridgeHistory, setBridgeHistory] = useState<any[]>([])
 
   const current = useMemo(() => folders.find((folder) => folder.key === selected) ?? null, [selected])
   const currentTileColor = current ? TILE_COLORS[folders.findIndex((folder) => folder.key === current.key) % TILE_COLORS.length] : 'bg-blue-950'
-  const history = useMemo(() => selected ? (JSON.parse(window.localStorage.getItem(OUTBOX_KEY) || '[]') as Draft[]).filter((item) => item.kind === selected) : [], [selected, revision])
+  const history = bridgeHistory
   const directionHistory = bridgeDirection
 
   async function loadDirectionHistory(){ const {data:{session}}=await supabase.auth.getSession(); if(!session)return; try{const r=await fetch('https://pvahrnrtivzbkipborcd.supabase.co/functions/v1/ems-lspd-send',{headers:{Authorization:'Bearer '+session.access_token}});const data=await r.json();if(r.ok)setBridgeDirection(data.items||[])}catch{} }
+  async function loadTransferHistory(){if(!selected)return;const {data:{session}}=await supabase.auth.getSession();if(!session)return;try{const r=await fetch('https://pvahrnrtivzbkipborcd.supabase.co/functions/v1/ems-lspd-send?category='+encodeURIComponent(selected),{headers:{Authorization:'Bearer '+session.access_token}});const data=await r.json();if(r.ok)setBridgeHistory(data.items||[])}catch{}}
   useEffect(()=>{if(directionOpen)void loadDirectionHistory()},[directionOpen,revision])
+  useEffect(()=>{if(selected)void loadTransferHistory();else setBridgeHistory([])},[selected,revision])
 
   function resetDocumentForm() {
     setFirstName(''); setLastName(''); setAnimalName(''); setReference(''); setFiles([])
@@ -123,19 +126,13 @@ export function LspdTransferTab() {
           <div className={`rounded-2xl border border-white/10 ${currentTileColor} p-4 text-white`}>
             <p className="mb-4 font-bold text-white">Historique — {current.label}</p>
             <div className="max-h-[430px] space-y-2 overflow-y-auto">
-              {history.map((item) => (
-                <div key={item.id} className="group relative rounded-xl border border-white/10 bg-black/20 p-3 text-white">
-                  <div className="flex items-start justify-between gap-2">
-                    <span className="text-sm font-semibold">{item.summary}</span>
-                    <div className="flex shrink-0 items-center gap-1">
-                      <span className="text-[10px] text-[var(--ink)]/35">{new Date(item.createdAt).toLocaleString('fr-FR')}</span>
-                      {canDeleteDraft(item) && <button type="button" onClick={() => removeDocumentSend(item.id)} className="rounded-lg p-1.5 text-[var(--ink)]/35 transition hover:bg-red/10 hover:text-red" title="Supprimer cet envoi" aria-label="Supprimer cet envoi"><Trash2 size={14}/></button>}
-                    </div>
-                  </div>
-                  {item.images && item.images.length > 0 && <div className="mt-2 flex flex-wrap gap-2">{item.images.map((image) => <button key={image.name} type="button" onClick={() => setPreviewImage(image.dataUrl)} className="overflow-hidden rounded-lg border border-[var(--ink)]/10"><img src={image.dataUrl} alt={image.name} className="h-20 w-24 object-cover"/></button>)}</div>}
-                  {item.files.length > 0 && <p className="mt-1 text-xs text-[var(--ink)]/45">{item.files.join(' • ')}</p>}
-                  <span className="mt-2 inline-block text-[10px] font-bold text-amber-600">{current.key === 'criminal_record_request' ? 'EN ATTENTE DU CASIER LSPD' : 'EN ATTENTE LSPD'}</span>
-                  {current.key === 'criminal_record_request' && <p className="mt-2 text-xs text-[var(--ink)]/45">La réponse LSPD et le document du casier vierge apparaîtront sur cette demande dès réception.</p>}
+              {history.map((item:any) => (
+                <div key={item.id} className="rounded-xl border border-white/10 bg-black/20 p-3 text-white">
+                  <div className="flex items-start justify-between gap-2"><span className="text-sm font-semibold">{[item.subject_last_name,item.subject_first_name].filter(Boolean).join(' ')||item.animal_first_name||item.reference||'Envoi EMS'}</span><span className="text-[10px] text-white/50">{new Date(item.created_at).toLocaleString('fr-FR')}</span></div>
+                  <p className="mt-1 text-xs text-white/60">Envoyé par {item.sender_display_name||'EMS'}</p>
+                  {item.reference&&<p className="mt-1 text-xs text-white/60">Référence : {item.reference}</p>}
+                  {item.files?.length>0&&<p className="mt-2 text-xs text-white/70">{item.files.map((file:any)=>file.original_name).join(' • ')}</p>}
+                  <span className="mt-2 inline-block text-[10px] font-bold text-amber-500">{current.key === 'criminal_record_request' ? 'DOSSIER CASIER' : 'ENVOYÉ AU LSPD'}</span>
                 </div>
               ))}
               {history.length === 0 && <p className="py-12 text-center text-sm text-[var(--ink)]/35">Aucun envoi pour le moment.</p>}
