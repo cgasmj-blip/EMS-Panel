@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type DragEvent, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
-import { CalendarClock, LayoutGrid, LogOut, Megaphone, MessageCircle, Palette, RefreshCw, Search, ShieldCheck } from 'lucide-react'
+import { Bell, CalendarClock, LayoutGrid, LogOut, Megaphone, MessageCircle, PackageOpen, Palette, RefreshCw, Search, ShieldCheck } from 'lucide-react'
 import { useAuth } from '@/auth/AuthContext'
 import { displayRoleLabel, isAboveChirurgien, staffMatchesEligibility, supabase, type StaffRole } from '@/lib/supabase'
 import { TILE_SECTIONS, type TabKey } from '@/lib/tiles'
@@ -66,6 +66,10 @@ export function Dashboard() {
   const [view, setViewState] = useState<TabKey | 'home'>(getStoredView)
   const [resyncing, setResyncing] = useState(false)
   const [unreadMessages, setUnreadMessages] = useState(0)
+  const [showNotifications, setShowNotifications] = useState(false)
+  const [notificationSeenAt, setNotificationSeenAt] = useState(() => window.localStorage.getItem('ems-notifications-seen-at') ?? '')
+  const [recentMessages, setRecentMessages] = useState<Array<{ id:number; sender_id:string; body:string; media_type:string|null; created_at:string }>>([])
+  const [recentStockAlerts, setRecentStockAlerts] = useState<Array<{ id:number; item_key:string; quantity_remaining:number|null; note:string|null; created_at:string }>>([])
   const [latestAnnouncements, setLatestAnnouncements] = useState<{ id: number; title: string; body: string; created_at: string }[]>([])
   const [nextAppointment, setNextAppointment] = useState<{ scheduled_at: string; title: string | null; type: string } | null>(null)
   const previousUnreadRef = useRef<number | null>(null)
@@ -169,7 +173,7 @@ export function Dashboard() {
       return
     }
 
-    const [{ count }, { data: announcements }, { data: appointment }] = await Promise.all([
+    const [{ count }, { data: announcements }, { data: appointment }, { data: messageRows }, { data: stockRows }] = await Promise.all([
       supabase
         .from('internal_messages')
         .select('id', { count: 'exact', head: true })
@@ -189,6 +193,17 @@ export function Dashboard() {
         .order('scheduled_at', { ascending: true })
         .limit(1)
         .maybeSingle(),
+      supabase
+        .from('internal_messages')
+        .select('id,sender_id,body,media_type,created_at')
+        .eq('recipient_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(12),
+      supabase
+        .from('stock_alerts')
+        .select('id,item_key,quantity_remaining,note,created_at')
+        .order('created_at', { ascending: false })
+        .limit(8),
     ])
 
     const nextUnread = count ?? 0
@@ -212,6 +227,8 @@ export function Dashboard() {
     setUnreadMessages(nextUnread)
     setLatestAnnouncements(nextAnnouncements)
     setNextAppointment(appointment ?? null)
+    setRecentMessages((messageRows ?? []) as Array<{ id:number; sender_id:string; body:string; media_type:string|null; created_at:string }>)
+    setRecentStockAlerts((stockRows ?? []) as Array<{ id:number; item_key:string; quantity_remaining:number|null; note:string|null; created_at:string }>)
   }, [session?.user.id, playTone])
 
   useEffect(() => {
@@ -408,6 +425,26 @@ export function Dashboard() {
     window.localStorage.setItem(VIEW_STORAGE_KEY, next)
   }
 
+  const notificationItems = [
+    ...recentMessages.map((item) => ({ id: `message-${item.id}`, kind: 'message' as const, title: 'Nouveau message EMS', detail: item.body || (item.media_type === 'image' ? 'Image reçue' : item.media_type === 'audio' ? 'Message vocal reçu' : 'Nouveau message'), created_at: item.created_at, target: 'messages' as TabKey })),
+    ...latestAnnouncements.map((item) => ({ id: `announcement-${item.id}`, kind: 'announcement' as const, title: item.title, detail: item.body, created_at: item.created_at, target: 'messages' as TabKey })),
+    ...recentStockAlerts.map((item) => ({ id: `stock-${item.id}`, kind: 'stock' as const, title: 'Alerte stock', detail: `${item.item_key}${item.quantity_remaining != null ? ` — reste ${item.quantity_remaining}` : ''}${item.note ? ` · ${item.note}` : ''}`, created_at: item.created_at, target: 'gestion' as TabKey })),
+    ...(nextAppointment ? [{ id: `appointment-${nextAppointment.scheduled_at}`, kind: 'appointment' as const, title: 'Prochain rendez-vous', detail: nextAppointment.title || nextAppointment.type, created_at: nextAppointment.scheduled_at, target: 'agenda' as TabKey }] : []),
+  ].sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 25)
+  const unreadNotifications = notificationItems.filter((item) => !notificationSeenAt || new Date(item.created_at) > new Date(notificationSeenAt)).length
+
+  function openNotifications() {
+    setShowNotifications((value) => {
+      const next = !value
+      if (next) {
+        const now = new Date().toISOString()
+        setNotificationSeenAt(now)
+        window.localStorage.setItem('ems-notifications-seen-at', now)
+      }
+      return next
+    })
+  }
+
   if (!staff) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[var(--bg)]">
@@ -533,6 +570,10 @@ export function Dashboard() {
         <div className="flex-1" />
 
         <div className={cn('flex items-center gap-1.5', sidebarHorizontal ? 'flex-row' : 'flex-col')}>
+          <button type="button" onClick={openNotifications} className="relative w-10 h-10 rounded-xl bg-[var(--ink)]/5 text-[var(--ink)]/60 hover:bg-[var(--ink)]/10 hover:text-[var(--ink)] transition-colors flex items-center justify-center cursor-pointer" title="Centre de notifications" aria-label="Centre de notifications">
+            <Bell size={17} />
+            {unreadNotifications > 0 && <span className="absolute -top-1.5 -right-1.5 min-w-5 h-5 px-1 rounded-full bg-red text-white text-[10px] font-bold flex items-center justify-center border-2 border-[var(--sidebar-bg)]">{unreadNotifications > 99 ? '99+' : unreadNotifications}</span>}
+          </button>
           {nextAppointment && navLayout.sidebar.includes('agenda') && (
             <button
               type="button"
@@ -594,6 +635,7 @@ export function Dashboard() {
         <CodeBlancAlertButton />
         <CodeRougeAlertButton />
         <StockAlertButton compact />
+        <button type="button" onClick={openNotifications} className="relative w-10 h-10 rounded-xl bg-[var(--ink)]/5 text-[var(--ink)]/60 flex items-center justify-center" aria-label="Centre de notifications"><Bell size={17}/>{unreadNotifications > 0 && <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-red text-white text-[9px] font-bold flex items-center justify-center">{unreadNotifications > 99 ? '99+' : unreadNotifications}</span>}</button>
       </div>
 
       <nav
@@ -752,6 +794,26 @@ export function Dashboard() {
           )}
         </AnimatePresence>
       </main>
+
+      {showNotifications && (
+        <div className="fixed inset-0 z-[80]" onClick={() => setShowNotifications(false)}>
+          <div className="absolute inset-0 bg-black/25 backdrop-blur-[2px]" />
+          <section onClick={(event) => event.stopPropagation()} className="absolute right-3 top-3 bottom-3 w-[min(430px,calc(100vw-1.5rem))] overflow-hidden rounded-2xl border border-[var(--ink)]/10 bg-[var(--sidebar-bg)] shadow-2xl flex flex-col">
+            <div className="flex items-center justify-between gap-3 border-b border-[var(--ink)]/10 p-4">
+              <div><h2 className="font-bold text-[var(--ink)]">Notifications</h2><p className="text-xs text-[var(--ink)]/45">Messages, annonces, rendez-vous et alertes stock</p></div>
+              <button type="button" onClick={() => setShowNotifications(false)} className="rounded-xl px-3 py-2 text-xs font-semibold bg-[var(--ink)]/5 hover:bg-[var(--ink)]/10">Fermer</button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-3 space-y-2">
+              {notificationItems.length === 0 ? <div className="h-full flex flex-col items-center justify-center text-center text-[var(--ink)]/40"><Bell size={30} className="mb-3"/><p className="font-semibold">Aucune notification</p></div> : notificationItems.map((item) => {
+                const Icon = item.kind === 'message' ? MessageCircle : item.kind === 'announcement' ? Megaphone : item.kind === 'appointment' ? CalendarClock : PackageOpen
+                return <button key={item.id} type="button" onClick={() => { setShowNotifications(false); setView(item.target) }} className="w-full rounded-xl border border-[var(--ink)]/8 bg-[var(--ink)]/[0.035] p-3 text-left hover:bg-[var(--ink)]/[0.07] transition-colors">
+                  <div className="flex gap-3"><span className="mt-0.5 w-9 h-9 shrink-0 rounded-xl bg-red/10 text-red flex items-center justify-center"><Icon size={16}/></span><div className="min-w-0 flex-1"><div className="flex justify-between gap-2"><p className="text-sm font-semibold text-[var(--ink)] truncate">{item.title}</p><span className="text-[10px] text-[var(--ink)]/35 shrink-0">{new Date(item.created_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'})}</span></div><p className="mt-1 text-xs text-[var(--ink)]/55 line-clamp-2 whitespace-pre-wrap">{item.detail}</p></div></div>
+                </button>
+              })}
+            </div>
+          </section>
+        </div>
+      )}
 
       {showCustomization && (
         <CustomizationPanel
