@@ -75,6 +75,7 @@ export function Dashboard() {
   const notificationTouchStart = useRef<Record<string, number>>({})
   const [recentMessages, setRecentMessages] = useState<Array<{ id:number; sender_id:string; sender_name:string; body:string; media_type:string|null; created_at:string }>>([])
   const [recentStockAlerts, setRecentStockAlerts] = useState<Array<{ id:number; item_key:string; quantity_remaining:number|null; note:string|null; created_at:string }>>([])
+  const [recentLspdMessages, setRecentLspdMessages] = useState<Array<{ id:string; sender_display_name:string|null; body:string|null; created_at:string; files?: unknown[] }>>([])
   const [latestAnnouncements, setLatestAnnouncements] = useState<{ id: number; title: string; body: string; created_at: string }[]>([])
   const [nextAppointment, setNextAppointment] = useState<{ scheduled_at: string; title: string | null; type: string } | null>(null)
   const previousUnreadRef = useRef<number | null>(null)
@@ -232,6 +233,14 @@ export function Dashboard() {
     setUnreadMessages(nextUnread)
     setLatestAnnouncements(nextAnnouncements)
     setNextAppointment(appointment ?? null)
+    try {
+      const { data: { session: bridgeSession } } = await supabase.auth.getSession()
+      if (bridgeSession) {
+        const response = await fetch('https://pvahrnrtivzbkipborcd.supabase.co/functions/v1/ems-lspd-send', { headers: { Authorization: 'Bearer ' + bridgeSession.access_token } })
+        const payload = await response.json()
+        if (response.ok) setRecentLspdMessages((payload.items ?? []).filter((item: any) => item.sender_service === 'LSPD').slice(0, 12))
+      }
+    } catch { /* Le centre continue de fonctionner si la liaison LSPD est temporairement indisponible. */ }
     const senderIds = [...new Set((messageRows ?? []).map((item) => item.sender_id).filter(Boolean))]
     const { data: senders } = senderIds.length
       ? await supabase.from('staff').select('id,full_name').in('id', senderIds)
@@ -436,6 +445,7 @@ export function Dashboard() {
   }
 
   const allNotificationItems = [
+    ...recentLspdMessages.map((item) => ({ id: `lspd-direction-${item.id}`, kind: 'lspd' as const, title: 'Nouveau message — Direction LSPD', detail: item.body || 'Pièce jointe reçue du LSPD', created_at: item.created_at, target: 'lspd_transfer' as TabKey })),
     ...recentMessages.map((item) => ({ id: `message-${item.id}`, kind: 'message' as const, title: `Nouveau message — ${item.sender_name}`, detail: item.body || (item.media_type === 'image' ? 'Image reçue' : item.media_type === 'audio' ? 'Message vocal reçu' : 'Nouveau message'), created_at: item.created_at, target: 'messages' as TabKey })),
     ...latestAnnouncements.map((item) => ({ id: `announcement-${item.id}`, kind: 'announcement' as const, title: item.title, detail: item.body, created_at: item.created_at, target: 'messages' as TabKey })),
     ...recentStockAlerts.map((item) => ({ id: `stock-${item.id}`, kind: 'stock' as const, title: 'Alerte stock', detail: `${item.item_key}${item.quantity_remaining != null ? ` — reste ${item.quantity_remaining}` : ''}${item.note ? ` · ${item.note}` : ''}`, created_at: item.created_at, target: 'gestion' as TabKey })),
@@ -831,7 +841,7 @@ export function Dashboard() {
           <div className="absolute inset-0 bg-black/25 backdrop-blur-[2px]" />
           <section onClick={(event) => event.stopPropagation()} className="absolute right-3 top-3 bottom-3 w-[min(430px,calc(100vw-1.5rem))] overflow-hidden rounded-2xl border border-[var(--ink)]/10 bg-[var(--sidebar-bg)] shadow-2xl flex flex-col">
             <div className="flex items-center justify-between gap-3 border-b border-[var(--ink)]/10 p-4">
-              <div><h2 className="font-bold text-[var(--ink)]">Notifications</h2><p className="text-xs text-[var(--ink)]/45">Messages, annonces, rendez-vous et alertes stock</p></div>
+              <div><h2 className="font-bold text-[var(--ink)]">Notifications</h2><p className="text-xs text-[var(--ink)]/45">Messages EMS/LSPD, annonces, rendez-vous et alertes stock</p></div>
               <div className="flex items-center gap-2">
                 {notificationItems.length > 0 && <button type="button" onClick={markAllNotificationsRead} className="rounded-xl px-3 py-2 text-xs font-semibold bg-red/10 text-red hover:bg-red/15 flex items-center gap-1.5"><CheckCheck size={14}/>Tout marquer comme lu</button>}
                 <button type="button" onClick={() => setShowNotifications(false)} className="rounded-xl px-3 py-2 text-xs font-semibold bg-[var(--ink)]/5 hover:bg-[var(--ink)]/10">Fermer</button>
@@ -839,7 +849,7 @@ export function Dashboard() {
             </div>
             <div className="flex-1 overflow-y-auto p-3 space-y-2">
               {notificationItems.length === 0 ? <div className="h-full flex flex-col items-center justify-center text-center text-[var(--ink)]/40"><Bell size={30} className="mb-3"/><p className="font-semibold">Aucune notification</p></div> : notificationItems.map((item) => {
-                const Icon = item.kind === 'message' ? MessageCircle : item.kind === 'announcement' ? Megaphone : item.kind === 'appointment' ? CalendarClock : PackageOpen
+                const Icon = item.kind === 'message' || item.kind === 'lspd' ? MessageCircle : item.kind === 'announcement' ? Megaphone : item.kind === 'appointment' ? CalendarClock : PackageOpen
                 return <div key={item.id} className="relative group" onTouchStart={(event) => { notificationTouchStart.current[item.id] = event.touches[0]?.clientX ?? 0 }} onTouchEnd={(event) => { const start = notificationTouchStart.current[item.id] ?? 0; const end = event.changedTouches[0]?.clientX ?? start; if (start - end > 70) dismissNotification(item.id) }}>
                   <button type="button" onClick={() => { setShowNotifications(false); setView(item.target) }} className="w-full rounded-xl border border-[var(--ink)]/8 bg-[var(--ink)]/[0.035] p-3 pr-11 text-left hover:bg-[var(--ink)]/[0.07] transition-colors">
                   <div className="flex gap-3"><span className="mt-0.5 w-9 h-9 shrink-0 rounded-xl bg-red/10 text-red flex items-center justify-center"><Icon size={16}/></span><div className="min-w-0 flex-1"><div className="flex justify-between gap-2"><p className="text-sm font-semibold text-[var(--ink)] truncate">{item.title}</p><span className="text-[10px] text-[var(--ink)]/35 shrink-0">{new Date(item.created_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'})}</span></div><p className="mt-1 text-xs text-[var(--ink)]/55 line-clamp-2 whitespace-pre-wrap">{item.detail}</p></div></div>
