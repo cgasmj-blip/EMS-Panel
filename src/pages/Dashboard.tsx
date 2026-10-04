@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type DragEvent, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
-import { Bell, CalendarClock, LayoutGrid, LogOut, Megaphone, MessageCircle, PackageOpen, Palette, RefreshCw, Search, ShieldCheck } from 'lucide-react'
+import { Bell, CalendarClock, CheckCheck, LayoutGrid, LogOut, Megaphone, MessageCircle, PackageOpen, Palette, RefreshCw, Search, ShieldCheck, Trash2 } from 'lucide-react'
 import { useAuth } from '@/auth/AuthContext'
 import { displayRoleLabel, isAboveChirurgien, staffMatchesEligibility, supabase, type StaffRole } from '@/lib/supabase'
 import { TILE_SECTIONS, type TabKey } from '@/lib/tiles'
@@ -68,6 +68,11 @@ export function Dashboard() {
   const [unreadMessages, setUnreadMessages] = useState(0)
   const [showNotifications, setShowNotifications] = useState(false)
   const [notificationSeenAt, setNotificationSeenAt] = useState(() => window.localStorage.getItem('ems-notifications-seen-at') ?? '')
+  const [dismissedNotifications, setDismissedNotifications] = useState<string[]>(() => {
+    try { return JSON.parse(window.localStorage.getItem('ems-notifications-dismissed') ?? '[]') }
+    catch { return [] }
+  })
+  const notificationTouchStart = useRef<Record<string, number>>({})
   const [recentMessages, setRecentMessages] = useState<Array<{ id:number; sender_id:string; sender_name:string; body:string; media_type:string|null; created_at:string }>>([])
   const [recentStockAlerts, setRecentStockAlerts] = useState<Array<{ id:number; item_key:string; quantity_remaining:number|null; note:string|null; created_at:string }>>([])
   const [latestAnnouncements, setLatestAnnouncements] = useState<{ id: number; title: string; body: string; created_at: string }[]>([])
@@ -430,13 +435,34 @@ export function Dashboard() {
     window.localStorage.setItem(VIEW_STORAGE_KEY, next)
   }
 
-  const notificationItems = [
+  const allNotificationItems = [
     ...recentMessages.map((item) => ({ id: `message-${item.id}`, kind: 'message' as const, title: `Nouveau message — ${item.sender_name}`, detail: item.body || (item.media_type === 'image' ? 'Image reçue' : item.media_type === 'audio' ? 'Message vocal reçu' : 'Nouveau message'), created_at: item.created_at, target: 'messages' as TabKey })),
     ...latestAnnouncements.map((item) => ({ id: `announcement-${item.id}`, kind: 'announcement' as const, title: item.title, detail: item.body, created_at: item.created_at, target: 'messages' as TabKey })),
     ...recentStockAlerts.map((item) => ({ id: `stock-${item.id}`, kind: 'stock' as const, title: 'Alerte stock', detail: `${item.item_key}${item.quantity_remaining != null ? ` — reste ${item.quantity_remaining}` : ''}${item.note ? ` · ${item.note}` : ''}`, created_at: item.created_at, target: 'gestion' as TabKey })),
     ...(nextAppointment ? [{ id: `appointment-${nextAppointment.scheduled_at}`, kind: 'appointment' as const, title: 'Prochain rendez-vous', detail: nextAppointment.title || nextAppointment.type, created_at: nextAppointment.scheduled_at, target: 'agenda' as TabKey }] : []),
   ].sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 25)
+  const notificationItems = allNotificationItems.filter((item) => !dismissedNotifications.includes(item.id))
   const unreadNotifications = notificationItems.filter((item) => !notificationSeenAt || new Date(item.created_at) > new Date(notificationSeenAt)).length
+
+  function dismissNotification(id: string) {
+    setDismissedNotifications((current) => {
+      const next = [...new Set([...current, id])]
+      window.localStorage.setItem('ems-notifications-dismissed', JSON.stringify(next))
+      return next
+    })
+  }
+
+  function markAllNotificationsRead() {
+    const ids = allNotificationItems.map((item) => item.id)
+    setDismissedNotifications((current) => {
+      const next = [...new Set([...current, ...ids])]
+      window.localStorage.setItem('ems-notifications-dismissed', JSON.stringify(next))
+      return next
+    })
+    const now = new Date().toISOString()
+    setNotificationSeenAt(now)
+    window.localStorage.setItem('ems-notifications-seen-at', now)
+  }
 
   function openNotifications() {
     setShowNotifications((value) => {
@@ -806,14 +832,20 @@ export function Dashboard() {
           <section onClick={(event) => event.stopPropagation()} className="absolute right-3 top-3 bottom-3 w-[min(430px,calc(100vw-1.5rem))] overflow-hidden rounded-2xl border border-[var(--ink)]/10 bg-[var(--sidebar-bg)] shadow-2xl flex flex-col">
             <div className="flex items-center justify-between gap-3 border-b border-[var(--ink)]/10 p-4">
               <div><h2 className="font-bold text-[var(--ink)]">Notifications</h2><p className="text-xs text-[var(--ink)]/45">Messages, annonces, rendez-vous et alertes stock</p></div>
-              <button type="button" onClick={() => setShowNotifications(false)} className="rounded-xl px-3 py-2 text-xs font-semibold bg-[var(--ink)]/5 hover:bg-[var(--ink)]/10">Fermer</button>
+              <div className="flex items-center gap-2">
+                {notificationItems.length > 0 && <button type="button" onClick={markAllNotificationsRead} className="rounded-xl px-3 py-2 text-xs font-semibold bg-red/10 text-red hover:bg-red/15 flex items-center gap-1.5"><CheckCheck size={14}/>Tout marquer comme lu</button>}
+                <button type="button" onClick={() => setShowNotifications(false)} className="rounded-xl px-3 py-2 text-xs font-semibold bg-[var(--ink)]/5 hover:bg-[var(--ink)]/10">Fermer</button>
+              </div>
             </div>
             <div className="flex-1 overflow-y-auto p-3 space-y-2">
               {notificationItems.length === 0 ? <div className="h-full flex flex-col items-center justify-center text-center text-[var(--ink)]/40"><Bell size={30} className="mb-3"/><p className="font-semibold">Aucune notification</p></div> : notificationItems.map((item) => {
                 const Icon = item.kind === 'message' ? MessageCircle : item.kind === 'announcement' ? Megaphone : item.kind === 'appointment' ? CalendarClock : PackageOpen
-                return <button key={item.id} type="button" onClick={() => { setShowNotifications(false); setView(item.target) }} className="w-full rounded-xl border border-[var(--ink)]/8 bg-[var(--ink)]/[0.035] p-3 text-left hover:bg-[var(--ink)]/[0.07] transition-colors">
+                return <div key={item.id} className="relative group" onTouchStart={(event) => { notificationTouchStart.current[item.id] = event.touches[0]?.clientX ?? 0 }} onTouchEnd={(event) => { const start = notificationTouchStart.current[item.id] ?? 0; const end = event.changedTouches[0]?.clientX ?? start; if (start - end > 70) dismissNotification(item.id) }}>
+                  <button type="button" onClick={() => { setShowNotifications(false); setView(item.target) }} className="w-full rounded-xl border border-[var(--ink)]/8 bg-[var(--ink)]/[0.035] p-3 pr-11 text-left hover:bg-[var(--ink)]/[0.07] transition-colors">
                   <div className="flex gap-3"><span className="mt-0.5 w-9 h-9 shrink-0 rounded-xl bg-red/10 text-red flex items-center justify-center"><Icon size={16}/></span><div className="min-w-0 flex-1"><div className="flex justify-between gap-2"><p className="text-sm font-semibold text-[var(--ink)] truncate">{item.title}</p><span className="text-[10px] text-[var(--ink)]/35 shrink-0">{new Date(item.created_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'})}</span></div><p className="mt-1 text-xs text-[var(--ink)]/55 line-clamp-2 whitespace-pre-wrap">{item.detail}</p></div></div>
-                </button>
+                  </button>
+                  <button type="button" onClick={() => dismissNotification(item.id)} className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-lg flex items-center justify-center text-[var(--ink)]/35 hover:bg-red/10 hover:text-red opacity-60 group-hover:opacity-100 transition" title="Supprimer la notification" aria-label="Supprimer la notification"><Trash2 size={15}/></button>
+                </div>
               })}
             </div>
           </section>
