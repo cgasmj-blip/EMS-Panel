@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { supabase } from '@/lib/supabase'
-import { Bone, CalendarCheck, CheckCircle2, FileBadge, FileCheck2, FileClock, FileText, ArrowLeft, ImagePlus, MessageSquareText, Paperclip, Receipt, Send, ShieldCheck } from 'lucide-react'
+import { Bone, CalendarCheck, CheckCircle2, FileBadge, FileCheck2, FileClock, FileText, ArrowLeft, ImagePlus, MessageSquareText, Paperclip, Receipt, X, Send, ShieldCheck } from 'lucide-react'
 
 const folders = [
   { key: 'veterinary_followup', label: 'Suivi vétérinaire', detail: 'Prénom de l’animal + document', subject: 'animal', reference: false, fileRequired: true, access: 'Vétérinaire', icon: Bone },
@@ -122,7 +122,7 @@ export function LspdTransferTab() {
                   <div className="flex items-start justify-between gap-2"><span className="text-sm font-semibold">{[item.subject_last_name,item.subject_first_name].filter(Boolean).join(' ')||item.animal_first_name||item.reference||'Envoi EMS'}</span><span className="text-[10px] text-white/50">{new Date(item.created_at).toLocaleString('fr-FR')}</span></div>
                   <p className="mt-1 text-xs text-white/60">Envoyé par {item.sender_display_name||'EMS'}</p>
                   {item.reference&&<p className="mt-1 text-xs text-white/60">Référence : {item.reference}</p>}
-                  {item.files?.length>0&&<p className="mt-2 text-xs text-white/70">{item.files.map((file:any)=>file.original_name).join(' • ')}</p>}
+                  {item.files?.length>0&&<div className="mt-2 flex flex-wrap gap-2">{item.files.map((file:any)=>file.mime_type?.startsWith('image/')&&file.url?<button key={file.id||file.original_name} type="button" onClick={()=>setPreviewImage(file.url)} className="overflow-hidden rounded-lg border border-white/20 bg-black/20" title="Ouvrir l’image"><img src={file.url} alt={file.original_name||'Document'} className="h-20 w-24 object-cover"/></button>:file.url?<a key={file.id||file.original_name} href={file.url} target="_blank" rel="noreferrer" className="flex items-center gap-1 rounded-lg border border-white/15 bg-black/20 px-2.5 py-2 text-xs text-white/80 underline"><FileText size={14}/>{file.original_name||'Document'}</a>:<span key={file.id||file.original_name} className="text-xs text-white/70">{file.original_name||'Document'}</span>)}</div>}
                   <span className="mt-2 inline-block text-[10px] font-bold text-amber-500">{current.key === 'criminal_record_request' ? 'DOSSIER CASIER' : 'ENVOYÉ AU LSPD'}</span>
                 </div>
               ))}
@@ -154,7 +154,8 @@ export function LspdTransferTab() {
       )}
 
       {previewImage && (
-        <div role="presentation" onClick={() => setPreviewImage(null)} className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-6">
+        <div role="presentation" onClick={() => setPreviewImage(null)} className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-6">
+          <button type="button" onClick={() => setPreviewImage(null)} className="absolute right-5 top-5 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20" aria-label="Fermer l’aperçu" title="Fermer"><X size={22}/></button>
           <img src={previewImage} alt="Aperçu du document" onClick={(e) => e.stopPropagation()} className="max-h-[90vh] max-w-[90vw] rounded-xl object-contain shadow-2xl"/>
         </div>
       )}
