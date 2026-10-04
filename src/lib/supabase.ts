@@ -164,6 +164,7 @@ export interface Unit {
   sector: string | null
   code: EmergencyCode | null
   vehicule: string | null
+  vehicle_id: number | null
   commentaire: string | null
   intervention: string | null
   defibrillateur: boolean
@@ -178,6 +179,7 @@ export interface Shift {
   sector: string | null
   code: EmergencyCode | null
   vehicule: string | null
+  vehicle_id: number | null
   commentaire: string | null
   intervention: string | null
   defibrillateur: boolean
