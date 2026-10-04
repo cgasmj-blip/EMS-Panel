@@ -72,6 +72,7 @@ export function ServicesTab() {
   const [newUnitLieu, setNewUnitLieu] = useState('Nord')
   const [newCode, setNewCode] = useState<EmergencyCode | ''>('')
   const [vehicule, setVehicule] = useState('')
+  const [vehicleId, setVehicleId] = useState<number | null>(null)
   const [defibrillateurChoice, setDefibrillateurChoice] = useState<'' | 'oui' | 'non'>('')
   const [commentaire, setCommentaire] = useState('')
   const [intervention, setIntervention] = useState('')
@@ -192,6 +193,7 @@ export function ServicesTab() {
     setNewUnitLieu(unit.sector ?? 'Nord')
     setNewCode(unit.code ?? '')
     setVehicule(unit.vehicule ?? '')
+    setVehicleId(unit.vehicle_id ?? null)
     setDefibrillateurChoice(unit.defibrillateur ? 'oui' : 'non')
     setCommentaire(unit.commentaire ?? '')
     setIntervention(unit.intervention ?? '')
@@ -199,7 +201,7 @@ export function ServicesTab() {
 
   const activeUnits = useMemo(() => units.filter((u) => roster.some((s) => s.unit_id === u.id && s.status !== 'hors_service')), [units, roster])
   const occupiedVehicles = useMemo(
-    () => new Set(activeUnits.filter((u) => u.id !== staff?.unit_id && u.vehicule).map((u) => u.vehicule as string)),
+    () => new Set(activeUnits.filter((u) => u.id !== staff?.unit_id && u.vehicle_id).map((u) => u.vehicle_id as number)),
     [activeUnits, staff?.unit_id],
   )
 
@@ -284,6 +286,7 @@ export function ServicesTab() {
         sector: newUnitLieu || null,
         code: newCode || null,
         vehicule: vehicule || null,
+        vehicle_id: vehicleId,
         commentaire: commentaire.trim() || null,
         intervention: intervention || null,
         defibrillateur: defibrillateurChoice === 'oui',
@@ -308,6 +311,7 @@ export function ServicesTab() {
         sector: unit.sector,
         code: newCode || null,
         vehicule: vehicule || null,
+        vehicle_id: vehicleId,
         commentaire: commentaire.trim() || null,
         intervention: intervention || null,
         defibrillateur: defibrillateurChoice === 'oui',
@@ -320,6 +324,7 @@ export function ServicesTab() {
       setNewUnitLieu('Nord')
       setNewCode('')
       setVehicule('')
+      setVehicleId(null)
       setDefibrillateurChoice('')
       setCommentaire('')
       setIntervention('')
@@ -352,6 +357,7 @@ export function ServicesTab() {
           unit_name: unit.name,
           sector: unit.sector,
           vehicule: unit.vehicule,
+          vehicle_id: unit.vehicle_id,
           code: unit.code,
           commentaire: unit.commentaire,
           intervention: unit.intervention,
@@ -362,7 +368,7 @@ export function ServicesTab() {
       } else {
         await supabase
           .from('shifts')
-          .update({ status_label: 'en_service', unit_name: unit.name, sector: unit.sector, vehicule: unit.vehicule, code: unit.code, commentaire: unit.commentaire, intervention: unit.intervention, defibrillateur: unit.defibrillateur })
+          .update({ status_label: 'en_service', unit_name: unit.name, sector: unit.sector, vehicule: unit.vehicule, vehicle_id: unit.vehicle_id, code: unit.code, commentaire: unit.commentaire, intervention: unit.intervention, defibrillateur: unit.defibrillateur })
           .eq('staff_id', staff.id)
           .is('ended_at', null)
       }
@@ -385,6 +391,7 @@ export function ServicesTab() {
         sector: newUnitLieu || null,
         code: newCode || null,
         vehicule: vehicule || null,
+        vehicle_id: vehicleId,
         defibrillateur: defibrillateurChoice === 'oui',
         commentaire: commentaire.trim() || null,
         intervention: intervention || null,
@@ -400,6 +407,7 @@ export function ServicesTab() {
           sector: patch.sector,
           code: patch.code,
           vehicule: patch.vehicule,
+          vehicle_id: patch.vehicle_id,
           defibrillateur: patch.defibrillateur,
           commentaire: patch.commentaire,
           intervention: patch.intervention,
@@ -417,6 +425,7 @@ export function ServicesTab() {
             sector: patch.sector,
             code: patch.code,
             vehicule: patch.vehicule,
+            vehicle_id: patch.vehicle_id,
             defibrillateur: patch.defibrillateur,
             commentaire: patch.commentaire,
             intervention: patch.intervention,
@@ -478,7 +487,7 @@ export function ServicesTab() {
   if (!staff) return null
 
   const eligibleVehicles = vehicles.filter((v) => staffMatchesEligibility(staff, v))
-  const selectableVehicles = eligibleVehicles.filter((v) => !occupiedVehicles.has(v.name))
+  const selectableVehicles = eligibleVehicles.filter((v) => !occupiedVehicles.has(v.id) || v.id === vehicleId)
 
   return (
     <div className="flex flex-col gap-6">
@@ -537,63 +546,30 @@ export function ServicesTab() {
             </div>
           </div>
 
-          <div className="grid sm:grid-cols-2 gap-4">
-            <Field label="Véhicule (facultatif)">
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setVehicule('')
-                    if (staff.status !== 'hors_service') setDetailsDirty(true)
-                  }}
-                  className={cn(
-                    'min-h-12 rounded-xl border px-3 py-2 text-left text-xs font-semibold transition',
-                    vehicule === ''
-                      ? 'border-red/60 bg-red/10 text-[var(--ink)]'
-                      : 'border-[var(--ink)]/10 bg-[var(--ink)]/[0.02] text-[var(--ink)]/55 hover:border-[var(--ink)]/25',
-                  )}
-                >
-                  Aucun véhicule
+<Field label="Véhicule (facultatif)">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+                <button type="button" onClick={() => { setVehicule(''); setVehicleId(null); if (staff.status !== 'hors_service') setDetailsDirty(true) }} className={cn('min-h-14 rounded-xl border px-3 py-2 text-left transition', vehicleId === null ? 'border-red/60 bg-red/10 ring-1 ring-red/30' : 'border-[var(--ink)]/10 bg-[var(--ink)]/[0.02] hover:border-[var(--ink)]/25')}>
+                  <span className="block text-xs font-bold text-[var(--ink)]">Aucun véhicule</span>
                 </button>
                 {selectableVehicles.map((v) => (
-                  <button
-                    key={v.id}
-                    type="button"
-                    onClick={() => {
-                      setVehicule(v.name)
-                      if (staff.status !== 'hors_service') setDetailsDirty(true)
-                    }}
-                    className={cn(
-                      'min-h-12 rounded-xl border px-3 py-2 text-left transition',
-                      vehicule === v.name
-                        ? 'border-red/60 bg-red/10 ring-1 ring-red/30'
-                        : 'border-[var(--ink)]/10 bg-[var(--ink)]/[0.02] hover:border-[var(--ink)]/25 hover:bg-[var(--ink)]/[0.04]',
-                    )}
-                  >
-                    <span className="block text-xs font-bold text-[var(--ink)]">{v.name}</span>
-                    {v.plate && <span className="block mt-0.5 text-[10px] text-[var(--ink)]/45 truncate">Plaque {v.plate}</span>}
+                  <button key={v.id} type="button" onClick={() => { setVehicule(v.name); setVehicleId(v.id); if (staff.status !== 'hors_service') setDetailsDirty(true) }} className={cn('min-h-14 rounded-xl border px-3 py-2 text-left transition', vehicleId === v.id ? 'border-red/60 bg-red/10 ring-1 ring-red/30' : 'border-[var(--ink)]/10 bg-[var(--ink)]/[0.02] hover:border-[var(--ink)]/25')}>
+                    <span className="block text-sm font-black text-[var(--ink)]">{v.plate || 'Sans plaque'}</span>
+                    <span className="block mt-0.5 text-[10px] text-[var(--ink)]/45 truncate">{v.name}</span>
                   </button>
                 ))}
               </div>
-              {selectableVehicles.length === 0 && (
-                <p className="mt-2 text-xs text-[var(--ink)]/35">Aucun véhicule disponible.</p>
-              )}
+              {selectableVehicles.length === 0 && <p className="mt-2 text-xs text-[var(--ink)]/35">Aucun véhicule disponible.</p>}
             </Field>
-            <Field label="Défibrillateur (facultatif)">
-              <Select
-                value={defibrillateurChoice}
-                onChange={(e) => {
-                  setDefibrillateurChoice(e.target.value as '' | 'oui' | 'non')
-                  if (staff.status !== 'hors_service') setDetailsDirty(true)
-                }}
-              >
-                <option value="">— Non renseigné —</option>
-                <option value="oui">OUI</option>
-                <option value="non">NON</option>
-              </Select>
-            </Field>
-          </div>
 
+            <Field label="Défibrillateur (facultatif)">
+              <div className="grid grid-cols-2 gap-2 max-w-md">
+                {(['oui', 'non'] as const).map((choice) => (
+                  <button key={choice} type="button" onClick={() => { setDefibrillateurChoice(choice); if (staff.status !== 'hors_service') setDetailsDirty(true) }} className={cn('min-h-12 rounded-xl border px-4 py-2 text-center text-xs font-bold transition', defibrillateurChoice === choice ? 'border-red/60 bg-red/10 ring-1 ring-red/30 text-[var(--ink)]' : 'border-[var(--ink)]/10 bg-[var(--ink)]/[0.02] text-[var(--ink)]/55 hover:border-[var(--ink)]/25')}>
+                    {choice === 'oui' ? 'OUI' : 'NON'}
+                  </button>
+                ))}
+              </div>
+            </Field>
           <Field label="Commentaire (facultatif)">
             <Input
               value={commentaire}
