@@ -1,4 +1,5 @@
 import { useMemo, useState, type FormEvent } from 'react'
+import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/auth/AuthContext'
 import { Bone, CalendarCheck, CheckCircle2, FileBadge, FileCheck2, FileClock, FileText, ArrowLeft, ImagePlus, MessageSquareText, Paperclip, Trash2, Receipt, Send, ShieldCheck } from 'lucide-react'
 
@@ -65,19 +66,12 @@ export function LspdTransferTab() {
     if (!current) return
     const subject = current.subject === 'animal' ? animalName.trim() : `${firstName.trim()} ${lastName.trim()}`.trim()
     if (!subject || (current.reference && !reference.trim()) || (current.fileRequired && files.length === 0)) return
-
-    const imageFiles = files.filter((file) => file.type.startsWith('image/'))
-    const images = await Promise.all(imageFiles.map(readImage))
-    saveDraft({
-      id: crypto.randomUUID(),
-      senderId: session?.user.id,
-      kind: current.key,
-      summary: current.reference ? `${subject} — ${reference.trim()}` : subject,
-      files: files.map((file) => file.name),
-      images,
-      createdAt: new Date().toISOString(),
-    })
-    setSuccess(`${current.label} placé dans la file d’envoi LSPD.`)
+    setSuccess(null)
+    const form = new FormData()
+    form.append('action','transfer'); form.append('category',current.key); form.append('first_name',firstName.trim()); form.append('last_name',lastName.trim()); form.append('animal_name',animalName.trim()); form.append('reference',reference.trim()); files.forEach(file=>form.append('files',file))
+    const { data, error } = await supabase.functions.invoke('ems-lspd-send',{body:form})
+    if (error || data?.error) { setSuccess(`Erreur d’envoi : ${data?.error || error?.message || 'inconnue'}`); return }
+    setSuccess(`${current.label} envoyé au LSPD.`)
     setRevision((value) => value + 1)
     resetDocumentForm()
     window.setTimeout(() => setSuccess(null), 4500)
@@ -89,17 +83,11 @@ export function LspdTransferTab() {
   async function simulateDirectionSend(event: FormEvent) {
     event.preventDefault()
     if (!directionText.trim() && directionFiles.length === 0) return
-    const images = await Promise.all(directionFiles.filter((file) => file.type.startsWith('image/')).map(readImage))
-    saveDraft({
-      id: crypto.randomUUID(),
-      senderId: session?.user.id,
-      kind: 'direction_message',
-      summary: directionText.trim() || 'Pièce jointe Direction',
-      files: directionFiles.map((file) => file.name),
-      images,
-      createdAt: new Date().toISOString(),
-    })
-    setSuccess('Message Direction placé dans la file d’envoi LSPD.')
+    setSuccess(null)
+    const form=new FormData(); form.append('action','direction'); form.append('body',directionText.trim()); directionFiles.forEach(file=>form.append('files',file))
+    const {data,error}=await supabase.functions.invoke('ems-lspd-send',{body:form})
+    if(error||data?.error){setSuccess(`Erreur d’envoi : ${data?.error||error?.message||'inconnue'}`);return}
+    setSuccess('Message Direction envoyé au LSPD.')
     setRevision((value) => value + 1)
     setDirectionText(''); setDirectionFiles([])
     window.setTimeout(() => setSuccess(null), 4500)
