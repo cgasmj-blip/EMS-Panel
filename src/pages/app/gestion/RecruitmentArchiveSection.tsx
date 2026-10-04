@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react'
-import { Archive, CheckCircle2, XCircle } from 'lucide-react'
+import { Archive, CheckCircle2, Trash2, XCircle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/auth/AuthContext'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 
 type Row={id:number;public_id:string;full_name:string;phone:string|null;discord_id:string|null;discord_username:string|null;subject:string;message:string;driving_license:string|null;identity_document:string|null;status:string;created_at:string}
 
 export function RecruitmentArchiveSection(){
+ const { staff } = useAuth(); const canDelete=staff?.role==='directeur'
+ async function removeSelected(){if(!selected||!canDelete||!window.confirm('Supprimer définitivement cette candidature archivée ?'))return; const {error}=await supabase.from('visitor_requests').delete().eq('id',selected.id); if(error){window.alert(error.message);return} setRows(v=>v.filter(x=>x.id!==selected.id));setSelected(null)}
  const [rows,setRows]=useState<Row[]>([])
  const [kind,setKind]=useState<'acceptee'|'refusee'>('acceptee')
  const [selected,setSelected]=useState<Row|null>(null)
@@ -17,6 +20,6 @@ export function RecruitmentArchiveSection(){
    <div className="flex gap-2 mb-4"><Button size="sm" variant={kind==='acceptee'?'red':'ghost'} onClick={()=>{setKind('acceptee');setSelected(null)}}><CheckCircle2 size={14}/> Acceptées</Button><Button size="sm" variant={kind==='refusee'?'red':'ghost'} onClick={()=>{setKind('refusee');setSelected(null)}}><XCircle size={14}/> Refusées</Button></div>
    <div className="grid gap-2">{visible.map(r=><button key={r.id} onClick={()=>setSelected(r)} className="text-left rounded-xl border border-[var(--ink)]/8 p-3 hover:bg-[var(--ink)]/[0.04]"><p className="font-semibold text-sm">{r.full_name}</p><p className="text-xs text-[var(--ink)]/40">{new Date(r.created_at).toLocaleDateString('fr-FR')} · {r.subject}</p></button>)}{visible.length===0&&<p className="text-sm text-[var(--ink)]/35 py-6 text-center">Aucune candidature archivée.</p>}</div>
   </Card>
-  <Card className="p-5">{!selected?<div className="min-h-80 flex flex-col items-center justify-center text-[var(--ink)]/35"><Archive size={28}/><p className="mt-2 text-sm">Sélectionne une candidature archivée</p></div>:<div><h3 className="font-bold text-lg">{selected.full_name}</h3><p className="text-xs text-[var(--ink)]/40 mt-1">Réf. {selected.public_id.slice(0,8).toUpperCase()}</p><div className="grid gap-1 text-sm mt-4"><p><b>Téléphone :</b> {selected.phone||'—'}</p><p><b>ID Discord :</b> {selected.discord_id||'—'}</p><p><b>Permis :</b> {selected.driving_license||'—'}</p><p><b>Pièce d’identité :</b> {selected.identity_document||'—'}</p></div><div className="rounded-xl border border-[var(--ink)]/8 p-4 mt-4"><p className="font-semibold">{selected.subject}</p><p className="text-sm whitespace-pre-wrap mt-2">{selected.message}</p></div></div>}</Card>
+  <Card className="p-5">{!selected?<div className="min-h-80 flex flex-col items-center justify-center text-[var(--ink)]/35"><Archive size={28}/><p className="mt-2 text-sm">Sélectionne une candidature archivée</p></div>:<div><div className="flex items-center justify-between gap-3"><h3 className="font-bold text-lg">{selected.full_name}</h3>{canDelete&&<Button size="sm" variant="ghost" onClick={removeSelected}><Trash2 size={14}/> Supprimer</Button>}</div><p className="text-xs text-[var(--ink)]/40 mt-1">Réf. {selected.public_id.slice(0,8).toUpperCase()}</p><div className="grid gap-1 text-sm mt-4"><p><b>Téléphone :</b> {selected.phone||'—'}</p><p><b>ID Discord :</b> {selected.discord_id||'—'}</p><p><b>Permis :</b> {selected.driving_license||'—'}</p><p><b>Pièce d’identité :</b> {selected.identity_document||'—'}</p></div><div className="rounded-xl border border-[var(--ink)]/8 p-4 mt-4"><p className="font-semibold">{selected.subject}</p><p className="text-sm whitespace-pre-wrap mt-2">{selected.message}</p></div></div>}</Card>
  </div>
 }
