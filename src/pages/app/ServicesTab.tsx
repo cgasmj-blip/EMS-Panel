@@ -539,20 +539,45 @@ export function ServicesTab() {
 
           <div className="grid sm:grid-cols-2 gap-4">
             <Field label="Véhicule (facultatif)">
-              <Select
-                value={vehicule}
-                onChange={(e) => {
-                  setVehicule(e.target.value)
-                  if (staff.status !== 'hors_service') setDetailsDirty(true)
-                }}
-              >
-                <option value="">— Aucun / non renseigné —</option>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setVehicule('')
+                    if (staff.status !== 'hors_service') setDetailsDirty(true)
+                  }}
+                  className={cn(
+                    'min-h-12 rounded-xl border px-3 py-2 text-left text-xs font-semibold transition',
+                    vehicule === ''
+                      ? 'border-red/60 bg-red/10 text-[var(--ink)]'
+                      : 'border-[var(--ink)]/10 bg-[var(--ink)]/[0.02] text-[var(--ink)]/55 hover:border-[var(--ink)]/25',
+                  )}
+                >
+                  Aucun véhicule
+                </button>
                 {selectableVehicles.map((v) => (
-                  <option key={v.id} value={v.name}>
-                    {v.plate ? v.name + ' · ' + v.plate : v.name}
-                  </option>
+                  <button
+                    key={v.id}
+                    type="button"
+                    onClick={() => {
+                      setVehicule(v.name)
+                      if (staff.status !== 'hors_service') setDetailsDirty(true)
+                    }}
+                    className={cn(
+                      'min-h-12 rounded-xl border px-3 py-2 text-left transition',
+                      vehicule === v.name
+                        ? 'border-red/60 bg-red/10 ring-1 ring-red/30'
+                        : 'border-[var(--ink)]/10 bg-[var(--ink)]/[0.02] hover:border-[var(--ink)]/25 hover:bg-[var(--ink)]/[0.04]',
+                    )}
+                  >
+                    <span className="block text-xs font-bold text-[var(--ink)]">{v.name}</span>
+                    {v.plate && <span className="block mt-0.5 text-[10px] text-[var(--ink)]/45 truncate">Plaque {v.plate}</span>}
+                  </button>
                 ))}
-              </Select>
+              </div>
+              {selectableVehicles.length === 0 && (
+                <p className="mt-2 text-xs text-[var(--ink)]/35">Aucun véhicule disponible.</p>
+              )}
             </Field>
             <Field label="Défibrillateur (facultatif)">
               <Select
