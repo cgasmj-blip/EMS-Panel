@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { CalendarClock, FileText, HeartHandshake, History, LogIn, MessageCircle, Send, Stethoscope, UserRoundPlus } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/auth/AuthContext'
@@ -171,6 +171,7 @@ export function VisitorPortal() {
   const [threads, setThreads] = useState<Array<{ credential: TicketCredential; data: ThreadData }>>([])
   const [openTicket, setOpenTicket] = useState<string | null>(null)
   const [replyByTicket, setReplyByTicket] = useState<Record<string, string>>({})
+  const visitorThreadScrollRef = useRef<HTMLDivElement | null>(null)
   const [siteSettings, setSiteSettings] = useState<SiteSettings | null>(null)
   const [heroImageUrl, setHeroImageUrl] = useState<string | null>(null)
   const [backgroundImageUrl, setBackgroundImageUrl] = useState<string | null>(null)
@@ -350,6 +351,14 @@ export function VisitorPortal() {
     )
     setThreads(rows.filter(Boolean) as Array<{ credential: TicketCredential; data: ThreadData }>)
   }
+
+  useEffect(() => {
+    if (!openTicket) return
+    window.requestAnimationFrame(() => {
+      const node = visitorThreadScrollRef.current
+      if (node) node.scrollTop = node.scrollHeight
+    })
+  }, [openTicket])
 
   async function sendTrackingReply(item: { credential: TicketCredential; data: ThreadData }) {
     const body = (replyByTicket[item.credential.public_id] ?? '').trim()
@@ -646,7 +655,7 @@ export function VisitorPortal() {
             {threads.filter(item=>item.credential.public_id===openTicket).map((item)=>(
               <Card key={item.credential.public_id} className="p-5 sm:p-6">
                 <div className="flex items-start justify-between gap-3 mb-4"><div><p className="font-bold">{item.data.request.request_type==='recrutement'?'Candidature':item.data.request.subject}</p><p className="text-[var(--ink)]/35 text-xs mt-1">Réf. {item.data.request.public_id.slice(0,8).toUpperCase()}</p></div><Button size="sm" variant="ghost" onClick={()=>setOpenTicket(null)}>Fermer</Button></div>
-                <div className="grid gap-2 max-h-80 overflow-y-auto pr-1">{item.data.messages.map(message=><div key={message.id} className={message.sender==='ems'?'rounded-xl bg-red/8 border border-red/10 px-3 py-2.5':'rounded-xl bg-[var(--ink)]/[0.035] border border-[var(--ink)]/8 px-3 py-2.5'}><p className="text-[11px] font-semibold text-[var(--ink)]/40 mb-1">{message.sender==='ems'?'EMS':'Vous'}</p><p className="text-sm whitespace-pre-wrap">{message.body}</p></div>)}</div>
+                <div ref={visitorThreadScrollRef} className="grid gap-2 max-h-80 overflow-y-auto pr-1">{item.data.messages.map(message=><div key={message.id} className={message.sender==='ems'?'rounded-xl bg-red/8 border border-red/10 px-3 py-2.5':'rounded-xl bg-[var(--ink)]/[0.035] border border-[var(--ink)]/8 px-3 py-2.5'}><p className="text-[11px] font-semibold text-[var(--ink)]/40 mb-1">{message.sender==='ems'?'EMS':'Vous'}</p><p className="text-sm whitespace-pre-wrap">{message.body}</p></div>)}</div>
                 {item.data.request.request_type!=='recrutement'&&<div className="flex gap-2 mt-4"><Input value={replyByTicket[item.credential.public_id]??''} onChange={e=>setReplyByTicket(current=>({...current,[item.credential.public_id]:e.target.value}))} placeholder="Ajouter un message…" /><Button onClick={()=>void sendTrackingReply(item)} disabled={!(replyByTicket[item.credential.public_id]??'').trim()}><Send size={15}/></Button></div>}
               </Card>
             ))}
