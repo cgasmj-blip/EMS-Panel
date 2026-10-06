@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { MessageSquareReply, RefreshCw, UserRoundCheck } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/auth/AuthContext'
@@ -60,6 +60,9 @@ export function VisitorRequestsSection({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [messages, setMessages] = useState<VisitorMessage[]>([])
+  const threadScrollRef = useRef<HTMLDivElement | null>(null)
+  const stickToBottomRef = useRef(true)
+  const previousThreadRef = useRef<number | null>(null)
 
   const typeKey = types.join(',')
 
@@ -96,10 +99,29 @@ export function VisitorRequestsSection({
 
   useEffect(() => {
     if (!selectedId) { setMessages([]); return }
+    stickToBottomRef.current = true
     fetchMessages(selectedId)
     const channel=supabase.channel(`visitor-thread-${selectedId}`).on('postgres_changes',{event:'INSERT',schema:'public',table:'visitor_request_messages',filter:`request_id=eq.${selectedId}`},()=>fetchMessages(selectedId)).subscribe()
-    return ()=>{supabase.removeChannel(channel)}
+    // Poll as a fallback: visitor replies can otherwise be missed by Realtime until another action reloads the thread.
+    const timer=window.setInterval(()=>void fetchMessages(selectedId),3000)
+    return ()=>{window.clearInterval(timer);supabase.removeChannel(channel)}
   }, [selectedId, fetchMessages])
+
+  useEffect(() => {
+    const node=threadScrollRef.current
+    if(!node||!selectedId) return
+    const changed=previousThreadRef.current!==selectedId
+    previousThreadRef.current=selectedId
+    if(changed) stickToBottomRef.current=true
+    if(!stickToBottomRef.current) return
+    window.requestAnimationFrame(()=>{node.scrollTop=node.scrollHeight})
+  }, [messages, selectedId])
+
+  const handleThreadScroll=useCallback(()=>{
+    const node=threadScrollRef.current
+    if(!node) return
+    stickToBottomRef.current=node.scrollHeight-node.scrollTop-node.clientHeight<80
+  },[])
   const visible = useMemo(() => requests, [requests])
 
   async function setStatus(request: VisitorRequest, status: string) {
@@ -267,7 +289,7 @@ export function VisitorRequestsSection({
 
             {selected.request_type === 'recrutement' && <div className="grid sm:grid-cols-[1fr_auto] gap-3 mb-5"><Select value={selected.status} disabled={busy} onChange={(e)=>void setStatus(selected,e.target.value)}>{STATUS_OPTIONS.filter(([value])=>['en_attente','verification_dossier','entretien','acceptee','refusee'].includes(value)).map(([value,label])=><option key={value} value={value}>{label}</option>)}</Select><Badge variant={selected.status==='acceptee'?'green':selected.status==='refusee'?'red':'amber'}>{STATUS_OPTIONS.find(([value])=>value===selected.status)?.[1]??selected.status}</Badge></div>}
 
-            {selected.request_type !== 'recrutement' && <><div className="rounded-xl border border-[var(--ink)]/8 bg-[var(--ink)]/[0.015] p-3 mb-4 max-h-72 overflow-y-auto flex flex-col gap-2">
+            {selected.request_type !== 'recrutement' && <><div ref={threadScrollRef} onScroll={handleThreadScroll} className="rounded-xl border border-[var(--ink)]/8 bg-[var(--ink)]/[0.015] p-3 mb-4 max-h-72 overflow-y-auto flex flex-col gap-2">
               {messages.map((message)=><div key={message.id} className={message.sender==='ems'?'flex justify-end':'flex justify-start'}><div className={message.sender==='ems'?'max-w-[82%] rounded-2xl bg-red text-white px-3.5 py-2.5':'max-w-[82%] rounded-2xl bg-[var(--ink)]/7 px-3.5 py-2.5'}><p className="text-[10px] opacity-60 mb-1">{message.sender==='ems'?'EMS':selected.full_name} · {new Date(message.created_at).toLocaleString('fr-FR')}</p><p className="text-sm whitespace-pre-wrap">{message.body}</p></div></div>)}
               {messages.length===0&&<p className="text-center text-xs text-[var(--ink)]/30 py-5">Aucun message dans cette conversation.</p>}
             </div>
