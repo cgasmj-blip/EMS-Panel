@@ -848,24 +848,27 @@ export function Dashboard() {
       </main>
 
       {pendingAnnouncement && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/70 backdrop-blur-md" />
-          <section className="relative w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-3xl border border-red/30 bg-[var(--sidebar-bg)] shadow-2xl p-6 sm:p-8">
-            <div className="w-14 h-14 rounded-2xl bg-red/15 text-red flex items-center justify-center mb-5"><Megaphone size={26}/></div>
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-red mb-2">Annonce EMS</p>
-            <h2 className="font-display font-black text-2xl sm:text-3xl text-[var(--ink)]">{pendingAnnouncement.title}</h2>
-            <p className="text-[var(--ink)]/35 text-xs mt-2">{new Date(pendingAnnouncement.created_at).toLocaleString('fr-FR')}</p>
-            <div className="mt-6 rounded-2xl border border-[var(--ink)]/8 bg-[var(--ink)]/[0.025] p-4 sm:p-5">
-              <p className="text-sm sm:text-base text-[var(--ink)]/80 whitespace-pre-wrap leading-relaxed">{pendingAnnouncement.body}</p>
-            </div>
-            <Button className="w-full mt-6" onClick={() => {
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 overflow-hidden">
+          <div className="absolute inset-0 bg-red-950/20 backdrop-blur-lg" />
+          <div className="absolute inset-0 bg-gradient-to-br from-red/10 via-transparent to-red/10 pointer-events-none" />
+          <section className="relative w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-3xl border border-red/50 bg-[linear-gradient(145deg,rgba(127,29,29,0.96),rgba(69,10,10,0.97))] shadow-[0_0_45px_rgba(239,68,68,0.38),0_24px_80px_rgba(0,0,0,0.55)] p-6 sm:p-8 before:absolute before:inset-0 before:rounded-3xl before:border before:border-white/10 before:pointer-events-none animate-[pulse_2.8s_ease-in-out_infinite]">
+            <div className="relative">
+              <div className="w-14 h-14 rounded-2xl border border-white/15 bg-white/10 text-white flex items-center justify-center mb-5 shadow-[0_0_24px_rgba(255,255,255,0.10)]"><Megaphone size={26}/></div>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-red-200 mb-2">Annonce EMS</p>
+              <h2 className="font-display font-black text-2xl sm:text-3xl text-white">{pendingAnnouncement.title}</h2>
+              <p className="text-white/45 text-xs mt-2">{new Date(pendingAnnouncement.created_at).toLocaleString('fr-FR')}</p>
+              <div className="mt-6 rounded-2xl border border-white/10 bg-black/15 backdrop-blur-sm p-4 sm:p-5">
+                <p className="text-sm sm:text-base text-white/85 whitespace-pre-wrap leading-relaxed">{pendingAnnouncement.body}</p>
+              </div>
+              <Button className="w-full mt-6 !bg-white !text-red-800 hover:!bg-red-50 shadow-lg" onClick={() => {
               setAcceptedAnnouncementIds((current) => {
                 const next=[...new Set([...current,pendingAnnouncement.id])]
                 window.localStorage.setItem('ems-announcements-accepted',JSON.stringify(next))
                 return next
               })
-            }}>J’ai lu et j’accepte</Button>
-            <p className="text-center text-[10px] text-[var(--ink)]/30 mt-3">Cette annonce restera disponible dans le centre de notifications.</p>
+              }}>J’ai lu et j’accepte</Button>
+              <p className="text-center text-[10px] text-white/40 mt-3">Cette annonce restera disponible dans le centre de notifications.</p>
+            </div>
           </section>
         </div>
       )}
