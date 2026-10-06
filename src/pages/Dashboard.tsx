@@ -79,6 +79,10 @@ export function Dashboard() {
   const [recentCriminalRecordReplies, setRecentCriminalRecordReplies] = useState<Array<{ id:string; subject_first_name:string|null; subject_last_name:string|null; created_at:string }>>([])
   const [latestAnnouncements, setLatestAnnouncements] = useState<{ id: number; title: string; body: string; created_at: string }[]>([])
   const [nextAppointment, setNextAppointment] = useState<{ scheduled_at: string; title: string | null; type: string } | null>(null)
+  const [acceptedAnnouncementIds, setAcceptedAnnouncementIds] = useState<number[]>(() => {
+    try { return JSON.parse(window.localStorage.getItem('ems-announcements-accepted') ?? '[]') }
+    catch { return [] }
+  })
   const previousUnreadRef = useRef<number | null>(null)
   const previousAnnouncementIdRef = useRef<number | null>(null)
   const [navLayout, setNavLayout] = useState<{ home: TabKey[]; sidebar: TabKey[] }>({ home: [], sidebar: [] })
@@ -456,10 +460,12 @@ export function Dashboard() {
     ...recentStockAlerts.map((item) => ({ id: `stock-${item.id}`, kind: 'stock' as const, title: 'Alerte stock', detail: `${item.item_key}${item.quantity_remaining != null ? ` — reste ${item.quantity_remaining}` : ''}${item.note ? ` · ${item.note}` : ''}`, created_at: item.created_at, target: 'gestion' as TabKey })),
     ...(nextAppointment ? [{ id: `appointment-${nextAppointment.scheduled_at}`, kind: 'appointment' as const, title: 'Prochain rendez-vous', detail: nextAppointment.title || nextAppointment.type, created_at: nextAppointment.scheduled_at, target: 'agenda' as TabKey }] : []),
   ].sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 25)
-  const notificationItems = allNotificationItems.filter((item) => !dismissedNotifications.includes(item.id))
+  const notificationItems = allNotificationItems.filter((item) => item.kind === 'announcement' || !dismissedNotifications.includes(item.id))
   const unreadNotifications = notificationItems.filter((item) => !notificationSeenAt || new Date(item.created_at) > new Date(notificationSeenAt)).length
+  const pendingAnnouncement = latestAnnouncements.find((item) => !acceptedAnnouncementIds.includes(item.id)) ?? null
 
   function dismissNotification(id: string) {
+    if (id.startsWith('announcement-')) return
     setDismissedNotifications((current) => {
       const next = [...new Set([...current, id])]
       window.localStorage.setItem('ems-notifications-dismissed', JSON.stringify(next))
@@ -468,7 +474,7 @@ export function Dashboard() {
   }
 
   function markAllNotificationsRead() {
-    const ids = allNotificationItems.map((item) => item.id)
+    const ids = allNotificationItems.filter((item) => item.kind !== 'announcement').map((item) => item.id)
     setDismissedNotifications((current) => {
       const next = [...new Set([...current, ...ids])]
       window.localStorage.setItem('ems-notifications-dismissed', JSON.stringify(next))
@@ -771,7 +777,7 @@ export function Dashboard() {
                   {displayRoleLabel(staff.role) && <p className="text-[var(--ink)]/40 text-sm">{displayRoleLabel(staff.role)}</p>}
                 </div>
               </div>
-              {latestAnnouncements.length > 0 && (
+              {false && latestAnnouncements.length > 0 && (
                 <div className="rounded-2xl border border-red/20 bg-red/10 px-3 py-2.5 sm:px-4 sm:py-3 shrink-0">
                   <div className="flex items-center gap-3 mb-3">
                     <span className="w-9 h-9 rounded-xl bg-red/15 text-red-300 flex items-center justify-center shrink-0">
@@ -841,6 +847,29 @@ export function Dashboard() {
         </AnimatePresence>
       </main>
 
+      {pendingAnnouncement && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-md" />
+          <section className="relative w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-3xl border border-red/30 bg-[var(--sidebar-bg)] shadow-2xl p-6 sm:p-8">
+            <div className="w-14 h-14 rounded-2xl bg-red/15 text-red flex items-center justify-center mb-5"><Megaphone size={26}/></div>
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-red mb-2">Annonce EMS</p>
+            <h2 className="font-display font-black text-2xl sm:text-3xl text-[var(--ink)]">{pendingAnnouncement.title}</h2>
+            <p className="text-[var(--ink)]/35 text-xs mt-2">{new Date(pendingAnnouncement.created_at).toLocaleString('fr-FR')}</p>
+            <div className="mt-6 rounded-2xl border border-[var(--ink)]/8 bg-[var(--ink)]/[0.025] p-4 sm:p-5">
+              <p className="text-sm sm:text-base text-[var(--ink)]/80 whitespace-pre-wrap leading-relaxed">{pendingAnnouncement.body}</p>
+            </div>
+            <Button className="w-full mt-6" onClick={() => {
+              setAcceptedAnnouncementIds((current) => {
+                const next=[...new Set([...current,pendingAnnouncement.id])]
+                window.localStorage.setItem('ems-announcements-accepted',JSON.stringify(next))
+                return next
+              })
+            }}>J’ai lu et j’accepte</Button>
+            <p className="text-center text-[10px] text-[var(--ink)]/30 mt-3">Cette annonce restera disponible dans le centre de notifications.</p>
+          </section>
+        </div>
+      )}
+
       {showNotifications && (
         <div className="fixed inset-0 z-[80]" onClick={() => setShowNotifications(false)}>
           <div className="absolute inset-0 bg-black/25 backdrop-blur-[2px]" />
@@ -859,7 +888,7 @@ export function Dashboard() {
                   <button type="button" onClick={() => { setShowNotifications(false); setView(item.target) }} className="w-full rounded-xl border border-[var(--ink)]/8 bg-[var(--ink)]/[0.035] p-3 pr-11 text-left hover:bg-[var(--ink)]/[0.07] transition-colors">
                   <div className="flex gap-3"><span className="mt-0.5 w-9 h-9 shrink-0 rounded-xl bg-red/10 text-red flex items-center justify-center"><Icon size={16}/></span><div className="min-w-0 flex-1"><div className="flex justify-between gap-2"><p className="text-sm font-semibold text-[var(--ink)] truncate">{item.title}</p><span className="text-[10px] text-[var(--ink)]/35 shrink-0">{new Date(item.created_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'})}</span></div><p className="mt-1 text-xs text-[var(--ink)]/55 line-clamp-2 whitespace-pre-wrap">{item.detail}</p></div></div>
                   </button>
-                  <button type="button" onClick={() => dismissNotification(item.id)} className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-lg flex items-center justify-center text-[var(--ink)]/35 hover:bg-red/10 hover:text-red opacity-60 group-hover:opacity-100 transition" title="Supprimer la notification" aria-label="Supprimer la notification"><Trash2 size={15}/></button>
+                  {item.kind !== 'announcement' && <button type="button" onClick={() => dismissNotification(item.id)} className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-lg flex items-center justify-center text-[var(--ink)]/35 hover:bg-red/10 hover:text-red opacity-60 group-hover:opacity-100 transition" title="Supprimer la notification" aria-label="Supprimer la notification"><Trash2 size={15}/></button>}
                 </div>
               })}
             </div>
