@@ -831,7 +831,7 @@ export function Dashboard() {
               transition={{ duration: 0.25 }}
               className={cn(
                 'flex flex-col gap-4 sm:gap-6 max-w-5xl w-full mx-auto min-w-0',
-                effectiveView === 'messages' && 'h-full min-h-0 overflow-hidden gap-2 sm:gap-3',
+                (effectiveView === 'messages' || effectiveView === 'candidatures' || effectiveView === 'professional_messages' || effectiveView === 'lspd_transfer') && 'h-full min-h-0 overflow-hidden gap-2 sm:gap-3',
               )}
             >
               {activeSection && (
@@ -842,7 +842,9 @@ export function Dashboard() {
                   onBack={() => setView('home')}
                 />
               )}
-              {effectiveView === 'dossier' ? <DossierTraumatoTab /> : TAB_CONTENT[effectiveView]}
+              <div className={cn((effectiveView === 'candidatures' || effectiveView === 'professional_messages' || effectiveView === 'lspd_transfer') && 'flex-1 min-h-0 overflow-hidden')}>
+                {effectiveView === 'dossier' ? <DossierTraumatoTab /> : TAB_CONTENT[effectiveView]}
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
