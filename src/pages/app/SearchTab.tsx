@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Search, User, FolderOpen, PackageSearch, Ambulance, CalendarClock, History, Stethoscope, BadgeInfo } from 'lucide-react'
 import { supabase, displayRoleLabel, type StaffRole } from '@/lib/supabase'
+import { useAuth } from '@/auth/AuthContext'
 import { Card } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
 
@@ -18,6 +19,7 @@ function safeTerm(value: string) {
 }
 
 export function SearchTab() {
+  const { session } = useAuth()
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<SearchResult[]>([])
   const [loading, setLoading] = useState(false)
@@ -54,8 +56,8 @@ export function SearchTab() {
         supabase.from('stock_items').select('key,label').or(`key.ilike.${like},label.ilike.${like}`).limit(30),
         supabase.from('units').select('id,name,sector,code,vehicule,commentaire,status').or(`name.ilike.${like},sector.ilike.${like},code.ilike.${like},vehicule.ilike.${like},commentaire.ilike.${like}`).limit(30),
         supabase.from('appointments').select('id,type,title,scheduled_at').or(`type.ilike.${like},title.ilike.${like}`).order('scheduled_at', { ascending: false }).limit(30),
-        supabase.from('shifts').select('id,unit_name,sector,code,vehicule,commentaire,status_label,started_at,ended_at').or(`unit_name.ilike.${like},sector.ilike.${like},code.ilike.${like},vehicule.ilike.${like},commentaire.ilike.${like},status_label.ilike.${like}`).order('started_at', { ascending: false }).limit(30),
-        supabase.from('prestations').select('id,prestation_type_id,details,montant,created_at').or(`prestation_type_id.ilike.${like},details.ilike.${like}`).order('created_at', { ascending: false }).limit(30),
+        supabase.from('shifts').select('id,unit_name,sector,code,vehicule,commentaire,status_label,started_at,ended_at').eq('staff_id', session?.user.id ?? '').or(`unit_name.ilike.${like},sector.ilike.${like},code.ilike.${like},vehicule.ilike.${like},commentaire.ilike.${like},status_label.ilike.${like}`).order('started_at', { ascending: false }).limit(30),
+        supabase.from('prestations').select('id,prestation_type_id,details,montant,created_at').eq('staff_id', session?.user.id ?? '').or(`prestation_type_id.ilike.${like},details.ilike.${like}`).order('created_at', { ascending: false }).limit(30),
         supabase.from('help_articles').select('id,title,content').or(`title.ilike.${like},content.ilike.${like}`).limit(30),
         supabase.from('sous_grades').select('id,label').or(`id.ilike.${like},label.ilike.${like}`).limit(30),
         supabase.from('affiliations').select('id,label').or(`id.ilike.${like},label.ilike.${like}`).limit(30),
@@ -189,7 +191,7 @@ export function SearchTab() {
       cancelled = true
       window.clearTimeout(timer)
     }
-  }, [query])
+  }, [query, session?.user.id])
 
   const grouped = useMemo(() => {
     const map = new Map<string, SearchResult[]>()
