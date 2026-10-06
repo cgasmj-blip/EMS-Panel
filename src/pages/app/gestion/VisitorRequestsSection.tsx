@@ -278,7 +278,7 @@ export function VisitorRequestsSection({
               </div>
             </div>
 
-            <div className="rounded-xl border border-[var(--ink)]/8 bg-[var(--ink)]/[0.02] p-4 mb-3 shrink-0">
+            <div className="rounded-xl border border-[var(--ink)]/8 bg-[var(--ink)]/[0.02] p-4 mb-3 shrink-0 max-h-32 overflow-y-auto">
               <p className="text-xs uppercase tracking-wide text-[var(--ink)]/35 mb-1">Objet</p>
               <p className="font-semibold text-sm">{selected.subject}</p>
               <p className="text-sm text-[var(--ink)]/65 whitespace-pre-wrap mt-3">{selected.message}</p>
@@ -310,7 +310,7 @@ export function VisitorRequestsSection({
 
             </div>}
             {selected.request_type === 'recrutement' && selected.discord_id && (
-              <p className="text-[var(--ink)]/35 text-xs mt-4">
+              <p className="text-[var(--ink)]/35 text-xs mt-auto pt-3 shrink-0">
                 Les changements de statut de candidature envoient automatiquement le message correspondant en privé sur Discord.
               </p>
             )}
