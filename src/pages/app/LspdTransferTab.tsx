@@ -78,7 +78,7 @@ export function LspdTransferTab() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="h-full min-h-0 overflow-hidden flex flex-col gap-4">
       {success && (
         <div className="flex items-center gap-3 rounded-2xl border border-emerald-500/25 bg-emerald-500/10 p-3 text-sm font-semibold text-[var(--ink)]">
           <CheckCircle2 size={18} className="text-emerald-500" /> {success}
@@ -165,7 +165,7 @@ export function LspdTransferTab() {
           <button type="button" onClick={() => setDirectionOpen(false)} className="mb-1 flex items-center gap-2 text-sm font-semibold text-[var(--ink)]/60 hover:text-[var(--ink)]">
             <ArrowLeft size={17}/> Retour à Liaison LSPD
           </button>
-        <form onSubmit={simulateDirectionSend} className="flex min-h-[560px] flex-col overflow-hidden rounded-2xl border border-white/10 bg-blue-950 text-white">
+        <form onSubmit={simulateDirectionSend} className="flex flex-1 min-h-0 flex-col overflow-hidden rounded-2xl border border-white/10 bg-blue-950 text-white">
           <div className="flex items-center gap-3 border-b border-white/10 px-4 py-3">
             <span className="flex h-10 w-10 items-center justify-center rounded-full bg-red/15 text-red"><MessageSquareText size={18}/></span>
             <div><p className="font-bold text-[var(--ink)]">Direction LSPD</p><p className="text-xs text-[var(--ink)]/45">Liaison interservices</p></div>
