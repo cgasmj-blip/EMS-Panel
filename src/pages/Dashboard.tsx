@@ -514,7 +514,7 @@ export function Dashboard() {
     <div
       className={cn(
         'bg-[var(--bg)]',
-        effectiveView === 'home' || effectiveView === 'messages' ? 'h-screen overflow-hidden' : 'min-h-screen',
+        effectiveView === 'home' || ['messages','candidatures','professional_messages','lspd_transfer','gestion'].includes(effectiveView) ? 'h-screen overflow-hidden' : 'min-h-screen',
       )}
       style={{
         backgroundColor: uiPreferences.background_color ?? undefined,
@@ -752,7 +752,7 @@ export function Dashboard() {
             ? sidebarHorizontal
               ? 'h-[calc(100vh-5rem)] overflow-hidden'
               : 'h-screen overflow-hidden'
-            : effectiveView === 'messages'
+            : ['messages','candidatures','professional_messages','lspd_transfer','gestion'].includes(effectiveView)
               ? sidebarHorizontal
                 ? 'h-[calc(100vh-5rem)] overflow-hidden'
                 : 'h-screen overflow-hidden'
@@ -831,7 +831,7 @@ export function Dashboard() {
               transition={{ duration: 0.25 }}
               className={cn(
                 'flex flex-col gap-4 sm:gap-6 max-w-5xl w-full mx-auto min-w-0',
-                (effectiveView === 'messages' || effectiveView === 'candidatures' || effectiveView === 'professional_messages' || effectiveView === 'lspd_transfer') && 'h-full min-h-0 overflow-hidden gap-2 sm:gap-3',
+                (effectiveView === 'messages' || effectiveView === 'candidatures' || effectiveView === 'professional_messages' || effectiveView === 'lspd_transfer' || effectiveView === 'gestion') && 'h-full min-h-0 overflow-hidden gap-2 sm:gap-3',
               )}
             >
               {activeSection && (
@@ -842,7 +842,7 @@ export function Dashboard() {
                   onBack={() => setView('home')}
                 />
               )}
-              <div className={cn((effectiveView === 'candidatures' || effectiveView === 'professional_messages' || effectiveView === 'lspd_transfer') && 'flex-1 min-h-0 overflow-hidden')}>
+              <div className={cn((effectiveView === 'candidatures' || effectiveView === 'professional_messages' || effectiveView === 'lspd_transfer' || effectiveView === 'gestion') && 'flex-1 min-h-0 overflow-hidden')}>
                 {effectiveView === 'dossier' ? <DossierTraumatoTab /> : TAB_CONTENT[effectiveView]}
               </div>
             </motion.div>
