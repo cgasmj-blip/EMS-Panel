@@ -253,7 +253,7 @@ export function VisitorRequestsSection({
         </div>
       </Card>
 
-      <Card className="p-5 min-h-0 overflow-hidden flex flex-col">
+      <Card className="p-5 min-h-0 overflow-y-auto overscroll-contain flex flex-col">
         {!selected ? (
           <div className="h-full min-h-[420px] flex flex-col items-center justify-center text-center">
             <MessageSquareReply size={28} className="text-[var(--ink)]/20 mb-3" />
