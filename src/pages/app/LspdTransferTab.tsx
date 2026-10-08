@@ -18,6 +18,8 @@ type FolderKey = (typeof folders)[number]['key']
 const TILE_COLORS = ['bg-blue-900', 'bg-indigo-900', 'bg-slate-900', 'bg-blue-800', 'bg-indigo-950', 'bg-sky-900', 'bg-blue-950', 'bg-slate-800'] as const
 
 export function LspdTransferTab() {
+  const [allowed, setAllowed] = useState<string[]>([])
+  useEffect(()=>{void (async()=>{const {data:{session}}=await supabase.auth.getSession();if(!session)return;const r=await fetch('https://pvahrnrtivzbkipborcd.supabase.co/functions/v1/ems-lspd-send?permissions=1',{headers:{Authorization:'Bearer '+session.access_token}});if(r.ok)setAllowed((await r.json()).allowed||[])})()},[])
   const [selected, setSelected] = useState<FolderKey | null>(null)
   const [directionOpen, setDirectionOpen] = useState(false)
   const [firstName, setFirstName] = useState('')
@@ -88,7 +90,7 @@ export function LspdTransferTab() {
       {!current && !directionOpen && (
         <>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-        {folders.map((folder, index) => {
+        {folders.filter(folder=>allowed.includes(folder.key)).map((folder) => { const index=folders.findIndex(x=>x.key===folder.key);
           const Icon = folder.icon
           return (
             <button key={folder.key} type="button" onClick={() => { setSelected(folder.key); setDirectionOpen(false); setSuccess(null) }}
@@ -97,13 +99,13 @@ export function LspdTransferTab() {
             </button>
           )
         })}
-        <button type="button" onClick={() => { setDirectionOpen(true); setSelected(null); setSuccess(null) }}
+        {allowed.includes("direction_message") && <button type="button" onClick={() => { setDirectionOpen(true); setSelected(null); setSuccess(null) }}
           className="group col-span-2 rounded-2xl border border-white/10 bg-blue-950 p-4 text-left text-white shadow-sm transition hover:-translate-y-0.5 hover:border-white/25 hover:brightness-110 sm:col-span-3 lg:col-span-4">
           <div className="flex min-h-28 flex-col items-center justify-center gap-3 text-center">
             <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-red/15 text-red"><MessageSquareText size={20}/></span>
             <p className="font-bold text-white">Messagerie Direction</p>
           </div>
-        </button>
+        </button>}
       </div>
         </>
       )}
