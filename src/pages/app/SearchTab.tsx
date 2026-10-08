@@ -19,7 +19,7 @@ function safeTerm(value: string) {
 }
 
 export function SearchTab() {
-  const { session } = useAuth()
+  const { session, staff: currentStaff } = useAuth()
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<SearchResult[]>([])
   const [loading, setLoading] = useState(false)
@@ -54,7 +54,7 @@ export function SearchTab() {
         supabase.from('training_folders').select('id,name,description,section_title').or(`name.ilike.${like},description.ilike.${like},section_title.ilike.${like}`).limit(30),
         supabase.from('training_documents').select('id,title,file_name,folder_id').or(`title.ilike.${like},file_name.ilike.${like}`).limit(30),
         supabase.from('stock_items').select('key,label').or(`key.ilike.${like},label.ilike.${like}`).limit(30),
-        supabase.from('units').select('id,name,sector,code,vehicule,commentaire,status').or(`name.ilike.${like},sector.ilike.${like},code.ilike.${like},vehicule.ilike.${like},commentaire.ilike.${like}`).limit(30),
+        Promise.resolve({ data: [] as { id: string; name: string; sector: string | null; code: string | null; vehicule: string | null; commentaire: string | null; status: string | null }[] }),
         supabase.from('appointments').select('id,type,title,scheduled_at').or(`type.ilike.${like},title.ilike.${like}`).order('scheduled_at', { ascending: false }).limit(30),
         supabase.from('shifts').select('id,unit_name,sector,code,vehicule,commentaire,status_label,started_at,ended_at').eq('staff_id', session?.user.id ?? '').or(`unit_name.ilike.${like},sector.ilike.${like},code.ilike.${like},vehicule.ilike.${like},commentaire.ilike.${like},status_label.ilike.${like}`).order('started_at', { ascending: false }).limit(30),
         supabase.from('prestations').select('id,prestation_type_id,details,montant,created_at').eq('staff_id', session?.user.id ?? '').or(`prestation_type_id.ilike.${like},details.ilike.${like}`).order('created_at', { ascending: false }).limit(30),
@@ -191,7 +191,7 @@ export function SearchTab() {
       cancelled = true
       window.clearTimeout(timer)
     }
-  }, [query, session?.user.id])
+  }, [query, session?.user.id, currentStaff?.id])
 
   const grouped = useMemo(() => {
     const map = new Map<string, SearchResult[]>()
@@ -212,7 +212,7 @@ export function SearchTab() {
             autoFocus
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Recherche globale : personne, document, véhicule, code, stock, historique…"
+            placeholder="Rechercher dans vos données autorisées…"
             className="pl-10"
           />
         </div>
