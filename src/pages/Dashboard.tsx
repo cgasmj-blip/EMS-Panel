@@ -64,6 +64,8 @@ function getStoredView(): TabKey | 'home' {
 export function Dashboard() {
   const navigate = useNavigate()
   const { staff, session, signOut, signInWithDiscord } = useAuth()
+  const [lspdAllowed, setLspdAllowed] = useState<string[]>([])
+  useEffect(()=>{if(!session?.access_token){setLspdAllowed([]);return}void fetch('https://pvahrnrtivzbkipborcd.supabase.co/functions/v1/ems-lspd-send?permissions=1',{headers:{Authorization:'Bearer '+session.access_token}}).then(r=>r.ok?r.json():{allowed:[]}).then(x=>setLspdAllowed(x.allowed||[])).catch(()=>setLspdAllowed([]))},[session?.access_token])
   const [view, setViewState] = useState<TabKey | 'home'>(getStoredView)
   const [resyncing, setResyncing] = useState(false)
   const [unreadMessages, setUnreadMessages] = useState(0)
@@ -124,6 +126,7 @@ export function Dashboard() {
 
   const visibleTabs = TILE_SECTIONS
     .filter((section) => {
+      if (section.key === 'lspd_transfer') return lspdAllowed.length > 0
       if (section.key === 'candidatures') return canHandleRecruitment
       if (section.key === 'visitor_rdv' || section.key === 'professional_messages') return canHandleVisitorRdv
       return !section.seniorOnly || isAboveChirurgien(staff?.role)
