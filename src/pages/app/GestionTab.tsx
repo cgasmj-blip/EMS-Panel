@@ -194,7 +194,7 @@ export function GestionTab() {
   )
 
   return (
-    <div className="h-full min-h-0 overflow-y-auto overscroll-contain">
+    <div className="h-full min-h-0 overflow-hidden">
     <AnimatePresence mode="wait">
       {effectiveView === 'home' ? (
         <motion.div
@@ -238,7 +238,7 @@ export function GestionTab() {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -10 }}
           transition={{ duration: 0.25 }}
-          className="flex flex-col gap-6 h-full min-h-0 overflow-y-auto overscroll-contain pb-6"
+          className="flex flex-col gap-6 h-full min-h-0 overflow-y-auto overscroll-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
           <SectionHeader
             label={effectiveView === 'employees' ? 'Gestion employés' : 'Gestion hôpital'}
@@ -255,7 +255,7 @@ export function GestionTab() {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -10 }}
           transition={{ duration: 0.25 }}
-          className="flex flex-col gap-6"
+          className="flex flex-col gap-6 h-full min-h-0 overflow-y-auto overscroll-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
           {activeSection && (
             <SectionHeader
