@@ -124,7 +124,6 @@ export function Dashboard() {
 
   const visibleTabs = TILE_SECTIONS
     .filter((section) => {
-      if (section.key === 'lspd_transfer') return false // Temporarily closed until bridge permissions are enforced server-side.
       if (section.key === 'candidatures') return canHandleRecruitment
       if (section.key === 'visitor_rdv' || section.key === 'professional_messages') return canHandleVisitorRdv
       return !section.seniorOnly || isAboveChirurgien(staff?.role)
