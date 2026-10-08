@@ -842,7 +842,7 @@ export function Dashboard() {
                   onBack={() => setView('home')}
                 />
               )}
-              <div className={cn((effectiveView === 'messages' || effectiveView === 'candidatures' || effectiveView === 'professional_messages' || effectiveView === 'lspd_transfer' || effectiveView === 'gestion') && 'flex-1 min-h-0 overflow-hidden')}>
+              <div className={cn((effectiveView === 'messages' || effectiveView === 'candidatures' || effectiveView === 'professional_messages' || effectiveView === 'lspd_transfer' || effectiveView === 'gestion') && 'flex flex-col flex-1 min-h-0 overflow-hidden')}>
                 {effectiveView === 'dossier' ? <DossierTraumatoTab /> : TAB_CONTENT[effectiveView]}
               </div>
             </motion.div>
