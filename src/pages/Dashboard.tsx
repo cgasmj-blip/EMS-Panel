@@ -514,7 +514,7 @@ export function Dashboard() {
     <div
       className={cn(
         'bg-[var(--bg)]',
-        effectiveView === 'home' || ['messages','candidatures','professional_messages','lspd_transfer','gestion'].includes(effectiveView) ? 'h-screen overflow-hidden' : 'min-h-screen',
+        effectiveView === 'home' || ['messages','candidatures','professional_messages','lspd_transfer','gestion'].includes(effectiveView) ? 'h-[100dvh] overflow-hidden' : 'min-h-screen',
       )}
       style={{
         backgroundColor: uiPreferences.background_color ?? undefined,
@@ -742,7 +742,7 @@ export function Dashboard() {
 
       <main
         className={cn(
-          'relative z-10',
+          'relative z-10 min-h-0',
           'min-w-0 px-3 pt-[max(4.25rem,calc(env(safe-area-inset-top)+3.5rem))] sm:px-5 sm:pt-6 md:px-8 md:py-8 pb-[calc(6.5rem+env(safe-area-inset-bottom))] md:pb-8 flex flex-col gap-4 sm:gap-6',
           uiPreferences.sidebar_position === 'right' && 'md:mr-20',
           uiPreferences.sidebar_position === 'left' && 'md:ml-20',
@@ -751,11 +751,11 @@ export function Dashboard() {
           effectiveView === 'home'
             ? sidebarHorizontal
               ? 'h-[calc(100vh-5rem)] overflow-hidden'
-              : 'h-screen overflow-hidden'
+              : 'h-[100dvh] overflow-hidden'
             : ['messages','candidatures','professional_messages','lspd_transfer','gestion'].includes(effectiveView)
               ? sidebarHorizontal
                 ? 'h-[calc(100vh-5rem)] overflow-hidden'
-                : 'h-screen overflow-hidden'
+                : 'h-[100dvh] overflow-hidden'
               : 'min-h-screen',
         )}
       >
@@ -830,7 +830,7 @@ export function Dashboard() {
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.25 }}
               className={cn(
-                'flex flex-col gap-4 sm:gap-6 max-w-5xl w-full mx-auto min-w-0',
+                'flex flex-col gap-4 sm:gap-6 max-w-5xl w-full mx-auto min-w-0 flex-1',
                 (effectiveView === 'messages' || effectiveView === 'candidatures' || effectiveView === 'professional_messages' || effectiveView === 'lspd_transfer' || effectiveView === 'gestion') && 'h-full min-h-0 overflow-hidden gap-2 sm:gap-3',
               )}
             >
@@ -842,7 +842,7 @@ export function Dashboard() {
                   onBack={() => setView('home')}
                 />
               )}
-              <div className={cn((effectiveView === 'candidatures' || effectiveView === 'professional_messages' || effectiveView === 'lspd_transfer' || effectiveView === 'gestion') && 'flex-1 min-h-0 overflow-hidden')}>
+              <div className={cn((effectiveView === 'messages' || effectiveView === 'candidatures' || effectiveView === 'professional_messages' || effectiveView === 'lspd_transfer' || effectiveView === 'gestion') && 'flex-1 min-h-0 overflow-hidden')}>
                 {effectiveView === 'dossier' ? <DossierTraumatoTab /> : TAB_CONTENT[effectiveView]}
               </div>
             </motion.div>
