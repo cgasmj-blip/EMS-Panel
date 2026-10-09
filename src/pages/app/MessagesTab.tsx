@@ -331,6 +331,17 @@ export function MessagesTab() {
     await sendMedia(file, 'image', { name: file.name, mime: file.type || undefined })
   }
 
+  function handlePastedImage(event: React.ClipboardEvent<HTMLElement>) {
+    if (!selectedId || generalSelected || sending) return
+    const image = Array.from(event.clipboardData.items).find(item => item.type.startsWith('image/'))
+    if (!image) return
+    const blob = image.getAsFile()
+    if (!blob) return
+    event.preventDefault()
+    const extension = blob.type.split('/')[1]?.replace('jpeg', 'jpg') || 'png'
+    void handleImage(new File([blob], 'image-collee.' + extension, { type: blob.type }))
+  }
+
   async function startRecording() {
     if (!selectedId || recording || sending) return
     setMediaError(null)
@@ -637,7 +648,7 @@ export function MessagesTab() {
               )}
             </div>
 
-            <div className="p-2.5 border-t border-[var(--ink)]/8 shrink-0 bg-[var(--surface)]/95 backdrop-blur">
+            <div onPaste={handlePastedImage} className="p-2.5 border-t border-[var(--ink)]/8 shrink-0 bg-[var(--surface)]/95 backdrop-blur">
               {mediaError && <p className="text-red-300 text-xs mb-2">{mediaError}</p>}
               {recording && (
                 <div className="mb-2 rounded-xl border border-red/20 bg-red/8 px-3 py-2 text-red-300 text-xs font-semibold flex items-center gap-2">
