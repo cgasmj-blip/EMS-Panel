@@ -36,6 +36,11 @@ export function MessagesTab() {
   const { session, staff: currentStaff } = useAuth()
   const me = session?.user.id ?? ''
   const [staff, setStaff] = useState<Pick<Staff, 'id' | 'full_name' | 'avatar_url' | 'role'>[]>([])
+  const [formerStaff, setFormerStaff] = useState<Pick<Staff, 'id' | 'full_name' | 'avatar_url' | 'role'>[]>([])
+  const [archiveMessages, setArchiveMessages] = useState<MessageRow[]>([])
+  const [archivePersonId, setArchivePersonId] = useState<string | null>(null)
+  const [archiveFilter, setArchiveFilter] = useState('')
+  const director = currentStaff?.role === 'directeur' && currentStaff.active
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [messages, setMessages] = useState<MessageRow[]>([])
   const [groupMessages, setGroupMessages] = useState<GroupMessageRow[]>([])
@@ -45,7 +50,7 @@ export function MessagesTab() {
   const [filter, setFilter] = useState('')
   const [body, setBody] = useState('')
   const [sending, setSending] = useState(false)
-  const [mode, setMode] = useState<'messages' | 'annonces'>('messages')
+  const [mode, setMode] = useState<'messages' | 'annonces' | 'archives'>('messages')
   const [announcements, setAnnouncements] = useState<AnnouncementRow[]>([])
   const [announcementTitle, setAnnouncementTitle] = useState('')
   const [announcementBody, setAnnouncementBody] = useState('')
@@ -150,6 +155,24 @@ export function MessagesTab() {
 
     setStaff(sortedPeople)
   }, [me, playIncomingMessageTone])
+
+  const fetchFormerStaff = useCallback(async () => {
+    if (!director) { setFormerStaff([]); return }
+    const { data } = await supabase.from('staff').select('id,full_name,avatar_url,role')
+      .eq('active', false).order('full_name')
+    setFormerStaff((data ?? []) as Pick<Staff, 'id' | 'full_name' | 'avatar_url' | 'role'>[])
+  }, [director])
+
+  const fetchArchiveMessages = useCallback(async () => {
+    if (!director || !archivePersonId) { setArchiveMessages([]); return }
+    const { data } = await supabase.from('internal_messages').select('*')
+      .or(`sender_id.eq.${archivePersonId},recipient_id.eq.${archivePersonId}`)
+      .order('created_at', { ascending: true }).limit(1000)
+    setArchiveMessages((data ?? []) as MessageRow[])
+  }, [director, archivePersonId])
+
+  useEffect(() => { void fetchFormerStaff() }, [fetchFormerStaff])
+  useEffect(() => { void fetchArchiveMessages() }, [fetchArchiveMessages])
 
   const fetchAnnouncements = useCallback(async () => {
     const { data } = await supabase
@@ -454,6 +477,7 @@ export function MessagesTab() {
       <div className="inline-flex self-start rounded-xl border border-[var(--ink)]/8 bg-[var(--ink)]/[0.02] p-1">
         <button type="button" onClick={() => setMode('messages')} className={mode === 'messages' ? 'rounded-lg bg-red px-3 py-2 text-white text-xs font-semibold cursor-pointer' : 'rounded-lg px-3 py-2 text-[var(--ink)]/55 text-xs font-semibold cursor-pointer'}>Messages privés</button>
 
+        {director && <button type="button" onClick={() => setMode('archives')} className={mode === 'archives' ? 'rounded-lg bg-red px-3 py-2 text-white text-xs font-semibold cursor-pointer' : 'rounded-lg px-3 py-2 text-[var(--ink)]/55 text-xs font-semibold cursor-pointer'}>Anciens messages</button>}
         <button
           type="button"
           onClick={() => setMode('annonces')}
@@ -463,7 +487,42 @@ export function MessagesTab() {
         </button>
       </div>
 
-      {mode === 'annonces' ? (
+      {mode === 'archives' && director ? (
+        <div className="grid md:grid-cols-[260px_1fr] gap-3 flex-1 min-h-0 overflow-hidden">
+          <Card className="p-3 flex flex-col gap-3 min-h-0">
+            <Input value={archiveFilter} onChange={e => setArchiveFilter(e.target.value)} placeholder="Rechercher un ancien membre…" />
+            <div className="flex-1 overflow-y-auto flex flex-col gap-1">
+              {formerStaff.filter(p => p.full_name.toLowerCase().includes(archiveFilter.toLowerCase())).map(person => (
+                <button key={person.id} type="button" onClick={() => setArchivePersonId(person.id)}
+                  className={archivePersonId === person.id ? 'rounded-xl bg-red/10 border border-red/15 p-3 text-left' : 'rounded-xl hover:bg-[var(--ink)]/5 p-3 text-left'}>
+                  <span className="block font-semibold text-sm">{person.full_name}</span>
+                  <span className="block text-xs text-[var(--ink)]/40">Ancien membre · {displayRoleLabel(person.role as StaffRole) ?? 'EMS'}</span>
+                </button>
+              ))}
+              {formerStaff.length === 0 && <p className="text-xs text-[var(--ink)]/40 p-3">Aucun ancien membre enregistré.</p>}
+            </div>
+          </Card>
+          <Card className="p-4 flex flex-col gap-3 min-h-0 overflow-hidden">
+            <p className="font-bold text-sm">{formerStaff.find(p => p.id === archivePersonId)?.full_name ?? 'Sélectionnez un ancien membre'}</p>
+            <p className="text-xs text-[var(--ink)]/45">Historique en lecture seule · messages envoyés et reçus</p>
+            <div className="flex-1 overflow-y-auto flex flex-col gap-2">
+              {archiveMessages.map(message => {
+                const former = message.sender_id === archivePersonId
+                const correspondent = former ? message.recipient_id : message.sender_id
+                const correspondentName = staff.find(p => p.id === correspondent)?.full_name
+                  ?? formerStaff.find(p => p.id === correspondent)?.full_name ?? 'Ancien correspondant'
+                return <div key={message.id} className="rounded-xl bg-[var(--ink)]/5 p-3">
+                  <p className="text-xs font-semibold">{former ? 'Ancien membre' : correspondentName} → {former ? correspondentName : 'Ancien membre'}</p>
+                  <p className="text-sm whitespace-pre-wrap break-words mt-1">{message.body || (message.media_type === 'audio' ? 'Message vocal' : message.media_type === 'image' ? 'Image envoyée' : '')}</p>
+                  <MessageImageLinks body={message.body} />
+                  <p className="text-[11px] text-[var(--ink)]/40 mt-1">{new Date(message.created_at).toLocaleString('fr-FR')}</p>
+                </div>
+              })}
+              {archivePersonId && archiveMessages.length === 0 && <p className="text-xs text-[var(--ink)]/40">Aucun ancien message conservé.</p>}
+            </div>
+          </Card>
+        </div>
+      ) : mode === 'annonces' ? (
         <div className="flex flex-col gap-4">
           {isDirection(currentStaff?.role) && (
             <Card className="p-4">
