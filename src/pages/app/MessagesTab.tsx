@@ -1,3 +1,4 @@
+import { MessageImageLinks } from '@/components/ui/MessageImageLinks'
 import { type ClipboardEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ImagePlus, Megaphone, MessageCircle, Mic, Search, Send, Square, Trash2 } from 'lucide-react'
 import { useAuth } from '@/auth/AuthContext'
@@ -579,7 +580,7 @@ export function MessagesTab() {
       <Card className="p-0 overflow-hidden flex flex-col min-h-0 h-full">
         {generalSelected ? (
           <><div className="px-4 py-3 border-b border-[var(--ink)]/8"><p className="font-bold text-sm">Groupe général EMS</p><p className="text-[var(--ink)]/35 text-xs">Tous les membres de l’effectif</p></div><div ref={messagesScrollRef}
-              onScroll={handleConversationScroll} className="flex-1 min-h-0 overflow-y-auto p-3 flex flex-col gap-2">{groupMessages.map(m=>{const mine=m.sender_id===me;const author=staff.find(p=>p.id===m.sender_id)?.full_name||(mine?currentStaff?.full_name:'EMS');return <div key={m.id} className={mine?'flex justify-end':'flex justify-start'}><div className={mine?'max-w-[82%] rounded-2xl bg-red text-white px-3.5 py-2.5':'max-w-[82%] rounded-2xl bg-[var(--ink)]/7 px-3.5 py-2.5'}><p className="text-[10px] opacity-60 mb-1">{author}</p><p className="text-sm whitespace-pre-wrap">{m.body}</p></div></div>})}</div><div className="p-2.5 border-t border-[var(--ink)]/8 flex gap-2"><Input value={body} onChange={e=>setBody(e.target.value)} placeholder="Écrire au groupe EMS…" onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();void sendMessage()}}}/><Button onClick={()=>void sendMessage()} disabled={!body.trim()||sending}><Send size={16}/></Button></div></>
+              onScroll={handleConversationScroll} className="flex-1 min-h-0 overflow-y-auto p-3 flex flex-col gap-2">{groupMessages.map(m=>{const mine=m.sender_id===me;const author=staff.find(p=>p.id===m.sender_id)?.full_name||(mine?currentStaff?.full_name:'EMS');return <div key={m.id} className={mine?'flex justify-end':'flex justify-start'}><div className={mine?'max-w-[82%] rounded-2xl bg-red text-white px-3.5 py-2.5':'max-w-[82%] rounded-2xl bg-[var(--ink)]/7 px-3.5 py-2.5'}><p className="text-[10px] opacity-60 mb-1">{author}</p><p className="text-sm whitespace-pre-wrap">{m.body}</p><MessageImageLinks body={m.body} /></div></div>})}</div><div className="p-2.5 border-t border-[var(--ink)]/8 flex gap-2"><Input value={body} onChange={e=>setBody(e.target.value)} placeholder="Écrire au groupe EMS…" onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();void sendMessage()}}}/><Button onClick={()=>void sendMessage()} disabled={!body.trim()||sending}><Send size={16}/></Button></div></>
         ) : !selected ? (
           <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
             <MessageCircle size={28} className="text-[var(--ink)]/25 mb-3" />
@@ -606,7 +607,7 @@ export function MessagesTab() {
                 return (
                   <div key={message.id} className={mine ? 'flex justify-end' : 'flex justify-start'}>
                     <div className={mine ? 'max-w-[82%] rounded-2xl rounded-br-md bg-red text-white px-3.5 py-2.5' : 'max-w-[82%] rounded-2xl rounded-bl-md bg-[var(--ink)]/7 text-[var(--ink)] px-3.5 py-2.5'}>
-                      {message.body && <p className="text-sm whitespace-pre-wrap break-words">{message.body}</p>}
+                      {message.body && <><p className="text-sm whitespace-pre-wrap break-words">{message.body}</p><MessageImageLinks body={message.body} /></>}
                       {message.media_type === 'image' && message.media_url && (
                         <a href={message.media_url} target="_blank" rel="noreferrer" className="block mt-1">
                           <img
