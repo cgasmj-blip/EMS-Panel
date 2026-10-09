@@ -53,7 +53,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // sign-in, since that's the only time Supabase exposes the Discord token.
   const verifyDiscordMembership = useCallback(async (currentSession: Session) => {
     const providerToken = currentSession.provider_token
-    if (!providerToken) return { authorized: true as const } // session restore: keep the cached verified profile
+    if (!providerToken) return { authorized: false as const, reason: 'missing_token' as const }
 
     try {
       const { data, error } = await withTimeout(
@@ -69,19 +69,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       const reason = data?.reason ?? 'server_error'
-      // Discord rate limits and temporary server errors must never kick an
-      // already authenticated EMS user out of the panel. Keep the last
-      // successfully synced profile and retry on a later explicit sync.
-      if (reason === 'discord_error' || reason === 'server_error') {
-        setDenialReason(null)
-        return { authorized: true as const, transient: true as const }
-      }
-
       setDenialReason(reason)
       return { authorized: false as const, reason }
     } catch {
-      setDenialReason(null)
-      return { authorized: true as const, transient: true as const }
+      setDenialReason('server_error')
+      return { authorized: false as const, reason: 'server_error' as const }
     }
   }, [])
 
@@ -93,7 +85,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     withTimeout(supabase.auth.getSession())
       .then(async ({ data }) => {
         setSession(data.session)
-        if (data.session) await loadStaff(data.session.user.id)
+        if (data.session) { await loadStaff(data.session.user.id); const {data:row}=await supabase.from('staff').select('active').eq('id',data.session.user.id).maybeSingle(); if(!row?.active){setSession(null);setStaff(null);await supabase.auth.signOut({scope:'local'})} }
       })
       .catch(() => {
         setSession(null)
@@ -118,6 +110,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(newSession)
       if (newSession) {
         await loadStaff(newSession.user.id)
+        const {data:row}=await supabase.from('staff').select('active').eq('id',newSession.user.id).maybeSingle()
+        if(!row?.active){setSession(null);setStaff(null);await supabase.auth.signOut({scope:'local'});return}
       } else {
         setStaff(null)
       }
