@@ -65,7 +65,27 @@ export function Dashboard() {
   const navigate = useNavigate()
   const { staff, session, signOut, signInWithDiscord } = useAuth()
   const [lspdAllowed, setLspdAllowed] = useState<string[]>([])
-  useEffect(()=>{if(!session?.access_token){setLspdAllowed([]);return}void fetch('https://pvahrnrtivzbkipborcd.supabase.co/functions/v1/ems-lspd-send?permissions=1',{headers:{Authorization:'Bearer '+session.access_token}}).then(r=>r.ok?r.json():{allowed:[]}).then(x=>setLspdAllowed(x.allowed||[])).catch(()=>setLspdAllowed([]))},[session?.access_token])
+  useEffect(() => {
+    if (!session?.access_token || !staff?.active) { setLspdAllowed([]); return }
+    let mounted = true
+    const refresh = async () => {
+      try {
+        const { data: { session: latestSession } } = await supabase.auth.getSession()
+        if (!latestSession) return
+        const response = await fetch('https://pvahrnrtivzbkipborcd.supabase.co/functions/v1/ems-lspd-send?permissions=1', {
+          headers: { Authorization: 'Bearer ' + latestSession.access_token },
+        })
+        if (!response.ok) return
+        const result = await response.json()
+        if (mounted && Array.isArray(result.allowed)) setLspdAllowed(result.allowed)
+      } catch { /* Preserve last known permissions during temporary connection errors. */ }
+    }
+    void refresh()
+    const timer = window.setInterval(() => { if (document.visibilityState === 'visible') void refresh() }, 30000)
+    const onVisible = () => { if (document.visibilityState === 'visible') void refresh() }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => { mounted = false; window.clearInterval(timer); document.removeEventListener('visibilitychange', onVisible) }
+  }, [session?.user.id, staff?.active])
   const [view, setViewState] = useState<TabKey | 'home'>(getStoredView)
   const [resyncing, setResyncing] = useState(false)
   const [unreadMessages, setUnreadMessages] = useState(0)
@@ -126,7 +146,7 @@ export function Dashboard() {
 
   const visibleTabs = TILE_SECTIONS
     .filter((section) => {
-      if (section.key === 'lspd_transfer') return lspdAllowed.length > 0
+      if (section.key === 'lspd_transfer') return lspdAllowed.length > 0 || (staff?.active === true && staff.role === 'directeur')
       if (section.key === 'candidatures') return canHandleRecruitment
       if (section.key === 'visitor_rdv' || section.key === 'professional_messages') return canHandleVisitorRdv
       return !section.seniorOnly || isAboveChirurgien(staff?.role)
@@ -388,7 +408,7 @@ export function Dashboard() {
         const missing = visibleTabs.filter((key) => !known.has(key))
         setNavLayout({ home: [...savedHome, ...missing], sidebar: savedSidebar })
       })
-  }, [session?.user.id, staff?.role, staff?.sous_grade_ids, staff?.affiliation_ids, visitorSubjectRules])
+  }, [session?.user.id, staff?.role, staff?.sous_grade_ids, staff?.affiliation_ids, visitorSubjectRules, lspdAllowed])
 
   async function persistNavLayout(next: { home: TabKey[]; sidebar: TabKey[] }) {
     const userId = session?.user.id
