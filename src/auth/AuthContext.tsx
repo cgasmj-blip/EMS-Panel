@@ -85,43 +85,52 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let cancelled = false
     let generation = 0
 
-    async function authorize(nextSession: Session | null) {
+    async function authorize(nextSession: Session | null, freshLogin: boolean) {
       const attempt = ++generation
-      if (!cancelled) {
-        setLoading(true)
-        setSession(null)
-        setStaff(null)
-      }
       if (!nextSession) {
-        if (!cancelled && attempt === generation) setLoading(false)
+        if (!cancelled) { setSession(null); setStaff(null); setLoading(false) }
         return
       }
 
-      // Discord OAuth authenticates identity, not EMS authorization.
-      // Never expose the EMS session or staff profile before verification.
+      // A restored or refreshed Supabase session must not force another Discord OAuth.
+      // Discord role verification happens on a new staff login, before EMS access.
       const purpose = window.sessionStorage.getItem('ems-auth-purpose')
-      if (purpose === 'visitor') {
+      if (freshLogin && purpose !== 'visitor') {
+        setLoading(true)
+        setSession(null)
+        setStaff(null)
+        const verification = await verifyDiscordMembership(nextSession)
+        if (cancelled || attempt !== generation) return
+        if (!verification.authorized) {
+          await supabase.auth.signOut({ scope: 'local' })
+          if (!cancelled && attempt === generation) setLoading(false)
+          return
+        }
+      }
+
+      if (purpose === 'visitor' && freshLogin) {
         window.sessionStorage.removeItem('ems-auth-purpose')
         if (!cancelled && attempt === generation) {
           setSession(nextSession)
+          setStaff(null)
           setLoading(false)
         }
         return
       }
 
-      const verification = await verifyDiscordMembership(nextSession)
-      if (cancelled || attempt !== generation) return
-      if (!verification.authorized) {
-        await supabase.auth.signOut({ scope: 'local' })
-        if (!cancelled && attempt === generation) setLoading(false)
-        return
-      }
-
+      // Revoked or disabled staff still cannot use a previously saved session.
       const { data, error } = await supabase.from('staff')
         .select(STAFF_SELECT_WITH_GRADES).eq('id', nextSession.user.id).maybeSingle()
       if (cancelled || attempt !== generation) return
-      if (error || !data?.active) {
+      if (error) {
+        // A temporary database error should not log out an existing user.
+        setLoading(false)
+        return
+      }
+      if (!data?.active) {
         setDenialReason('no_gate_role')
+        setSession(null)
+        setStaff(null)
         await supabase.auth.signOut({ scope: 'local' })
         if (!cancelled && attempt === generation) setLoading(false)
         return
@@ -132,14 +141,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false)
     }
 
-    void withTimeout(supabase.auth.getSession()).then(({ data }) => {
-      if (!cancelled) void authorize(data.session)
-    }).catch(() => { if (!cancelled) setLoading(false) })
-
+    // INITIAL_SESSION and TOKEN_REFRESHED are not fresh Discord logins.
     const { data: subscription } = supabase.auth.onAuthStateChange((event, nextSession) => {
-      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED') {
-        // Defer database/function calls outside the auth state callback.
-        queueMicrotask(() => { if (!cancelled) void authorize(nextSession) })
+      if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED') {
+        const freshLogin = event === 'SIGNED_IN' && !!nextSession?.provider_token
+        queueMicrotask(() => { if (!cancelled) void authorize(nextSession, freshLogin) })
       }
     })
     return () => { cancelled = true; generation++; subscription.subscription.unsubscribe() }
