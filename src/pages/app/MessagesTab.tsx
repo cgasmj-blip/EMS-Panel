@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { type ClipboardEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ImagePlus, Megaphone, MessageCircle, Mic, Search, Send, Square, Trash2 } from 'lucide-react'
 import { useAuth } from '@/auth/AuthContext'
 import { supabase, displayRoleLabel, isDirection, type Staff, type StaffRole } from '@/lib/supabase'
@@ -331,7 +331,7 @@ export function MessagesTab() {
     await sendMedia(file, 'image', { name: file.name, mime: file.type || undefined })
   }
 
-  function handlePastedImage(event: React.ClipboardEvent<HTMLElement>) {
+  function handlePastedImage(event: ClipboardEvent<HTMLElement>) {
     if (!selectedId || generalSelected || sending) return
     const image = Array.from(event.clipboardData.items).find(item => item.type.startsWith('image/'))
     if (!image) return
