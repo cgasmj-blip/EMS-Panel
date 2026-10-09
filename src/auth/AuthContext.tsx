@@ -82,43 +82,68 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [session, loadStaff])
 
   useEffect(() => {
-    withTimeout(supabase.auth.getSession())
-      .then(async ({ data }) => {
-        setSession(data.session)
-        if (data.session) { await loadStaff(data.session.user.id); const {data:row}=await supabase.from('staff').select('active').eq('id',data.session.user.id).maybeSingle(); if(!row?.active){setSession(null);setStaff(null);await supabase.auth.signOut({scope:'local'})} }
-      })
-      .catch(() => {
+    let cancelled = false
+    let generation = 0
+
+    async function authorize(nextSession: Session | null) {
+      const attempt = ++generation
+      if (!cancelled) {
+        setLoading(true)
         setSession(null)
-      })
-      .finally(() => setLoading(false))
-
-    const { data: subscription } = supabase.auth.onAuthStateChange(async (event, newSession) => {
-      if (event === 'SIGNED_IN' && newSession) {
-        const authPurpose = window.sessionStorage.getItem('ems-auth-purpose')
-        if (authPurpose !== 'visitor') {
-          const verification = await verifyDiscordMembership(newSession)
-          if (!verification.authorized) {
-            setSession(null)
-            setStaff(null)
-            await supabase.auth.signOut({ scope: 'local' })
-            return
-          }
-        }
-        window.sessionStorage.removeItem('ems-auth-purpose')
-      }
-
-      setSession(newSession)
-      if (newSession) {
-        await loadStaff(newSession.user.id)
-        const {data:row}=await supabase.from('staff').select('active').eq('id',newSession.user.id).maybeSingle()
-        if(!row?.active){setSession(null);setStaff(null);await supabase.auth.signOut({scope:'local'});return}
-      } else {
         setStaff(null)
       }
-    })
+      if (!nextSession) {
+        if (!cancelled && attempt === generation) setLoading(false)
+        return
+      }
 
-    return () => subscription.subscription.unsubscribe()
-  }, [loadStaff, verifyDiscordMembership])
+      // Discord OAuth authenticates identity, not EMS authorization.
+      // Never expose the EMS session or staff profile before verification.
+      const purpose = window.sessionStorage.getItem('ems-auth-purpose')
+      if (purpose === 'visitor') {
+        window.sessionStorage.removeItem('ems-auth-purpose')
+        if (!cancelled && attempt === generation) {
+          setSession(nextSession)
+          setLoading(false)
+        }
+        return
+      }
+
+      const verification = await verifyDiscordMembership(nextSession)
+      if (cancelled || attempt !== generation) return
+      if (!verification.authorized) {
+        await supabase.auth.signOut({ scope: 'local' })
+        if (!cancelled && attempt === generation) setLoading(false)
+        return
+      }
+
+      const { data, error } = await supabase.from('staff')
+        .select(STAFF_SELECT_WITH_GRADES).eq('id', nextSession.user.id).maybeSingle()
+      if (cancelled || attempt !== generation) return
+      if (error || !data?.active) {
+        setDenialReason('no_gate_role')
+        await supabase.auth.signOut({ scope: 'local' })
+        if (!cancelled && attempt === generation) setLoading(false)
+        return
+      }
+      window.sessionStorage.removeItem('ems-auth-purpose')
+      setStaff(mapStaffRow(data))
+      setSession(nextSession)
+      setLoading(false)
+    }
+
+    void withTimeout(supabase.auth.getSession()).then(({ data }) => {
+      if (!cancelled) void authorize(data.session)
+    }).catch(() => { if (!cancelled) setLoading(false) })
+
+    const { data: subscription } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED') {
+        // Defer database/function calls outside the auth state callback.
+        queueMicrotask(() => { if (!cancelled) void authorize(nextSession) })
+      }
+    })
+    return () => { cancelled = true; generation++; subscription.subscription.unsubscribe() }
+  }, [verifyDiscordMembership])
 
   const signInWithDiscord = useCallback(async () => {
     setDenialReason(null)
