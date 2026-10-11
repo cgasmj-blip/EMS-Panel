@@ -158,7 +158,7 @@ export function VisitorPortal() {
   const [tab, setTab] = useState<PortalTab>(() => {
     if (typeof window === 'undefined') return 'reglement'
     const saved = window.sessionStorage.getItem('ems-public-tab') as PortalTab | null
-    return saved && ['reglement', 'contact', 'recrutement', 'rendez_vous', 'suivi'].includes(saved) ? saved : 'reglement'
+    return saved && ['reglement', 'contact', 'recrutement', 'rendez_vous', 'suivi'].includes(saved) && (saved !== 'suivi' || window.localStorage.getItem('ems-session-mode') === 'visitor') ? saved : 'reglement'
   })
   const [reglement, setReglement] = useState('Chargement du règlement…')
   const [form, setForm] = useState<RequestForm>(EMPTY_FORM)
@@ -198,9 +198,13 @@ export function VisitorPortal() {
   const discordName = String(metadata.global_name ?? metadata.full_name ?? metadata.name ?? metadata.user_name ?? '')
   const discordAvatar = String(metadata.avatar_url ?? metadata.picture ?? '')
   const visitorName = discordDisplayName || discordName
+  const [requestsOpen, setRequestsOpen] = useState(false)
 
   useEffect(() => {
     if (!session) {
+      setThreads([])
+      setOpenTicket(null)
+      setReplyByTicket({})
       setDiscordDisplayName('')
       return
     }
@@ -301,6 +305,7 @@ export function VisitorPortal() {
   }
 
   async function openVisitorSpace() {
+    setRequestsOpen(true)
     window.sessionStorage.setItem('ems-public-tab', 'suivi')
     setTab('suivi')
   }
@@ -316,7 +321,8 @@ export function VisitorPortal() {
 
   function readTicketCredentials(): TicketCredential[] {
     try {
-      const value = JSON.parse(window.localStorage.getItem('ems-visitor-tickets') || '[]')
+      if (!session) return []
+      const value = JSON.parse(window.sessionStorage.getItem('ems-visitor-tickets') || '[]')
       return Array.isArray(value) ? value.filter((item) => item?.public_id && item?.access_token) : []
     } catch {
       return []
@@ -325,10 +331,11 @@ export function VisitorPortal() {
 
   function saveTicketCredential(credential: TicketCredential) {
     const current = readTicketCredentials().filter((item) => item.public_id !== credential.public_id)
-    window.localStorage.setItem('ems-visitor-tickets', JSON.stringify([credential, ...current].slice(0, 30)))
+    window.sessionStorage.setItem('ems-visitor-tickets', JSON.stringify([credential, ...current].slice(0, 30)))
   }
 
   async function loadThreads() {
+    if (!session) { setThreads([]); setOpenTicket(null); return }
     if (session && discordId) {
       const { data, error: accountError } = await supabase.rpc('get_my_visitor_requests')
       if (!accountError && Array.isArray(data)) {
@@ -377,7 +384,7 @@ export function VisitorPortal() {
   }
 
   useEffect(() => {
-    if (tab !== 'suivi') return
+    if (tab !== 'suivi' || !session) { setThreads([]); return }
     void loadThreads()
     const timer = window.setInterval(() => void loadThreads(), 10000)
     return () => window.clearInterval(timer)
@@ -504,6 +511,7 @@ export function VisitorPortal() {
           </div>
           <div className="ml-auto flex items-center gap-2">
             <span className="hidden sm:inline-flex"><ThemeToggle /></span>
+            {session && <Button size="sm" variant="ghost" onClick={() => void openVisitorSpace()}><History size={14} /> Mes demandes</Button>}
             {staff ? (
               <Button size="sm" onClick={() => navigate('/dashboard')}><span className="hidden sm:inline">Ouvrir le panel</span><span className="sm:hidden">Panel</span></Button>
             ) : session ? (
@@ -635,7 +643,8 @@ export function VisitorPortal() {
                 </Button>
               </Card>
             )}
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {session && <h2 className="font-bold text-lg">Mes demandes et conversations</h2>}
+            {session && <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {threads.map((item) => {
                 const status=item.data.request.status
                 const isRecruit=item.data.request.request_type==='recrutement'
@@ -651,15 +660,15 @@ export function VisitorPortal() {
                   <p className="text-[10px] text-[var(--ink)]/30 mt-2">Réf. {item.data.request.public_id.slice(0,8).toUpperCase()}</p>
                 </button>
               })}
-            </div>
-            {threads.filter(item=>item.credential.public_id===openTicket).map((item)=>(
+            </div>}
+            {session && threads.filter(item=>item.credential.public_id===openTicket).map((item)=>(
               <Card key={item.credential.public_id} className="p-5 sm:p-6">
                 <div className="flex items-start justify-between gap-3 mb-4"><div><p className="font-bold">{item.data.request.request_type==='recrutement'?'Candidature':item.data.request.subject}</p><p className="text-[var(--ink)]/35 text-xs mt-1">Réf. {item.data.request.public_id.slice(0,8).toUpperCase()}</p></div><Button size="sm" variant="ghost" onClick={()=>setOpenTicket(null)}>Fermer</Button></div>
                 <div ref={visitorThreadScrollRef} className="grid gap-2 max-h-80 overflow-y-auto pr-1">{item.data.messages.map(message=><div key={message.id} className={message.sender==='ems'?'rounded-xl bg-red/8 border border-red/10 px-3 py-2.5':'rounded-xl bg-[var(--ink)]/[0.035] border border-[var(--ink)]/8 px-3 py-2.5'}><p className="text-[11px] font-semibold text-[var(--ink)]/40 mb-1">{message.sender==='ems'?'EMS':'Vous'}</p><p className="text-sm whitespace-pre-wrap">{message.body}</p></div>)}</div>
                 {item.data.request.request_type!=='recrutement'&&<div className="flex gap-2 mt-4"><Input value={replyByTicket[item.credential.public_id]??''} onChange={e=>setReplyByTicket(current=>({...current,[item.credential.public_id]:e.target.value}))} placeholder="Ajouter un message…" /><Button onClick={()=>void sendTrackingReply(item)} disabled={!(replyByTicket[item.credential.public_id]??'').trim()}><Send size={15}/></Button></div>}
               </Card>
             ))}
-            {threads.length === 0 && (
+            {session && threads.length === 0 && (
               <Card className="p-8 text-center">
                 <History size={26} className="mx-auto text-[var(--ink)]/20 mb-3" />
                 <p className="font-semibold">{session ? 'Aucune demande liée à ce compte Discord.' : 'Aucune demande enregistrée sur cet appareil.'}</p>
