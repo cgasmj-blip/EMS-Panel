@@ -34,6 +34,10 @@ export function AbsenceTab() {
       setError('Indique une date de début et de fin.')
       return
     }
+    if (end < start) {
+      setError('La date de fin doit être postérieure ou égale à la date de début.')
+      return
+    }
     setSubmitting(true)
     setError(null)
     const { error: err } = await supabase
@@ -51,7 +55,8 @@ export function AbsenceTab() {
   }
 
   async function handleCancel(id: number) {
-    await supabase.from('absences').delete().eq('id', id)
+    const { error: deleteError } = await supabase.from('absences').delete().eq('id', id).eq('staff_id', staff?.id)
+    if (deleteError) { setError(deleteError.message); return }
     await fetchAbsences()
   }
 
