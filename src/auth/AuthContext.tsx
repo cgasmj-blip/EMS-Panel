@@ -96,7 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Discord role verification happens on a new staff login, before EMS access.
       const purpose = window.sessionStorage.getItem('ems-auth-purpose')
       const sessionMode = window.localStorage.getItem('ems-session-mode')
-      if (freshLogin && purpose !== 'visitor') {
+      if (freshLogin && purpose === 'staff') {
         setLoading(true)
         setSession(null)
         setStaff(null)
@@ -109,7 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      if (purpose === 'visitor' || (purpose !== 'staff' && sessionMode !== 'staff' && !freshLogin)) {
+      if (purpose === 'visitor' || (purpose !== 'staff' && sessionMode !== 'staff')) {
         window.localStorage.setItem('ems-session-mode', 'visitor')
         window.sessionStorage.removeItem('ems-auth-purpose')
         if (!cancelled && attempt === generation) {
@@ -130,11 +130,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return
       }
       if (!data?.active) {
+        // Never destroy a valid Discord session during a background token refresh.
+        // Remove EMS privileges and return to the visitor area instead.
         setDenialReason('no_gate_role')
-        setSession(null)
+        window.localStorage.setItem('ems-session-mode', 'visitor')
+        window.sessionStorage.removeItem('ems-auth-purpose')
+        setSession(nextSession)
         setStaff(null)
-        await supabase.auth.signOut({ scope: 'local' })
-        if (!cancelled && attempt === generation) setLoading(false)
+        setLoading(false)
         return
       }
       window.sessionStorage.removeItem('ems-auth-purpose')
@@ -147,7 +150,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // INITIAL_SESSION and TOKEN_REFRESHED are not fresh Discord logins.
     const { data: subscription } = supabase.auth.onAuthStateChange((event, nextSession) => {
       if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED') {
+        // A token refresh or focus-driven SIGNED_IN event is not a new login.
+        // Only a deliberate staff OAuth flow should trigger Discord verification.
         const freshLogin = event === 'SIGNED_IN' && !!nextSession?.provider_token
+          && window.sessionStorage.getItem('ems-auth-purpose') === 'staff'
         queueMicrotask(() => { if (!cancelled) void authorize(nextSession, freshLogin) })
       }
     })
