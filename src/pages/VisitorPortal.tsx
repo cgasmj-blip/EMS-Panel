@@ -344,6 +344,9 @@ export function VisitorPortal() {
       }
     }
 
+    // Never retrieve saved request tokens when the authenticated account lookup fails.
+    // This prevents showing requests from another account sharing the browser.
+    if (discordId) { setThreads([]); return }
     const credentials = readTicketCredentials()
     const rows = await Promise.all(
       credentials.map(async (credential) => {
