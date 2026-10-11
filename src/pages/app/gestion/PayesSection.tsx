@@ -20,6 +20,7 @@ export function PayesSection() {
   const { staff: currentStaff } = useAuth()
   const [rows, setRows] = useState<PayRow[]>([])
   const [paying, setPaying] = useState<string | null>(null)
+  const [paymentError, setPaymentError] = useState<string | null>(null)
 
   const fetchAll = useCallback(async () => {
     const [{ data: staffList }, { data: prestations }, { data: shifts }] = await Promise.all([
@@ -63,6 +64,7 @@ export function PayesSection() {
   async function handlePay(row: PayRow) {
     if (!currentStaff || paying) return
     setPaying(row.staffId)
+    setPaymentError(null)
     try {
       const { data: payout, error: payoutErr } = await supabase
         .from('payouts')
@@ -79,18 +81,22 @@ export function PayesSection() {
       if (payoutErr || !payout) throw new Error(payoutErr?.message ?? 'Paiement impossible')
 
       const archivedAt = new Date().toISOString()
-      await supabase
+      const { error: prestationArchiveError } = await supabase
         .from('prestations')
         .update({ archived_at: archivedAt, payout_id: payout.id })
         .eq('staff_id', row.staffId)
         .is('archived_at', null)
-      await supabase
+      if (prestationArchiveError) throw new Error('Paiement créé mais archivage des prestations impossible : ' + prestationArchiveError.message)
+      const { error: shiftArchiveError } = await supabase
         .from('shifts')
         .update({ archived_at: archivedAt, payout_id: payout.id })
         .eq('staff_id', row.staffId)
         .is('archived_at', null)
 
+      if (shiftArchiveError) throw new Error('Paiement créé mais archivage des services impossible : ' + shiftArchiveError.message)
       await fetchAll()
+    } catch (error) {
+      setPaymentError(error instanceof Error ? error.message : 'Erreur de paiement. Vérifie les archives avant de réessayer.')
     } finally {
       setPaying(null)
     }
@@ -104,6 +110,7 @@ export function PayesSection() {
         <h2 className="text-[var(--ink)] font-bold text-sm">Gestion des payes</h2>
         <p className="text-[var(--ink)]/40 text-xs">Commission {COMMISSION_RATE * 100}% · total dû : {totalCommissions}$</p>
       </div>
+      {paymentError && <p role="alert" className="text-red-300 text-xs mb-3">{paymentError} — Vérifie les paiements enregistrés avant toute nouvelle tentative.</p>}
       <AnimatedList className="flex flex-col gap-2">
         {rows.map((r) => (
           <AnimatedListItem key={r.staffId} className="flex items-center justify-between rounded-xl border border-[var(--ink)]/8 bg-[var(--ink)]/[0.02] px-3.5 py-2.5">
