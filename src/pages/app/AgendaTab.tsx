@@ -189,6 +189,10 @@ export function AgendaTab() {
       return
     }
 
+    if (Number.isNaN(new Date(scheduledAt).getTime())) {
+      setError('La date ou l’heure du rendez-vous est invalide.')
+      return
+    }
     setSubmitting(true)
     setError(null)
 
@@ -221,12 +225,16 @@ export function AgendaTab() {
   }
 
   async function setStatus(id: number, status: AppointmentStatus) {
-    await supabase.from('appointments').update({ status }).eq('id', id)
+    if (!staff) return
+    const { error: updateError } = await supabase.from('appointments').update({ status }).eq('id', id).eq('staff_id', staff.id)
+    if (updateError) { setError(updateError.message); return }
     await fetchAll()
   }
 
   async function handleDelete(id: number) {
-    await supabase.from('appointments').delete().eq('id', id)
+    if (!staff) return
+    const { error: deleteError } = await supabase.from('appointments').delete().eq('id', id).eq('staff_id', staff.id)
+    if (deleteError) { setError(deleteError.message); return }
     await fetchAll()
   }
 
