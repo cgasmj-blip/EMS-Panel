@@ -22,7 +22,7 @@ export function UsersSection() {
 
   const fetchAll = useCallback(async () => {
     const [{ data: s }, { data: sg }, { data: aff }] = await Promise.all([
-      supabase.from('staff').select(STAFF_SELECT_WITH_GRADES),
+      supabase.from('staff').select(STAFF_SELECT_WITH_GRADES).eq('active', true),
       supabase.from('sous_grades').select('*').order('position'),
       supabase.from('affiliations').select('*').order('position'),
     ])
@@ -65,7 +65,7 @@ export function UsersSection() {
       <div className="flex items-center justify-between gap-4 mb-4">
         <h2 className="text-[var(--ink)] font-bold text-sm">Utilisateurs</h2>
         <p className="text-[var(--ink)]/30 text-xs text-right">
-          Lecture seule · grades, habilitations et affiliations synchronisés automatiquement depuis Discord.
+          Effectif actif · grades, habilitations et affiliations synchronisés automatiquement depuis Discord.
         </p>
       </div>
 
