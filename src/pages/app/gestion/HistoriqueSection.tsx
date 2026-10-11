@@ -12,6 +12,7 @@ export function HistoriqueSection() {
     supabase
       .from('staff')
       .select('*')
+      .eq('active', true)
       .order('full_name')
       .then(({ data }) => {
         if (data) setStaffList(data)
