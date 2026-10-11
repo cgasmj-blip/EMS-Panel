@@ -89,6 +89,7 @@ export function Dashboard() {
   const [view, setViewState] = useState<TabKey | 'home'>(getStoredView)
   const [resyncing, setResyncing] = useState(false)
   const [unreadMessages, setUnreadMessages] = useState(0)
+  const [unreadMessageIds, setUnreadMessageIds] = useState<number[]>([])
   const [showNotifications, setShowNotifications] = useState(false)
   const [notificationSeenAt, setNotificationSeenAt] = useState(() => window.localStorage.getItem('ems-notifications-seen-at') ?? '')
   const [dismissedNotifications, setDismissedNotifications] = useState<string[]>(() => {
@@ -203,6 +204,7 @@ export function Dashboard() {
     const userId = session?.user.id
     if (!userId) {
       setUnreadMessages(0)
+      setUnreadMessageIds([])
       setLatestAnnouncements([])
       setNextAppointment(null)
       return
@@ -265,6 +267,7 @@ export function Dashboard() {
     previousUnreadRef.current = nextUnread
     previousAnnouncementIdRef.current = nextAnnouncement?.id ?? null
     setUnreadMessages(nextUnread)
+    setUnreadMessageIds((unreadRows ?? []).filter(row => activeSenderIds.has(row.sender_id)).map(row => row.id))
     setLatestAnnouncements(nextAnnouncements)
     setNextAppointment(appointment ?? null)
     try {
