@@ -109,7 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      if (purpose === 'visitor' || (sessionMode !== 'staff' && !freshLogin)) {
+      if (purpose === 'visitor' || (purpose !== 'staff' && sessionMode !== 'staff' && !freshLogin)) {
         window.localStorage.setItem('ems-session-mode', 'visitor')
         window.sessionStorage.removeItem('ems-auth-purpose')
         if (!cancelled && attempt === generation) {
@@ -157,7 +157,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signInWithDiscord = useCallback(async () => {
     setDenialReason(null)
     window.sessionStorage.setItem('ems-auth-purpose', 'staff')
-    window.localStorage.setItem('ems-session-mode', 'visitor')
+    window.localStorage.setItem('ems-session-mode', 'staff')
     await supabase.auth.signInWithOAuth({
       provider: 'discord',
       options: {
