@@ -198,7 +198,6 @@ export function VisitorPortal() {
   const discordName = String(metadata.global_name ?? metadata.full_name ?? metadata.name ?? metadata.user_name ?? '')
   const discordAvatar = String(metadata.avatar_url ?? metadata.picture ?? '')
   const visitorName = discordDisplayName || discordName
-  const [requestsOpen, setRequestsOpen] = useState(false)
 
   useEffect(() => {
     if (!session) {
@@ -305,7 +304,6 @@ export function VisitorPortal() {
   }
 
   async function openVisitorSpace() {
-    setRequestsOpen(true)
     window.sessionStorage.setItem('ems-public-tab', 'suivi')
     setTab('suivi')
   }
