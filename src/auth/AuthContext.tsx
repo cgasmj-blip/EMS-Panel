@@ -95,6 +95,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // A restored or refreshed Supabase session must not force another Discord OAuth.
       // Discord role verification happens on a new staff login, before EMS access.
       const purpose = window.sessionStorage.getItem('ems-auth-purpose')
+      const sessionMode = window.localStorage.getItem('ems-session-mode')
       if (freshLogin && purpose !== 'visitor') {
         setLoading(true)
         setSession(null)
@@ -108,7 +109,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      if (purpose === 'visitor' && freshLogin) {
+      if (purpose === 'visitor' || (sessionMode !== 'staff' && !freshLogin)) {
+        window.localStorage.setItem('ems-session-mode', 'visitor')
         window.sessionStorage.removeItem('ems-auth-purpose')
         if (!cancelled && attempt === generation) {
           setSession(nextSession)
@@ -136,6 +138,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return
       }
       window.sessionStorage.removeItem('ems-auth-purpose')
+      window.localStorage.setItem('ems-session-mode', 'staff')
       setStaff(mapStaffRow(data))
       setSession(nextSession)
       setLoading(false)
@@ -154,6 +157,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signInWithDiscord = useCallback(async () => {
     setDenialReason(null)
     window.sessionStorage.setItem('ems-auth-purpose', 'staff')
+    window.localStorage.setItem('ems-session-mode', 'visitor')
     await supabase.auth.signInWithOAuth({
       provider: 'discord',
       options: {
@@ -166,6 +170,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signInVisitorWithDiscord = useCallback(async () => {
     setDenialReason(null)
     window.sessionStorage.setItem('ems-auth-purpose', 'visitor')
+    window.localStorage.setItem('ems-session-mode', 'visitor')
     await supabase.auth.signInWithOAuth({
       provider: 'discord',
       options: {
@@ -176,6 +181,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const signOut = useCallback(async () => {
+    window.localStorage.removeItem('ems-session-mode')
+    window.sessionStorage.removeItem('ems-auth-purpose')
     await supabase.auth.signOut()
   }, [])
 
