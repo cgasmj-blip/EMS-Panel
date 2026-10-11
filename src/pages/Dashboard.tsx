@@ -208,10 +208,10 @@ export function Dashboard() {
       return
     }
 
-    const [{ count }, { data: announcements }, { data: appointment }, { data: messageRows }, { data: stockRows }] = await Promise.all([
+    const [{ data: unreadRows }, { data: announcements }, { data: appointment }, { data: messageRows }, { data: stockRows }] = await Promise.all([
       supabase
         .from('internal_messages')
-        .select('id', { count: 'exact', head: true })
+        .select('id,sender_id')
         .eq('recipient_id', userId)
         .is('read_at', null),
       supabase
@@ -241,7 +241,12 @@ export function Dashboard() {
         .limit(8),
     ])
 
-    const nextUnread = count ?? 0
+    const senderIdsForUnread = [...new Set((unreadRows ?? []).map(row => row.sender_id))]
+    const { data: activeSenders } = senderIdsForUnread.length
+      ? await supabase.from('staff').select('id').eq('active', true).in('id', senderIdsForUnread)
+      : { data: [] as { id: string }[] }
+    const activeSenderIds = new Set((activeSenders ?? []).map(row => row.id))
+    const nextUnread = (unreadRows ?? []).filter(row => activeSenderIds.has(row.sender_id)).length
     const nextAnnouncements = announcements ?? []
     const nextAnnouncement = nextAnnouncements[0] ?? null
 
@@ -479,7 +484,7 @@ export function Dashboard() {
   const allNotificationItems = [
     ...recentLspdMessages.map((item) => ({ id: `lspd-direction-${item.id}`, kind: 'lspd' as const, title: 'Nouveau message — Direction LSPD', detail: item.body || 'Pièce jointe reçue du LSPD', created_at: item.created_at, target: 'lspd_transfer' as TabKey })),
     ...recentCriminalRecordReplies.map((item) => ({ id: `lspd-criminal-record-${item.id}`, kind: 'lspd' as const, title: `Casier judiciaire reçu${item.subject_last_name || item.subject_first_name ? ` — ${[item.subject_last_name, item.subject_first_name].filter(Boolean).join(' ')}` : ''}`, detail: 'Le LSPD a répondu à une demande de casier judiciaire.', created_at: item.created_at, target: 'lspd_transfer' as TabKey })),
-    ...recentMessages.map((item) => ({ id: `message-${item.id}`, kind: 'message' as const, title: `Nouveau message — ${item.sender_name}`, detail: item.body || (item.media_type === 'image' ? 'Image reçue' : item.media_type === 'audio' ? 'Message vocal reçu' : 'Nouveau message'), created_at: item.created_at, target: 'messages' as TabKey })),
+    ...recentMessages.filter(item => unreadMessageIds.includes(item.id)).map((item) => ({ id: `message-${item.id}`, kind: 'message' as const, title: `Nouveau message — ${item.sender_name}`, detail: item.body || (item.media_type === 'image' ? 'Image reçue' : item.media_type === 'audio' ? 'Message vocal reçu' : 'Nouveau message'), created_at: item.created_at, target: 'messages' as TabKey })),
     ...latestAnnouncements.map((item) => ({ id: `announcement-${item.id}`, kind: 'announcement' as const, title: item.title, detail: item.body, created_at: item.created_at, target: 'messages' as TabKey })),
     ...recentStockAlerts.map((item) => ({ id: `stock-${item.id}`, kind: 'stock' as const, title: 'Alerte stock', detail: `${item.item_key}${item.quantity_remaining != null ? ` — reste ${item.quantity_remaining}` : ''}${item.note ? ` · ${item.note}` : ''}`, created_at: item.created_at, target: 'gestion' as TabKey })),
     ...(nextAppointment ? [{ id: `appointment-${nextAppointment.scheduled_at}`, kind: 'appointment' as const, title: 'Prochain rendez-vous', detail: nextAppointment.title || nextAppointment.type, created_at: nextAppointment.scheduled_at, target: 'agenda' as TabKey }] : []),
