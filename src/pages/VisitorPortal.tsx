@@ -162,6 +162,8 @@ export function VisitorPortal() {
   const [appointmentDate, setAppointmentDate] = useState('')
   const [appointmentNotes, setAppointmentNotes] = useState('')
   const [editingPatientAppointmentId, setEditingPatientAppointmentId] = useState<string | null>(null)
+  const [patientCalendarMonth, setPatientCalendarMonth] = useState(()=>new Date(new Date().getFullYear(),new Date().getMonth(),1))
+  const [patientSelectedDay, setPatientSelectedDay] = useState(()=>new Date())
   const [appointmentError, setAppointmentError] = useState<string | null>(null)
   const [tab, setTab] = useState<PortalTab>(() => {
     if (typeof window === 'undefined') return 'reglement'
@@ -681,8 +683,56 @@ export function VisitorPortal() {
           style={patientMode ? undefined : layoutStyle(publicLayout.content)}
         >
         {patientMode && tab === 'agenda' ? (
-          <Card className="p-4 sm:p-6"><h2 className="text-xl font-bold mb-2">Mon agenda patient</h2><p className="text-sm text-[var(--ink)]/50 mb-5">Note tes rendez-vous personnels. Agenda personnel : tes rendez-vous ne sont visibles que dans ton espace. Les rappels Discord nécessitent l’activation du service de bot.</p><div className="grid sm:grid-cols-2 gap-3"><label className="grid gap-1 text-sm">Rendez-vous<Input value={appointmentTitle} onChange={e=>setAppointmentTitle(e.target.value)} placeholder="Ex. Consultation EMS" /></label><label className="grid gap-1 text-sm">Date et heure<input type="datetime-local" value={appointmentDate} onChange={e=>setAppointmentDate(e.target.value)} className="rounded-xl border border-[var(--ink)]/15 bg-[var(--bg)] p-3 text-[var(--ink)]" /></label></div><label className="grid gap-1 text-sm mt-3">Notes (facultatif)<Input value={appointmentNotes} onChange={e=>setAppointmentNotes(e.target.value)} placeholder="Lieu, informations…" /></label>{appointmentError && <p className="text-red-400 text-sm mt-3">{appointmentError}</p>}<Button className="mt-4" onClick={()=>void addPatientAppointment()} disabled={!appointmentTitle.trim()||!appointmentDate}>{editingPatientAppointmentId?'Enregistrer les modifications':'Ajouter le rendez-vous'}</Button>{editingPatientAppointmentId&&<Button className="mt-4 ml-2" variant="ghost" onClick={()=>{setEditingPatientAppointmentId(null);setAppointmentTitle('');setAppointmentDate('');setAppointmentNotes('')}}>Annuler</Button>}<h3 className="font-bold mt-7 mb-3">Mes rendez-vous</h3><div className="grid gap-2">{patientAppointments.map(item=><div key={item.id} className="flex gap-3 justify-between items-start border border-[var(--ink)]/10 rounded-xl p-3"><div className="min-w-0"><p className="font-semibold break-words">{item.title}</p><p className="text-sm text-[var(--ink)]/60">{new Date(item.scheduled_at).toLocaleString('fr-FR',{dateStyle:'full',timeStyle:'short'})}</p>{item.notes&&<p className="text-sm text-[var(--ink)]/50 mt-1 break-words">{item.notes}</p>}</div><div className="flex gap-2"><Button size="sm" variant="ghost" onClick={()=>editPatientAppointment(item)}>Modifier</Button><Button size="sm" variant="ghost" onClick={()=>void deletePatientAppointment(item.id)}>Supprimer</Button></div></div>)}{patientAppointments.length===0&&<p className="text-sm text-[var(--ink)]/40">Aucun rendez-vous noté.</p>}</div></Card>
-        ) : tab === 'reglement' ? (
+          <div className="grid gap-4">
+            <Card className="p-4 sm:p-6">
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                <div><h2 className="text-xl font-bold">Mon agenda patient</h2><p className="text-sm text-[var(--ink)]/50">Choisis une journée dans le calendrier pour voir tes horaires et tes rendez-vous.</p></div>
+                <div className="flex gap-2 items-center">
+                  <Button size="sm" variant="ghost" onClick={()=>setPatientCalendarMonth(m=>new Date(m.getFullYear(),m.getMonth()-1,1))}>‹</Button>
+                  <Button size="sm" variant="ghost" onClick={()=>{const d=new Date();setPatientCalendarMonth(new Date(d.getFullYear(),d.getMonth(),1));setPatientSelectedDay(d)}}>Aujourd'hui</Button>
+                  <Button size="sm" variant="ghost" onClick={()=>setPatientCalendarMonth(m=>new Date(m.getFullYear(),m.getMonth()+1,1))}>›</Button>
+                </div>
+              </div>
+              <h3 className="font-bold capitalize mb-3">{patientCalendarMonth.toLocaleDateString('fr-FR',{month:'long',year:'numeric'})}</h3>
+              <div className="grid grid-cols-7 rounded-xl border border-[var(--ink)]/10 overflow-hidden">
+                {['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'].map(d=><div key={d} className="text-center text-xs font-bold py-2 bg-[var(--ink)]/[0.04] border-b border-[var(--ink)]/10">{d}</div>)}
+                {Array.from({length:42},(_,i)=>{
+                  const first=new Date(patientCalendarMonth.getFullYear(),patientCalendarMonth.getMonth(),1)
+                  const offset=(first.getDay()+6)%7
+                  const day=new Date(first.getFullYear(),first.getMonth(),1-offset+i)
+                  const key=day.toDateString()
+                  const selected=key===patientSelectedDay.toDateString()
+                  const items=patientAppointments.filter(a=>new Date(a.scheduled_at).toDateString()===key)
+                  return <button type="button" key={key} onClick={()=>{setPatientSelectedDay(day);setAppointmentDate(new Date(day.getTime()-day.getTimezoneOffset()*60000).toISOString().slice(0,10)+'T09:00')}} className={`min-h-[75px] sm:min-h-[108px] p-1 sm:p-2 text-left border-r border-b border-[var(--ink)]/10 overflow-hidden hover:bg-[var(--ink)]/[0.04] ${selected?'bg-red/10 ring-1 ring-inset ring-red/40':''} ${day.getMonth()!==patientCalendarMonth.getMonth()?'opacity-40':''}`}>
+                    <span className="text-xs font-bold">{day.getDate()}</span>
+                    <div className="grid gap-1 mt-1">{items.slice(0,2).map(a=><span key={a.id} className="block text-[9px] sm:text-[10px] rounded bg-cyan/10 border border-cyan/20 px-1 truncate">{new Date(a.scheduled_at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})} · {a.title}</span>)}{items.length>2&&<span className="text-[10px]">+{items.length-2}</span>}</div>
+                  </button>
+                })}
+              </div>
+            </Card>
+            <Card className="p-4 sm:p-6">
+              <h3 className="font-bold mb-3 capitalize">{patientSelectedDay.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</h3>
+              <div className="grid gap-1 max-h-[460px] overflow-y-auto">
+                {Array.from({length:24},(_,hour)=>{
+                  const items=patientAppointments.filter(a=>{const d=new Date(a.scheduled_at);return d.toDateString()===patientSelectedDay.toDateString()&&d.getHours()===hour})
+                  return <div key={hour} className="grid grid-cols-[55px_1fr] border-b border-[var(--ink)]/10 min-h-10">
+                    <span className="text-xs text-[var(--ink)]/50 py-2">{String(hour).padStart(2,'0')}:00</span>
+                    <div className="flex flex-wrap gap-1 py-1">{items.map(a=><button key={a.id} type="button" onClick={()=>editPatientAppointment(a)} className="text-left text-xs rounded-lg border border-cyan/30 bg-cyan/10 px-2 py-1">{new Date(a.scheduled_at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})} · {a.title}</button>)}</div>
+                  </div>
+                })}
+              </div>
+            </Card>
+            <Card className="p-4 sm:p-6">
+              <h3 className="font-bold mb-3">{editingPatientAppointmentId?'Modifier mon rendez-vous':'Ajouter un rendez-vous'}</h3>
+              <div className="grid sm:grid-cols-2 gap-3"><label className="grid gap-1 text-sm">Rendez-vous<Input value={appointmentTitle} onChange={e=>setAppointmentTitle(e.target.value)} placeholder="Ex. Consultation EMS" /></label><label className="grid gap-1 text-sm">Date et heure<input type="datetime-local" value={appointmentDate} onChange={e=>setAppointmentDate(e.target.value)} className="rounded-xl border border-[var(--ink)]/15 bg-[var(--bg)] p-3 text-[var(--ink)]" /></label></div>
+              <label className="grid gap-1 text-sm mt-3">Notes (facultatif)<Input value={appointmentNotes} onChange={e=>setAppointmentNotes(e.target.value)} placeholder="Lieu, informations…" /></label>
+              {appointmentError&&<p className="text-red-400 text-sm mt-3">{appointmentError}</p>}
+              <div className="flex gap-2 mt-4"><Button onClick={()=>void addPatientAppointment()} disabled={!appointmentTitle.trim()||!appointmentDate}>{editingPatientAppointmentId?'Enregistrer':'Ajouter au calendrier'}</Button>{editingPatientAppointmentId&&<Button variant="ghost" onClick={()=>{setEditingPatientAppointmentId(null);setAppointmentTitle('');setAppointmentDate('');setAppointmentNotes('')}}>Annuler</Button>}</div>
+              <h3 className="font-bold mt-7 mb-3">Mes rendez-vous</h3>
+              <div className="grid gap-2">{patientAppointments.map(item=><div key={item.id} className="flex gap-3 justify-between items-start border border-[var(--ink)]/10 rounded-xl p-3"><div className="min-w-0"><p className="font-semibold break-words">{item.title}</p><p className="text-sm text-[var(--ink)]/60">{new Date(item.scheduled_at).toLocaleString('fr-FR',{dateStyle:'full',timeStyle:'short'})}</p>{item.notes&&<p className="text-sm text-[var(--ink)]/50 mt-1 break-words">{item.notes}</p>}</div><div className="flex gap-2"><Button size="sm" variant="ghost" onClick={()=>editPatientAppointment(item)}>Modifier</Button><Button size="sm" variant="ghost" onClick={()=>void deletePatientAppointment(item.id)}>Supprimer</Button></div></div>)}{patientAppointments.length===0&&<p className="text-sm text-[var(--ink)]/40">Aucun rendez-vous noté.</p>}</div>
+              <p className="text-xs text-[var(--ink)]/40 mt-4">Les rappels Discord nécessitent un service bot actif.</p>
+            </Card>
+          </div>        ) : tab === 'reglement' ? (
           <Card className="p-6 sm:p-8">
             <h2 className="font-display font-black text-xl mb-5">Règlement EMS</h2>
             <div className="whitespace-pre-wrap text-sm sm:text-base text-[var(--ink)]/65 leading-7">{reglement}</div>
