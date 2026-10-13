@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { CalendarClock, FileText, HeartHandshake, History, LogIn, MessageCircle, Send, Stethoscope, UserRoundPlus } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/auth/AuthContext'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/Button'
@@ -154,6 +154,8 @@ function layoutStyle(item: { x: number; y: number; w: number; h: number }): CSSP
 
 export function VisitorPortal() {
   const navigate = useNavigate()
+  const location = useLocation()
+  const patientMode = location.pathname === '/patient'
   const { session, staff, signInWithDiscord, signInVisitorWithDiscord, signOut } = useAuth()
   const [tab, setTab] = useState<PortalTab>(() => {
     if (typeof window === 'undefined') return 'reglement'
@@ -306,6 +308,7 @@ export function VisitorPortal() {
   async function openVisitorSpace() {
     window.sessionStorage.setItem('ems-public-tab', 'suivi')
     setTab('suivi')
+    navigate('/patient')
   }
 
   async function connectDiscord(target: 'contact' | 'recrutement' | 'rendez_vous') {
@@ -491,7 +494,7 @@ export function VisitorPortal() {
 
   return (
     <div className="relative min-h-screen bg-[var(--bg)] text-[var(--ink)]">
-      {backgroundImageUrl && (
+      {!patientMode && backgroundImageUrl && (
         <div
           className="fixed inset-0 z-0 pointer-events-none"
           style={{
@@ -508,12 +511,14 @@ export function VisitorPortal() {
           <img src={logo} alt="EMS" className="w-11 h-11 rounded-full object-cover" />
           <div className="min-w-0">
             <p className="font-display font-black text-base sm:text-lg text-neon-red truncate">EMS Los Santos</p>
-            <p className="hidden sm:block text-[var(--ink)]/40 text-xs">Espace public · informations, contact et recrutement</p>
+            <p className="hidden sm:block text-[var(--ink)]/40 text-xs">{patientMode ? 'Espace patient · conversations privées' : 'Site public · informations EMS'}</p>
           </div>
           <div className="ml-auto flex items-center gap-2">
             <span className="hidden sm:inline-flex"><ThemeToggle /></span>
             {session && <Button size="sm" variant="ghost" onClick={() => void openVisitorSpace()}><History size={14} /> Mes demandes</Button>}
-            {staff ? (
+            {patientMode ? (
+              <><Button size="sm" variant="ghost" onClick={() => navigate('/visiteur')}>Site public</Button><Button size="sm" variant="ghost" onClick={() => void signOut()}>Déconnexion</Button></>
+            ) : staff ? (
               <Button size="sm" onClick={() => navigate('/dashboard')}><span className="hidden sm:inline">Ouvrir le panel</span><span className="sm:hidden">Panel</span></Button>
             ) : session ? (
               <>
@@ -543,8 +548,9 @@ export function VisitorPortal() {
         className="relative z-10 max-w-6xl mx-auto px-3 sm:px-6 py-5 sm:py-12 md:pb-0"
         style={{ '--site-height': `${publicHeight}px` } as CSSProperties}
       >
-        <div className="md:relative md:h-[var(--site-height)]">
-          <section className="contents">
+        {patientMode && <div className="mb-6"><h1 className="text-2xl sm:text-3xl font-black">Mon espace patient</h1><p className="text-sm text-[var(--ink)]/50 mt-1">Échange avec l’équipe EMS et retrouve tes demandes.</p></div>}
+        <div className={patientMode ? 'relative flex flex-col gap-4 pb-12' : 'md:relative md:h-[var(--site-height)]'}>
+          {!patientMode && <section className="contents">
           {builtInBlocks.hero.visible && (
           <Card
             className="p-0 overflow-hidden flex flex-col justify-center mb-6 md:mb-0 md:absolute md:left-[var(--site-x)] md:top-[var(--site-y)] md:w-[var(--site-w)] md:h-[var(--site-h)]"
@@ -581,12 +587,12 @@ export function VisitorPortal() {
             </p>
           </Card>
           )}
-          </section>
+          </section>}
 
-        {builtInBlocks.navigation.visible && (
+        {(patientMode || builtInBlocks.navigation.visible) && (
         <div
-          className="flex gap-2 overflow-x-auto snap-x pb-2 mb-5 -mx-3 px-3 sm:mx-0 sm:px-0 md:mb-0 md:absolute md:left-[var(--site-x)] md:top-[var(--site-y)] md:w-[var(--site-w)] md:h-[var(--site-h)] md:items-center"
-          style={layoutStyle(publicLayout.navigation)}
+          className={patientMode ? 'flex gap-2 overflow-x-auto snap-x pb-2' : 'flex gap-2 overflow-x-auto snap-x pb-2 mb-5 -mx-3 px-3 sm:mx-0 sm:px-0 md:mb-0 md:absolute md:left-[var(--site-x)] md:top-[var(--site-y)] md:w-[var(--site-w)] md:h-[var(--site-h)] md:items-center'}
+          style={patientMode ? undefined : layoutStyle(publicLayout.navigation)}
         >
           {tabs.map((item) => {
             const Icon = item.icon
@@ -611,10 +617,10 @@ export function VisitorPortal() {
         </div>
         )}
 
-        {builtInBlocks.content.visible && (
+        {(patientMode || builtInBlocks.content.visible) && (
         <div
-          className="md:absolute md:left-[var(--site-x)] md:top-[var(--site-y)] md:w-[var(--site-w)] md:h-[var(--site-h)] md:overflow-auto"
-          style={layoutStyle(publicLayout.content)}
+          className={patientMode ? 'w-full min-w-0' : 'md:absolute md:left-[var(--site-x)] md:top-[var(--site-y)] md:w-[var(--site-w)] md:h-[var(--site-h)] md:overflow-auto'}
+          style={patientMode ? undefined : layoutStyle(publicLayout.content)}
         >
         {tab === 'reglement' ? (
           <Card className="p-6 sm:p-8">
@@ -665,8 +671,8 @@ export function VisitorPortal() {
             {session && threads.filter(item=>item.credential.public_id===openTicket).map((item)=>(
               <Card key={item.credential.public_id} className="p-5 sm:p-6">
                 <div className="flex items-start justify-between gap-3 mb-4"><div><p className="font-bold">{item.data.request.request_type==='recrutement'?'Candidature':item.data.request.subject}</p><p className="text-[var(--ink)]/35 text-xs mt-1">Réf. {item.data.request.public_id.slice(0,8).toUpperCase()}</p></div><Button size="sm" variant="ghost" onClick={()=>setOpenTicket(null)}>Fermer</Button></div>
-                <div ref={visitorThreadScrollRef} className="grid gap-2 max-h-80 overflow-y-auto pr-1">{item.data.messages.map(message=><div key={message.id} className={message.sender==='ems'?'rounded-xl bg-red/8 border border-red/10 px-3 py-2.5':'rounded-xl bg-[var(--ink)]/[0.035] border border-[var(--ink)]/8 px-3 py-2.5'}><p className="text-[11px] font-semibold text-[var(--ink)]/40 mb-1">{message.sender==='ems'?'EMS':'Vous'}</p><p className="text-sm whitespace-pre-wrap">{message.body}</p></div>)}</div>
-                {item.data.request.request_type!=='recrutement'&&<div className="flex gap-2 mt-4"><Input value={replyByTicket[item.credential.public_id]??''} onChange={e=>setReplyByTicket(current=>({...current,[item.credential.public_id]:e.target.value}))} placeholder="Ajouter un message…" /><Button onClick={()=>void sendTrackingReply(item)} disabled={!(replyByTicket[item.credential.public_id]??'').trim()}><Send size={15}/></Button></div>}
+                <div ref={visitorThreadScrollRef} className="flex flex-col gap-3 h-[min(55dvh,520px)] min-h-[280px] overflow-y-auto overscroll-contain touch-pan-y p-3 rounded-xl bg-[var(--ink)]/[0.025]">{item.data.messages.map(message=><div key={message.id} className={message.sender==='ems'?'flex justify-start':'flex justify-end'}><div className={message.sender==='ems'?'max-w-[85%] rounded-2xl rounded-bl-sm bg-[var(--ink)]/10 px-4 py-3':'max-w-[85%] rounded-2xl rounded-br-sm bg-red text-white px-4 py-3'}><p className="text-[11px] font-semibold opacity-65 mb-1">{message.sender==='ems'?'EMS':'Vous'}</p><p className="text-base whitespace-pre-wrap break-words">{message.body}</p></div></div>)}</div>
+                {item.data.request.request_type!=='recrutement'&&<div className="flex gap-2 mt-4 min-w-0"><Input value={replyByTicket[item.credential.public_id]??''} onChange={e=>setReplyByTicket(current=>({...current,[item.credential.public_id]:e.target.value}))} placeholder="Ajouter un message…" /><Button onClick={()=>void sendTrackingReply(item)} disabled={!(replyByTicket[item.credential.public_id]??'').trim()}><Send size={15}/></Button></div>}
               </Card>
             ))}
             {session && threads.length === 0 && (
@@ -677,6 +683,8 @@ export function VisitorPortal() {
               </Card>
             )}
           </div>
+        ) : !session ? (
+          <Card className="p-6 sm:p-8 text-center"><h2 className="text-lg font-bold">Connecte-toi pour contacter l’EMS</h2><p className="text-sm text-[var(--ink)]/50 mt-2">Un compte Discord est nécessaire pour envoyer et retrouver tes messages.</p><Button className="mt-4" onClick={() => void connectDiscord(tab as 'contact' | 'recrutement' | 'rendez_vous')} disabled={connecting}><LogIn size={15}/> Connexion Discord</Button></Card>
         ) : (
           <Card className="p-6 sm:p-8">
             <div className="max-w-3xl">
