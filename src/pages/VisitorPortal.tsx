@@ -161,6 +161,7 @@ export function VisitorPortal() {
   const [appointmentTitle, setAppointmentTitle] = useState('')
   const [appointmentDate, setAppointmentDate] = useState('')
   const [appointmentNotes, setAppointmentNotes] = useState('')
+  const [editingPatientAppointmentId, setEditingPatientAppointmentId] = useState<string | null>(null)
   const [appointmentError, setAppointmentError] = useState<string | null>(null)
   const [tab, setTab] = useState<PortalTab>(() => {
     if (typeof window === 'undefined') return 'reglement'
@@ -227,13 +228,27 @@ export function VisitorPortal() {
     if (!session || !appointmentTitle.trim() || !appointmentDate) return
     const date = new Date(appointmentDate)
     if (Number.isNaN(date.getTime()) || date.getTime() <= Date.now()) { setAppointmentError('Choisis une date et une heure futures.'); return }
-    const { data, error } = await supabase.from('patient_appointments').insert({user_id:session.user.id,title:appointmentTitle.trim(),notes:appointmentNotes.trim(),scheduled_at:date.toISOString()}).select('id,title,notes,scheduled_at').single()
+    const payload = {title:appointmentTitle.trim(),notes:appointmentNotes.trim(),scheduled_at:date.toISOString()}
+    const query = editingPatientAppointmentId
+      ? supabase.from('patient_appointments').update(payload).eq('id',editingPatientAppointmentId).eq('user_id',session.user.id)
+      : supabase.from('patient_appointments').insert({...payload,user_id:session.user.id})
+    const { data, error } = await query.select('id,title,notes,scheduled_at').single()
     if (error) { setAppointmentError(error.message); return }
-    if (data) setPatientAppointments(current => [...current,data].sort((a,b)=>a.scheduled_at.localeCompare(b.scheduled_at)))
+    if (data) setPatientAppointments(current => [...current.filter(item=>item.id!==data.id),data].sort((a,b)=>a.scheduled_at.localeCompare(b.scheduled_at)))
+    setEditingPatientAppointmentId(null)
     setAppointmentTitle(''); setAppointmentDate(''); setAppointmentNotes(''); setAppointmentError(null)
   }
+  function editPatientAppointment(item:{id:string;title:string;notes:string;scheduled_at:string}) {
+    const d = new Date(item.scheduled_at)
+    const local = new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,16)
+    setEditingPatientAppointmentId(item.id)
+    setAppointmentTitle(item.title)
+    setAppointmentNotes(item.notes)
+    setAppointmentDate(local)
+    setAppointmentError(null)
+  }
   async function deletePatientAppointment(id:string) {
-    const { error } = await supabase.from('patient_appointments').delete().eq('id',id)
+    const { error } = await supabase.from('patient_appointments').delete().eq('id',id).eq('user_id',session!.user.id)
     if (error) { setAppointmentError(error.message); return }
     setPatientAppointments(current => current.filter(item => item.id !== id))
   }
@@ -666,7 +681,7 @@ export function VisitorPortal() {
           style={patientMode ? undefined : layoutStyle(publicLayout.content)}
         >
         {patientMode && tab === 'agenda' ? (
-          <Card className="p-4 sm:p-6"><h2 className="text-xl font-bold mb-2">Mon agenda patient</h2><p className="text-sm text-[var(--ink)]/50 mb-5">Note tes rendez-vous personnels. Un rappel Discord 30 minutes avant sera disponible lorsque le service de rappel du bot sera activé.</p><div className="grid sm:grid-cols-2 gap-3"><label className="grid gap-1 text-sm">Rendez-vous<Input value={appointmentTitle} onChange={e=>setAppointmentTitle(e.target.value)} placeholder="Ex. Consultation EMS" /></label><label className="grid gap-1 text-sm">Date et heure<input type="datetime-local" value={appointmentDate} onChange={e=>setAppointmentDate(e.target.value)} className="rounded-xl border border-[var(--ink)]/15 bg-[var(--bg)] p-3 text-[var(--ink)]" /></label></div><label className="grid gap-1 text-sm mt-3">Notes (facultatif)<Input value={appointmentNotes} onChange={e=>setAppointmentNotes(e.target.value)} placeholder="Lieu, informations…" /></label>{appointmentError && <p className="text-red-400 text-sm mt-3">{appointmentError}</p>}<Button className="mt-4" onClick={()=>void addPatientAppointment()} disabled={!appointmentTitle.trim()||!appointmentDate}>Ajouter le rendez-vous</Button><h3 className="font-bold mt-7 mb-3">Mes rendez-vous</h3><div className="grid gap-2">{patientAppointments.map(item=><div key={item.id} className="flex gap-3 justify-between items-start border border-[var(--ink)]/10 rounded-xl p-3"><div className="min-w-0"><p className="font-semibold break-words">{item.title}</p><p className="text-sm text-[var(--ink)]/60">{new Date(item.scheduled_at).toLocaleString('fr-FR',{dateStyle:'full',timeStyle:'short'})}</p>{item.notes&&<p className="text-sm text-[var(--ink)]/50 mt-1 break-words">{item.notes}</p>}</div><Button size="sm" variant="ghost" onClick={()=>void deletePatientAppointment(item.id)}>Supprimer</Button></div>)}{patientAppointments.length===0&&<p className="text-sm text-[var(--ink)]/40">Aucun rendez-vous noté.</p>}</div></Card>
+          <Card className="p-4 sm:p-6"><h2 className="text-xl font-bold mb-2">Mon agenda patient</h2><p className="text-sm text-[var(--ink)]/50 mb-5">Note tes rendez-vous personnels. Agenda personnel : tes rendez-vous ne sont visibles que dans ton espace. Les rappels Discord nécessitent l’activation du service de bot.</p><div className="grid sm:grid-cols-2 gap-3"><label className="grid gap-1 text-sm">Rendez-vous<Input value={appointmentTitle} onChange={e=>setAppointmentTitle(e.target.value)} placeholder="Ex. Consultation EMS" /></label><label className="grid gap-1 text-sm">Date et heure<input type="datetime-local" value={appointmentDate} onChange={e=>setAppointmentDate(e.target.value)} className="rounded-xl border border-[var(--ink)]/15 bg-[var(--bg)] p-3 text-[var(--ink)]" /></label></div><label className="grid gap-1 text-sm mt-3">Notes (facultatif)<Input value={appointmentNotes} onChange={e=>setAppointmentNotes(e.target.value)} placeholder="Lieu, informations…" /></label>{appointmentError && <p className="text-red-400 text-sm mt-3">{appointmentError}</p>}<Button className="mt-4" onClick={()=>void addPatientAppointment()} disabled={!appointmentTitle.trim()||!appointmentDate}>{editingPatientAppointmentId?'Enregistrer les modifications':'Ajouter le rendez-vous'}</Button>{editingPatientAppointmentId&&<Button className="mt-4 ml-2" variant="ghost" onClick={()=>{setEditingPatientAppointmentId(null);setAppointmentTitle('');setAppointmentDate('');setAppointmentNotes('')}}>Annuler</Button>}<h3 className="font-bold mt-7 mb-3">Mes rendez-vous</h3><div className="grid gap-2">{patientAppointments.map(item=><div key={item.id} className="flex gap-3 justify-between items-start border border-[var(--ink)]/10 rounded-xl p-3"><div className="min-w-0"><p className="font-semibold break-words">{item.title}</p><p className="text-sm text-[var(--ink)]/60">{new Date(item.scheduled_at).toLocaleString('fr-FR',{dateStyle:'full',timeStyle:'short'})}</p>{item.notes&&<p className="text-sm text-[var(--ink)]/50 mt-1 break-words">{item.notes}</p>}</div><div className="flex gap-2"><Button size="sm" variant="ghost" onClick={()=>editPatientAppointment(item)}>Modifier</Button><Button size="sm" variant="ghost" onClick={()=>void deletePatientAppointment(item.id)}>Supprimer</Button></div></div>)}{patientAppointments.length===0&&<p className="text-sm text-[var(--ink)]/40">Aucun rendez-vous noté.</p>}</div></Card>
         ) : tab === 'reglement' ? (
           <Card className="p-6 sm:p-8">
             <h2 className="font-display font-black text-xl mb-5">Règlement EMS</h2>
@@ -697,11 +712,11 @@ export function VisitorPortal() {
             )}
             {session && <h2 className="font-bold text-lg">Mes demandes et conversations</h2>}
             {session && <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {threads.map((item) => {
+              {[...threads].sort((a,b)=>Number(a.data.request.status==='ferme')-Number(b.data.request.status==='ferme') || new Date(b.data.request.created_at).getTime()-new Date(a.data.request.created_at).getTime()).map((item) => {
                 const status=item.data.request.status
                 const isRecruit=item.data.request.request_type==='recrutement'
                 const isRdv=item.data.request.request_type==='rendez_vous'
-                const tone=isRecruit
+                const tone=status==='ferme' ? 'border-red/50 bg-red/10' : isRecruit
                   ? status==='refusee' ? 'border-red/35 bg-red/8' : status==='acceptee' ? 'border-green-400/35 bg-green-400/8' : status==='verification_dossier' ? 'border-orange-400/35 bg-orange-400/8' : ['en_cours','en_attente','entretien'].includes(status) ? 'border-yellow-400/35 bg-yellow-400/8' : 'border-[var(--ink)]/10'
                   : isRdv && ['en_cours','repondu','ferme'].includes(status) ? 'border-cyan/30 bg-cyan/5' : 'border-[var(--ink)]/10'
                 const label=isRecruit ? 'Candidature' : isRdv ? 'Rendez-vous' : item.data.request.subject
