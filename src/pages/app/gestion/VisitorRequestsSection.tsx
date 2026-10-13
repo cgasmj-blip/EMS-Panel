@@ -214,7 +214,7 @@ export function VisitorRequestsSection({
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-4 h-full min-h-0 overflow-y-auto lg:overflow-hidden overscroll-contain content-start lg:content-stretch">
-      <Card className="p-4 flex flex-col min-h-[180px] max-h-[30dvh] lg:max-h-none lg:min-h-0">
+      <Card className="p-4 flex flex-col min-h-[180px] max-h-[22dvh] lg:max-h-none lg:min-h-0">
         <div className="flex items-center gap-2 mb-3">
           <UserRoundCheck size={16} className="text-[var(--ink)]/45" />
           <h2 className="text-sm font-bold">{title}</h2>
@@ -254,7 +254,7 @@ export function VisitorRequestsSection({
         </div>
       </Card>
 
-      <Card className="p-3 sm:p-5 min-h-[420px] h-[min(65dvh,700px)] lg:h-auto lg:min-h-0 overflow-y-auto overscroll-contain flex flex-col">
+      <Card className="p-3 sm:p-5 min-h-[540px] h-[max(75dvh,540px)] lg:h-auto lg:min-h-0 overflow-y-auto overscroll-contain flex flex-col">
         {!selected ? (
           <div className="h-full min-h-[420px] flex flex-col items-center justify-center text-center">
             <MessageSquareReply size={28} className="text-[var(--ink)]/20 mb-3" />
@@ -262,7 +262,7 @@ export function VisitorRequestsSection({
             <p className="text-[var(--ink)]/35 text-xs mt-1">Tu pourras consulter le dossier, changer son statut et répondre.</p>
           </div>
         ) : (
-          <div className="max-w-3xl w-full h-full min-h-0 flex flex-col overflow-hidden">
+          <div className="max-w-3xl w-full h-full min-h-0 flex flex-col overflow-y-auto lg:overflow-hidden">
             <div className="flex items-start gap-3 mb-4 shrink-0">
               {selected.request_type !== 'recrutement' && <Button size="sm" variant="outline" className="ml-auto order-last" disabled={busy} onClick={()=>void closePatientRequest(selected)}>Fermer</Button>}
               {selected.discord_avatar_url ? <img src={selected.discord_avatar_url} alt="" className="w-12 h-12 rounded-full object-cover" /> : <span className="w-12 h-12 rounded-full bg-[var(--ink)]/8" />}
@@ -279,7 +279,7 @@ export function VisitorRequestsSection({
               </div>
             </div>
 
-            <div className="rounded-xl border border-[var(--ink)]/8 bg-[var(--ink)]/[0.02] p-4 mb-3 shrink-0 max-h-32 overflow-y-auto">
+            <div className="rounded-xl border border-[var(--ink)]/8 bg-[var(--ink)]/[0.02] p-4 mb-3 shrink-0 max-h-24 sm:max-h-32 overflow-y-auto">
               <p className="text-xs uppercase tracking-wide text-[var(--ink)]/35 mb-1">Objet</p>
               <p className="font-semibold text-sm">{selected.subject}</p>
               <p className="text-sm text-[var(--ink)]/65 whitespace-pre-wrap mt-3">{selected.message}</p>
@@ -290,8 +290,8 @@ export function VisitorRequestsSection({
 
             {selected.request_type === 'recrutement' && <div className="grid sm:grid-cols-[1fr_auto] gap-3 mb-3 shrink-0"><Select value={selected.status} disabled={busy} onChange={(e)=>void setStatus(selected,e.target.value)}>{STATUS_OPTIONS.filter(([value])=>['en_attente','verification_dossier','entretien','acceptee','refusee'].includes(value)).map(([value,label])=><option key={value} value={value}>{label}</option>)}</Select><Badge variant={selected.status==='acceptee'?'green':selected.status==='refusee'?'red':'amber'}>{STATUS_OPTIONS.find(([value])=>value===selected.status)?.[1]??selected.status}</Badge></div>}
 
-            {selected.request_type !== 'recrutement' && <div className="flex-1 min-h-0 flex flex-col overflow-hidden"><div ref={threadScrollRef} onScroll={handleThreadScroll} className="rounded-xl border border-[var(--ink)]/8 bg-[var(--ink)]/[0.015] p-3 mb-3 flex-1 min-h-0 overflow-y-auto overscroll-contain touch-pan-y [-webkit-overflow-scrolling:touch] flex flex-col gap-2">
-              {messages.map((message)=><div key={message.id} className={message.sender==='ems'?'flex justify-end':'flex justify-start'}><div className={message.sender==='ems'?'max-w-[82%] rounded-2xl bg-red text-white px-3.5 py-2.5':'max-w-[82%] rounded-2xl bg-[var(--ink)]/7 px-3.5 py-2.5'}><p className="text-[10px] opacity-60 mb-1">{message.sender==='ems'?'EMS':selected.full_name} · {new Date(message.created_at).toLocaleString('fr-FR')}</p><p className="text-sm whitespace-pre-wrap">{message.body}</p><MessageImageLinks body={message.body} /></div></div>)}
+            {selected.request_type !== 'recrutement' && <div className="flex-1 min-h-[240px] flex flex-col overflow-hidden"><div ref={threadScrollRef} onScroll={handleThreadScroll} className="rounded-xl border border-[var(--ink)]/8 bg-[var(--ink)]/[0.015] p-3 mb-3 flex-1 min-h-0 overflow-y-auto overscroll-contain touch-pan-y [-webkit-overflow-scrolling:touch] flex flex-col gap-2">
+              {messages.map((message)=><div key={message.id} className={message.sender==='ems'?'flex justify-end':'flex justify-start'}><div className={message.sender==='ems'?'max-w-[82%] rounded-2xl bg-red text-white px-3.5 py-2.5':'max-w-[82%] rounded-2xl bg-[var(--ink)]/7 px-3.5 py-2.5'}><p className="text-[10px] opacity-60 mb-1">{message.sender==='ems'?'EMS':selected.full_name} · {new Date(message.created_at).toLocaleString('fr-FR')}</p><p className="text-base sm:text-sm whitespace-pre-wrap break-words">{message.body}</p><MessageImageLinks body={message.body} /></div></div>)}
               {messages.length===0&&<p className="text-center text-xs text-[var(--ink)]/30 py-5">Aucun message dans cette conversation.</p>}
             </div>
             <label className="grid gap-2">
