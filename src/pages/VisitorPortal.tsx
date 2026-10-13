@@ -201,6 +201,10 @@ export function VisitorPortal() {
   }, [])
 
   useEffect(() => {
+    if (patientMode && tab === 'reglement') setTab('suivi')
+  }, [patientMode, tab])
+
+  useEffect(() => {
     if (session && !staff && window.localStorage.getItem('ems-session-mode') === 'visitor' && !patientMode) {
       navigate('/patient', { replace: true })
     }
