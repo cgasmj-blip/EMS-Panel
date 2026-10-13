@@ -140,7 +140,7 @@ export function VisitorMessagesPane() {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-3 flex-1 min-h-0 overflow-y-auto md:overflow-hidden overscroll-contain content-start md:content-stretch">
-      <Card className="p-3 flex flex-col gap-3 min-h-[180px] max-h-[32dvh] md:max-h-none md:min-h-0 overflow-hidden">
+      <Card className="p-3 flex flex-col gap-3 min-h-[180px] max-h-[22dvh] md:max-h-none md:min-h-0 overflow-hidden">
         <div className="relative">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--ink)]/35" />
           <Input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Rechercher un visiteur" className="pl-9" />
@@ -176,7 +176,7 @@ export function VisitorMessagesPane() {
         </div>
       </Card>
 
-      <Card className="p-0 overflow-hidden flex flex-col min-h-[380px] h-[min(65dvh,650px)] md:min-h-0 md:h-full">
+      <Card className="p-0 overflow-hidden flex flex-col min-h-[500px] h-[max(72dvh,500px)] md:min-h-0 md:h-full">
         {!selected ? (
           <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
             <MessageCircle size={28} className="text-[var(--ink)]/25 mb-3" />
@@ -206,7 +206,7 @@ export function VisitorMessagesPane() {
                   <div className={message.sender === 'ems'
                     ? 'max-w-[82%] rounded-2xl rounded-br-md bg-red text-white px-3.5 py-2.5'
                     : 'max-w-[82%] rounded-2xl rounded-bl-md bg-[var(--ink)]/7 text-[var(--ink)] px-3.5 py-2.5'}>
-                    <p className="text-sm whitespace-pre-wrap break-words">{message.body}</p>
+                    <p className="text-base sm:text-sm whitespace-pre-wrap break-words">{message.body}</p>
                     <p className={message.sender === 'ems' ? 'text-white/55 text-[10px] mt-1 text-right' : 'text-[var(--ink)]/30 text-[10px] mt-1'}>
                       {new Date(message.created_at).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
                     </p>
@@ -230,7 +230,7 @@ export function VisitorMessagesPane() {
                   placeholder="Répondre au visiteur…"
                   rows={2}
                   maxLength={6000}
-                  className="flex-1 resize-none rounded-xl border border-[var(--ink)]/10 bg-[var(--bg)] px-3 py-2.5 text-sm text-[var(--ink)] outline-none focus:border-red/35"
+                  className="min-w-0 flex-1 resize-none rounded-xl border border-[var(--ink)]/10 bg-[var(--bg)] px-3 py-2.5 text-sm text-[var(--ink)] outline-none focus:border-red/35"
                 />
                 <Button onClick={() => void sendReply()} disabled={!body.trim() || sending} title="Envoyer">
                   <Send size={16} />
