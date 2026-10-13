@@ -195,6 +195,13 @@ export function VisitorPortal() {
     }
   }, [])
 
+  useEffect(() => {
+    if (session && !staff && window.localStorage.getItem('ems-session-mode') === 'visitor' && !patientMode) {
+      navigate('/patient', { replace: true })
+    }
+    if (!session && patientMode) navigate('/visiteur', { replace: true })
+  }, [session?.user.id, staff, patientMode, navigate])
+
   const metadata = (session?.user.user_metadata ?? {}) as Record<string, unknown>
   const discordId = String(metadata.provider_id ?? metadata.sub ?? '')
   const discordName = String(metadata.global_name ?? metadata.full_name ?? metadata.name ?? metadata.user_name ?? '')
