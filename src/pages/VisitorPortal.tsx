@@ -10,7 +10,7 @@ import { Select } from '@/components/ui/Select'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
 import logo from '@/assets/logo.webp'
 
-type PortalTab = 'reglement' | 'contact' | 'recrutement' | 'rendez_vous' | 'suivi'
+type PortalTab = 'reglement' | 'contact' | 'recrutement' | 'rendez_vous' | 'suivi' | 'agenda'
 
 type CustomSiteBlock = {
   id: string
@@ -157,6 +157,11 @@ export function VisitorPortal() {
   const location = useLocation()
   const patientMode = location.pathname === '/patient'
   const { session, staff, signInWithDiscord, signInVisitorWithDiscord, signOut } = useAuth()
+  const [patientAppointments, setPatientAppointments] = useState<Array<{id:string;title:string;notes:string;scheduled_at:string}>>([])
+  const [appointmentTitle, setAppointmentTitle] = useState('')
+  const [appointmentDate, setAppointmentDate] = useState('')
+  const [appointmentNotes, setAppointmentNotes] = useState('')
+  const [appointmentError, setAppointmentError] = useState<string | null>(null)
   const [tab, setTab] = useState<PortalTab>(() => {
     if (typeof window === 'undefined') return 'reglement'
     const saved = window.sessionStorage.getItem('ems-public-tab') as PortalTab | null
@@ -201,6 +206,33 @@ export function VisitorPortal() {
     }
     if (!session && patientMode) navigate('/visiteur', { replace: true })
   }, [session?.user.id, staff, patientMode, navigate])
+
+  useEffect(() => {
+    if (!patientMode || !session) { setPatientAppointments([]); return }
+    let active = true
+    const load = async () => {
+      const { data } = await supabase.from('patient_appointments').select('id,title,notes,scheduled_at').order('scheduled_at', { ascending: true })
+      if (active && data) setPatientAppointments(data)
+    }
+    void load()
+    const timer = window.setInterval(() => void load(), 30000)
+    return () => { active = false; window.clearInterval(timer) }
+  }, [patientMode, session?.user.id])
+
+  async function addPatientAppointment() {
+    if (!session || !appointmentTitle.trim() || !appointmentDate) return
+    const date = new Date(appointmentDate)
+    if (Number.isNaN(date.getTime()) || date.getTime() <= Date.now()) { setAppointmentError('Choisis une date et une heure futures.'); return }
+    const { data, error } = await supabase.from('patient_appointments').insert({user_id:session.user.id,title:appointmentTitle.trim(),notes:appointmentNotes.trim(),scheduled_at:date.toISOString()}).select('id,title,notes,scheduled_at').single()
+    if (error) { setAppointmentError(error.message); return }
+    if (data) setPatientAppointments(current => [...current,data].sort((a,b)=>a.scheduled_at.localeCompare(b.scheduled_at)))
+    setAppointmentTitle(''); setAppointmentDate(''); setAppointmentNotes(''); setAppointmentError(null)
+  }
+  async function deletePatientAppointment(id:string) {
+    const { error } = await supabase.from('patient_appointments').delete().eq('id',id)
+    if (error) { setAppointmentError(error.message); return }
+    setPatientAppointments(current => current.filter(item => item.id !== id))
+  }
 
   const metadata = (session?.user.user_metadata ?? {}) as Record<string, unknown>
   const discordId = String(metadata.provider_id ?? metadata.sub ?? '')
@@ -601,7 +633,7 @@ export function VisitorPortal() {
           className={patientMode ? 'flex gap-2 overflow-x-auto snap-x pb-2' : 'flex gap-2 overflow-x-auto snap-x pb-2 mb-5 -mx-3 px-3 sm:mx-0 sm:px-0 md:mb-0 md:absolute md:left-[var(--site-x)] md:top-[var(--site-y)] md:w-[var(--site-w)] md:h-[var(--site-h)] md:items-center'}
           style={patientMode ? undefined : layoutStyle(publicLayout.navigation)}
         >
-          {tabs.map((item) => {
+          {(patientMode ? [...tabs.filter(item => item.key !== 'reglement'), {key:'agenda' as const,label:'Mon agenda',icon:CalendarClock}] : []).map((item) => {
             const Icon = item.icon
             return (
               <button
@@ -629,7 +661,9 @@ export function VisitorPortal() {
           className={patientMode ? 'w-full min-w-0' : 'md:absolute md:left-[var(--site-x)] md:top-[var(--site-y)] md:w-[var(--site-w)] md:h-[var(--site-h)] md:overflow-auto'}
           style={patientMode ? undefined : layoutStyle(publicLayout.content)}
         >
-        {tab === 'reglement' ? (
+        {patientMode && tab === 'agenda' ? (
+          <Card className="p-4 sm:p-6"><h2 className="text-xl font-bold mb-2">Mon agenda patient</h2><p className="text-sm text-[var(--ink)]/50 mb-5">Note tes rendez-vous personnels. Un rappel Discord 30 minutes avant sera disponible lorsque le service de rappel du bot sera activé.</p><div className="grid sm:grid-cols-2 gap-3"><label className="grid gap-1 text-sm">Rendez-vous<Input value={appointmentTitle} onChange={e=>setAppointmentTitle(e.target.value)} placeholder="Ex. Consultation EMS" /></label><label className="grid gap-1 text-sm">Date et heure<input type="datetime-local" value={appointmentDate} onChange={e=>setAppointmentDate(e.target.value)} className="rounded-xl border border-[var(--ink)]/15 bg-[var(--bg)] p-3 text-[var(--ink)]" /></label></div><label className="grid gap-1 text-sm mt-3">Notes (facultatif)<Input value={appointmentNotes} onChange={e=>setAppointmentNotes(e.target.value)} placeholder="Lieu, informations…" /></label>{appointmentError && <p className="text-red-400 text-sm mt-3">{appointmentError}</p>}<Button className="mt-4" onClick={()=>void addPatientAppointment()} disabled={!appointmentTitle.trim()||!appointmentDate}>Ajouter le rendez-vous</Button><h3 className="font-bold mt-7 mb-3">Mes rendez-vous</h3><div className="grid gap-2">{patientAppointments.map(item=><div key={item.id} className="flex gap-3 justify-between items-start border border-[var(--ink)]/10 rounded-xl p-3"><div className="min-w-0"><p className="font-semibold break-words">{item.title}</p><p className="text-sm text-[var(--ink)]/60">{new Date(item.scheduled_at).toLocaleString('fr-FR',{dateStyle:'full',timeStyle:'short'})}</p>{item.notes&&<p className="text-sm text-[var(--ink)]/50 mt-1 break-words">{item.notes}</p>}</div><Button size="sm" variant="ghost" onClick={()=>void deletePatientAppointment(item.id)}>Supprimer</Button></div>)}{patientAppointments.length===0&&<p className="text-sm text-[var(--ink)]/40">Aucun rendez-vous noté.</p>}</div></Card>
+        ) : tab === 'reglement' ? (
           <Card className="p-6 sm:p-8">
             <h2 className="font-display font-black text-xl mb-5">Règlement EMS</h2>
             <div className="whitespace-pre-wrap text-sm sm:text-base text-[var(--ink)]/65 leading-7">{reglement}</div>
