@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type DragEvent, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
-import { Bell, CalendarClock, CheckCheck, LayoutGrid, LogOut, Megaphone, MessageCircle, PackageOpen, Palette, RefreshCw, Search, ShieldCheck, Trash2 } from 'lucide-react'
+import { Bell, CalendarClock, CheckCheck, LayoutGrid, LogOut, Menu, Megaphone, MessageCircle, PackageOpen, Palette, RefreshCw, Search, ShieldCheck, Trash2 } from 'lucide-react'
 import { useAuth } from '@/auth/AuthContext'
 import { displayRoleLabel, isAboveChirurgien, staffMatchesEligibility, supabase, type StaffRole } from '@/lib/supabase'
 import { TILE_SECTIONS, type TabKey } from '@/lib/tiles'
@@ -91,6 +91,7 @@ export function Dashboard() {
   const [unreadMessages, setUnreadMessages] = useState(0)
   const [unreadMessageIds, setUnreadMessageIds] = useState<string[]>([])
   const [showNotifications, setShowNotifications] = useState(false)
+  const [showMobileMenu, setShowMobileMenu] = useState(false)
   const [notificationSeenAt, setNotificationSeenAt] = useState(() => window.localStorage.getItem('ems-notifications-seen-at') ?? '')
   const [dismissedNotifications, setDismissedNotifications] = useState<string[]>(() => {
     try { return JSON.parse(window.localStorage.getItem('ems-notifications-dismissed') ?? '[]') }
@@ -546,6 +547,7 @@ export function Dashboard() {
       className={cn(
         'bg-[var(--bg)]',
         effectiveView === 'home' || ['messages','candidatures','professional_messages','lspd_transfer','gestion'].includes(effectiveView) ? 'h-[100dvh] overflow-hidden' : 'min-h-screen',
+        'w-full min-w-0',
       )}
       style={{
         backgroundColor: uiPreferences.background_color ?? undefined,
@@ -722,6 +724,25 @@ export function Dashboard() {
         <button type="button" onClick={openNotifications} className={cn('relative w-10 h-10 rounded-xl flex items-center justify-center', unreadNotifications > 0 ? 'bg-red/15 text-red ring-2 ring-red/70 animate-pulse shadow-[0_0_16px_rgba(239,68,68,0.55)]' : 'bg-[var(--ink)]/5 text-[var(--ink)]/60')} aria-label="Centre de notifications"><Bell size={17}/>{unreadNotifications > 0 && <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-red text-white text-[9px] font-bold flex items-center justify-center">{unreadNotifications > 99 ? '99+' : unreadNotifications}</span>}</button>
       </div>
 
+      {showMobileMenu && (
+        <div className="md:hidden fixed inset-0 z-[65] bg-black/60 flex flex-col justify-end" onClick={() => setShowMobileMenu(false)}>
+          <div className="bg-[var(--sidebar-bg)] text-[var(--ink)] rounded-t-3xl border-t border-[var(--ink)]/10 p-4 pb-[max(6rem,env(safe-area-inset-bottom))] max-h-[85dvh] overflow-y-auto" onClick={(event) => event.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-bold text-base">Toutes les rubriques EMS</h2>
+              <button type="button" className="rounded-lg px-3 py-2 bg-[var(--ink)]/10" onClick={() => setShowMobileMenu(false)} aria-label="Fermer le menu">Fermer</button>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {TILE_SECTIONS.filter((section) => visibleTabs.includes(section.key)).map((section) => {
+                const Icon = section.icon
+                return <button key={section.key} type="button" onClick={() => { setView(section.key); setShowMobileMenu(false) }} className={cn('flex items-center gap-2 min-w-0 text-left rounded-xl border border-[var(--ink)]/10 p-3 text-xs font-semibold', effectiveView === section.key ? 'bg-red text-white' : 'bg-[var(--ink)]/5 text-[var(--ink)]')}>
+                  <Icon size={17} className="shrink-0" /><span className="min-w-0 break-words">{section.label}</span>
+                </button>
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
       <nav
         className="md:hidden fixed inset-x-2 bottom-2 z-50 rounded-2xl border border-[var(--ink)]/10 backdrop-blur-xl px-1.5 pb-[max(0.4rem,env(safe-area-inset-bottom))] pt-1.5 shadow-2xl"
         style={{ backgroundColor: uiPreferences.sidebar_color ?? 'var(--sidebar-bg)' }}
@@ -768,6 +789,9 @@ export function Dashboard() {
               <span>Gestion</span>
             </button>
           )}
+          <button type="button" onClick={() => setShowMobileMenu(true)} aria-label="Afficher toutes les rubriques" className="min-w-0 flex-1 rounded-xl px-1 py-2 flex flex-col items-center gap-1 text-[10px] font-semibold text-[var(--ink)]/70">
+            <Menu size={18} /><span>Menu</span>
+          </button>
         </div>
       </nav>
 
@@ -873,7 +897,7 @@ export function Dashboard() {
                   onBack={() => setView('home')}
                 />
               )}
-              <div className={cn((effectiveView === 'messages' || effectiveView === 'candidatures' || effectiveView === 'professional_messages' || effectiveView === 'lspd_transfer' || effectiveView === 'gestion') && 'flex flex-col flex-1 min-h-0 overflow-hidden')}>
+              <div className={cn('min-w-0', (effectiveView === 'messages' || effectiveView === 'candidatures' || effectiveView === 'professional_messages' || effectiveView === 'lspd_transfer' || effectiveView === 'gestion') && 'flex flex-col flex-1 min-h-0 overflow-hidden')}>
                 {effectiveView === 'dossier' ? <DossierTraumatoTab /> : TAB_CONTENT[effectiveView]}
               </div>
             </motion.div>
