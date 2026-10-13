@@ -13,6 +13,7 @@ function App() {
           <Routes>
             <Route path="/" element={<VisitorPortal />} />
             <Route path="/visiteur" element={<VisitorPortal />} />
+            <Route path="/patient" element={<VisitorPortal />} />
             <Route path="/login" element={<Navigate to="/visiteur" replace />} />
             <Route
               path="/dashboard"
