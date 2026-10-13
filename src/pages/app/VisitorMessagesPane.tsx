@@ -139,8 +139,8 @@ export function VisitorMessagesPane() {
   }
 
   return (
-    <div className="grid md:grid-cols-[280px_1fr] gap-3 flex-1 min-h-0 overflow-hidden">
-      <Card className="p-3 flex flex-col gap-3 min-h-0 overflow-hidden">
+    <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-3 flex-1 min-h-0 overflow-y-auto md:overflow-hidden overscroll-contain content-start md:content-stretch">
+      <Card className="p-3 flex flex-col gap-3 min-h-[180px] max-h-[32dvh] md:max-h-none md:min-h-0 overflow-hidden">
         <div className="relative">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--ink)]/35" />
           <Input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Rechercher un visiteur" className="pl-9" />
@@ -176,7 +176,7 @@ export function VisitorMessagesPane() {
         </div>
       </Card>
 
-      <Card className="p-0 overflow-hidden flex flex-col min-h-0 h-full">
+      <Card className="p-0 overflow-hidden flex flex-col min-h-[380px] h-[min(65dvh,650px)] md:min-h-0 md:h-full">
         {!selected ? (
           <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
             <MessageCircle size={28} className="text-[var(--ink)]/25 mb-3" />
@@ -200,7 +200,7 @@ export function VisitorMessagesPane() {
               </Badge>
             </div>
 
-            <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto p-3 pr-2 flex flex-col gap-2 bg-[var(--ink)]/[0.01]">
+            <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain touch-pan-y [-webkit-overflow-scrolling:touch] p-3 pr-2 flex flex-col gap-2 bg-[var(--ink)]/[0.01]">
               {messages.map((message) => (
                 <div key={message.id} className={message.sender === 'ems' ? 'flex justify-end' : 'flex justify-start'}>
                   <div className={message.sender === 'ems'
