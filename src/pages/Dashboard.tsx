@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type DragEvent, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
-import { Bell, CalendarClock, CheckCheck, LayoutGrid, LogOut, Menu, Megaphone, MessageCircle, PackageOpen, Palette, RefreshCw, Search, ShieldCheck, Trash2 } from 'lucide-react'
+import { Bell, CalendarClock, CheckCheck, LayoutGrid, LogOut, Menu, Megaphone, MessageCircle, PackageOpen, Palette, PawPrint, RefreshCw, Search, ShieldCheck, Trash2 } from 'lucide-react'
 import { useAuth } from '@/auth/AuthContext'
 import { displayRoleLabel, isAboveChirurgien, staffMatchesEligibility, supabase, type StaffRole } from '@/lib/supabase'
 import { TILE_SECTIONS, type TabKey } from '@/lib/tiles'
@@ -64,6 +64,13 @@ function getStoredView(): TabKey | 'home' {
 export function Dashboard() {
   const navigate = useNavigate()
   const { staff, session, signOut, signInWithDiscord } = useAuth()
+  const hasVeterinaryRole = staff?.active === true && (staff.sous_grade_ids ?? []).includes('v_u')
+  const openVeterinaryPanel = () => { window.location.assign('https://cgasmj-blip.github.io/Veterinaire-Panel/') }
+  const veterinaryButton = hasVeterinaryRole && (
+    <button type="button" onClick={openVeterinaryPanel} aria-label="Interface vétérinaire" title="Interface vétérinaire" className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors cursor-pointer bg-[#D5E9BC] text-[#365C38] hover:bg-[#BFDCA0]">
+      <PawPrint size={19} />
+    </button>
+  )
   const [lspdAllowed, setLspdAllowed] = useState<string[]>([])
   useEffect(() => {
     if (!session?.access_token || !staff?.active) { setLspdAllowed([]); return }
@@ -580,6 +587,7 @@ export function Dashboard() {
         <CodeBlancAlertButton />
         <CodeRougeAlertButton />
         <StockAlertButton compact />
+        {veterinaryButton}
 
         <button
           type="button"
@@ -721,6 +729,7 @@ export function Dashboard() {
         <CodeBlancAlertButton />
         <CodeRougeAlertButton />
         <StockAlertButton compact />
+        {veterinaryButton}
         <button type="button" onClick={openNotifications} className={cn('relative w-10 h-10 rounded-xl flex items-center justify-center', unreadNotifications > 0 ? 'bg-red/15 text-red ring-2 ring-red/70 animate-pulse shadow-[0_0_16px_rgba(239,68,68,0.55)]' : 'bg-[var(--ink)]/5 text-[var(--ink)]/60')} aria-label="Centre de notifications"><Bell size={17}/>{unreadNotifications > 0 && <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-red text-white text-[9px] font-bold flex items-center justify-center">{unreadNotifications > 99 ? '99+' : unreadNotifications}</span>}</button>
       </div>
 
