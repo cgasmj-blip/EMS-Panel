@@ -63,6 +63,7 @@ function statusClass(status: AppointmentStatus) {
 export function AgendaTab() {
   const { staff } = useAuth()
   const [types, setTypes] = useState<AppointmentTypeRow[]>([])
+  const [vetAppointments, setVetAppointments] = useState<Array<{id:string;starts_at:string;reason:string;status:string;veterinary_patients?:{name:string}|null}>>([])
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [month, setMonth] = useState(() => startOfMonth(new Date()))
   const [selectedDay, setSelectedDay] = useState(() => new Date())
@@ -89,6 +90,15 @@ export function AgendaTab() {
     ])
 
     if (a) setAppointments(a as Appointment[])
+    if (staff.active && (staff.sous_grade_ids ?? []).includes('v_u')) {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session?.access_token) {
+        try {
+          const response = await fetch('https://pvahrnrtivzbkipborcd.supabase.co/functions/v1/veterinary-appointments', {headers:{Authorization:'Bearer '+session.access_token}})
+          if (response.ok) { const result = await response.json(); setVetAppointments(result.appointments ?? []) }
+        } catch { /* Keep EMS agenda usable if veterinary service is offline. */ }
+      }
+    } else setVetAppointments([])
     if (t) {
       setTypes(t)
       const eligible = t.filter((ty) => staffMatchesEligibility(staff, ty))
@@ -137,6 +147,7 @@ export function AgendaTab() {
   }, [month])
 
   const selectedAppointments = appointmentsByDay.get(selectedKey) ?? []
+  const selectedVetAppointments = vetAppointments.filter(a => appointmentDateKey(a.starts_at) === selectedKey)
 
   useEffect(() => {
     if (!showForm) return
