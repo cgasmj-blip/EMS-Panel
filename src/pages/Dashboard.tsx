@@ -65,9 +65,29 @@ export function Dashboard() {
   const navigate = useNavigate()
   const { staff, session, signOut, signInWithDiscord } = useAuth()
   const hasVeterinaryRole = staff?.active === true && (staff.sous_grade_ids ?? []).includes('v_u')
-  const openVeterinaryPanel = () => { window.location.assign('https://cgasmj-blip.github.io/Veterinaire-Panel/') }
+  const [veterinaryOpening, setVeterinaryOpening] = useState(false)
+  const openVeterinaryPanel = async () => {
+    if (!hasVeterinaryRole || veterinaryOpening) return
+    setVeterinaryOpening(true)
+    try {
+      const { data: { session: current } } = await supabase.auth.getSession()
+      if (!current) throw new Error('Session EMS expirée')
+      const response = await fetch('https://pvahrnrtivzbkipborcd.supabase.co/functions/v1/veterinary-entry', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + current.access_token, 'Content-Type': 'application/json', apikey: import.meta.env.VITE_SUPABASE_ANON_KEY },
+        body: '{}',
+      })
+      if (!response.ok) throw new Error(response.status === 403 ? 'Grade V.U. requis' : 'Passerelle vétérinaire indisponible')
+      const result: { ticket?: string } = await response.json()
+      if (!result.ticket) throw new Error('Ticket d’accès manquant')
+      window.location.assign('https://cgasmj-blip.github.io/Veterinaire-Panel/#ticket=' + encodeURIComponent(result.ticket))
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : 'Impossible d’ouvrir le panel vétérinaire')
+      setVeterinaryOpening(false)
+    }
+  }
   const veterinaryButton = hasVeterinaryRole && (
-    <button type="button" onClick={openVeterinaryPanel} aria-label="Interface vétérinaire" title="Interface vétérinaire" className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors cursor-pointer bg-[#D5E9BC] text-[#365C38] hover:bg-[#BFDCA0]">
+    <button type="button" onClick={openVeterinaryPanel} disabled={veterinaryOpening} aria-label="Interface vétérinaire" title="Interface vétérinaire" className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors cursor-pointer bg-[#D5E9BC] text-[#365C38] hover:bg-[#BFDCA0]">
       <PawPrint size={19} />
     </button>
   )
