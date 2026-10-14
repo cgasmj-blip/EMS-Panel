@@ -322,6 +322,11 @@ export function AgendaTab() {
                 </div>
 
                 <div className="flex flex-col gap-1">
+                  {vetDayAppointments.slice(0, 2).map(a => (
+                    <span key={a.id} className="block rounded-md border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-1 text-[9px] sm:text-[10px] truncate">
+                      🐾 {new Date(a.starts_at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})} · {a.veterinary_patients?.name || 'Animal'}
+                    </span>
+                  ))}
                   {dayAppointments.slice(0, 3).map((appointment) => (
                     <span
                       key={appointment.id}
