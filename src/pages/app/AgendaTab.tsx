@@ -90,15 +90,13 @@ export function AgendaTab() {
     ])
 
     if (a) setAppointments(a as Appointment[])
-    if (staff.active && (staff.sous_grade_ids ?? []).includes('v_u')) {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (session?.access_token) {
-        try {
-          const response = await fetch('https://pvahrnrtivzbkipborcd.supabase.co/functions/v1/veterinary-appointments', {headers:{Authorization:'Bearer '+session.access_token}})
-          if (response.ok) { const result = await response.json(); setVetAppointments(result.appointments ?? []) }
-        } catch { /* Keep EMS agenda usable if veterinary service is offline. */ }
-      }
-    } else setVetAppointments([])
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session?.access_token) {
+      try {
+        const response = await fetch('https://pvahrnrtivzbkipborcd.supabase.co/functions/v1/ems-veterinary-agenda', { headers: { Authorization: 'Bearer ' + session.access_token } })
+        if (response.ok) { const result = await response.json(); setVetAppointments(result.appointments ?? []) }
+      } catch { /* EMS calendar stays available */ }
+    }
     if (t) {
       setTypes(t)
       const eligible = t.filter((ty) => staffMatchesEligibility(staff, ty))
@@ -294,6 +292,7 @@ export function AgendaTab() {
           {calendarDays.map((day) => {
             const key = dateKey(day)
             const dayAppointments = appointmentsByDay.get(key) ?? []
+            const vetDayAppointments = vetAppointments.filter(a => appointmentDateKey(a.starts_at) === key)
             const inCurrentMonth = day.getMonth() === month.getMonth()
             const selected = key === selectedKey
             const today = key === dateKey(new Date())
@@ -317,8 +316,8 @@ export function AgendaTab() {
                   )}>
                     {day.getDate()}
                   </span>
-                  {dayAppointments.length > 0 && (
-                    <span className="text-[9px] text-[var(--ink)]/30">{dayAppointments.length}</span>
+                  {(dayAppointments.length + vetDayAppointments.length) > 0 && (
+                    <span className="text-[9px] text-[var(--ink)]/30">{dayAppointments.length + vetDayAppointments.length}</span>
                   )}
                 </div>
 
@@ -412,6 +411,12 @@ export function AgendaTab() {
         )}
 
         <div className="flex flex-col gap-2">
+          {selectedVetAppointments.map(a => (
+            <div key={a.id} className="rounded-xl border border-emerald-500/30 p-3 text-sm">
+              <strong>🐾 Vétérinaire · {a.veterinary_patients?.name || 'Animal'}</strong>
+              <p>{new Date(a.starts_at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})} · {a.reason || 'Consultation'} · {a.status === 'termine' ? 'Terminé' : a.status === 'non_presente' ? 'Non présenté' : a.status === 'annule' ? 'Annulé' : 'À venir'}</p>
+            </div>
+          ))}
           {selectedAppointments.map((appointment) => (
             <div
               key={appointment.id}
