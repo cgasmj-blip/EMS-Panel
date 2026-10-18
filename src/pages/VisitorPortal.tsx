@@ -528,15 +528,28 @@ export function VisitorPortal() {
     const accessToken = data?.[0]?.access_token ? String(data[0].access_token) : null
     if (publicId && accessToken) saveTicketCredential({ public_id: publicId, access_token: accessToken })
 
+    let notificationWarning = ''
     if (publicId) {
-      // Notification best-effort: the request is already saved even if Discord is temporarily unavailable.
-      void supabase.functions.invoke('notify-new-visitor-request', {
-        body: { public_id: publicId },
-      }).catch(() => {})
+      try {
+        const { data: notification, error: notificationError } = await supabase.functions.invoke('notify-new-visitor-request', {
+          body: { public_id: publicId },
+        })
+        if (notificationError || !notification?.ok) {
+          notificationWarning = ' La notification Discord n’a pas pu être confirmée.'
+        } else if (notification.staff_recipients === 0) {
+          notificationWarning = ' Aucun destinataire EMS ne correspond aux habilitations de cet objet.'
+        } else if (notification.staff_dm_sent === 0) {
+          notificationWarning = ' Aucun MP Discord EMS n’a pu être remis.'
+        } else if (notification.staff_dm_sent < notification.staff_recipients) {
+          notificationWarning = ' Certains MP Discord EMS n’ont pas pu être remis.'
+        }
+      } catch {
+        notificationWarning = ' La notification Discord n’a pas pu être confirmée.'
+      }
     }
 
     const ticket = publicId ? publicId.slice(0, 8).toUpperCase() : null
-    setSuccess(ticket ? `Demande envoyée · Référence ${ticket}` : 'Demande envoyée à l’EMS.')
+    setSuccess((ticket ? `Demande envoyée · Référence ${ticket}` : 'Demande envoyée à l’EMS.') + notificationWarning)
     setForm(EMPTY_FORM)
     setDrivingLicenseFile(null)
     setIdentityDocumentFile(null)
