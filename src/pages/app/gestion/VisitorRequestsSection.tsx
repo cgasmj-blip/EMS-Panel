@@ -175,7 +175,7 @@ export function VisitorRequestsSection({
     setError(null)
 
     if (request.discord_id) {
-      const { error: invokeError } = await supabase.functions.invoke('notify-visitor-request', {
+      const { data: notification, error: invokeError } = await supabase.functions.invoke('notify-visitor-request', {
         body: {
           request_id: request.id,
           status: request.request_type === 'recrutement' ? request.status : 'repondu',
@@ -184,8 +184,12 @@ export function VisitorRequestsSection({
       })
       if (invokeError) {
         setBusy(false)
-        setError(invokeError.message)
+        setError(`Envoi non confirmé : ${invokeError.message}. Vérifiez la conversation avant de réessayer pour éviter un doublon.`)
+        await fetchMessages(request.id)
         return
+      }
+      if (notification?.dm_sent !== true) {
+        setError('Réponse traitée, mais la notification Discord du patient n’est pas confirmée. Le message reste consultable dans sa conversation.')
       }
     } else {
       const { error: insertError } = await supabase.from('visitor_request_messages').insert({
