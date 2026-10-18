@@ -125,12 +125,13 @@ export function VisitorMessagesPane() {
 
     if (invokeError) {
       setSending(false)
-      setError(invokeError.message)
+      setError(`Envoi non confirmé : ${invokeError.message}. Vérifiez la conversation avant de réessayer pour éviter un doublon.`)
+      await fetchMessages()
       return
     }
 
-    if (selected.discord_username && data?.dm_sent === false) {
-      setError('Message enregistré, mais le MP Discord n’a pas pu être envoyé.')
+    if (data?.dm_sent !== true) {
+      setError('Réponse traitée, mais la notification Discord du patient n’est pas confirmée. Le message reste consultable dans sa conversation.')
     }
 
     setBody('')
