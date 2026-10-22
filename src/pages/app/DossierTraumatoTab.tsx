@@ -8,7 +8,7 @@ import { supabase } from '@/lib/supabase'
 import { TRAUMA_FIELDS, assignedPeople, isAssigned, normalizeSearch, type TraumaRecord } from '@/lib/traumaRecords'
 
 type Draft = TraumaRecord
-type Person = { id: string; full_name: string; staff_affiliations: { affiliation_id: string }[] }
+type Person = { id: string; full_name: string; role: string; staff_affiliations: { affiliation_id: string }[] }
 type Payload = Record<string, unknown>
 const DOSSIER_URL = `${import.meta.env.BASE_URL}traumatologie/index.html`
 const fields = TRAUMA_FIELDS
@@ -24,13 +24,13 @@ export function DossierTraumatoTab({ initialRecordId, onClose, onSaved }: { init
   const [lastName, setLastName] = useState('')
   const [recipients, setRecipients] = useState<string[]>([])
   const [recipientSearch, setRecipientSearch] = useState('')
-  const [showRecipients, setShowRecipients] = useState(false)
+  const [showRecipients, setShowRecipients] = useState(true)
   const [busy, setBusy] = useState(false)
   const [dirty, setDirty] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const pending = useRef(new Map<string, { resolve: (value: Payload) => void; reject: (error: Error) => void; timer: ReturnType<typeof setTimeout> }>())
-  const canEdit = !!staff?.active && (!current || isAssigned(current, staff.id))
+  const canEdit = !!staff?.active && (!current || (!current.deleted_at && isAssigned(current, staff.id)))
   const personName = (id: string) => people.find(p => p.id === id)?.full_name || 'Collègue'
 
   useEffect(() => {
@@ -58,7 +58,7 @@ export function DossierTraumatoTab({ initialRecordId, onClose, onSaved }: { init
   }), [])
 
   const refresh = useCallback(async () => {
-    const roster = await supabase.from('staff').select('id,full_name,staff_affiliations(affiliation_id)').eq('active', true).order('full_name')
+    const roster = await supabase.from('staff').select('id,full_name,role,staff_affiliations(affiliation_id)').eq('active', true).neq('role', 'membre').order('full_name')
     if (roster.error) throw new Error('Chargement des destinataires impossible')
     setPeople((roster.data || []) as Person[])
   }, [])
@@ -133,7 +133,7 @@ export function DossierTraumatoTab({ initialRecordId, onClose, onSaved }: { init
     return () => observer.disconnect()
   }, [ready])
 
-  const eligiblePeople = people.filter(p => p.id !== staff?.id && !p.staff_affiliations.some(a => a.affiliation_id === 'pompier'))
+  const eligiblePeople = people.filter(p => p.id !== staff?.id && p.role !== 'membre')
   const visiblePeople = eligiblePeople.filter(p => normalizeSearch(p.full_name).includes(normalizeSearch(recipientSearch)))
   return (
     <div className="flex flex-col flex-1 min-h-0 gap-3">
@@ -156,14 +156,14 @@ export function DossierTraumatoTab({ initialRecordId, onClose, onSaved }: { init
         </div>
         <div className="border-t border-[var(--ink)]/8 mt-4 pt-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <div><p className="text-xs font-semibold text-[var(--ink)]/70">Transmettre aux EMS</p><p className="text-xs text-[var(--ink)]/40 mt-1">Sélectionnez un ou plusieurs destinataires.</p></div>
+            <div><p className="text-xs font-semibold text-[var(--ink)]/70">Transmettre aux EMS</p><p className="text-xs text-[var(--ink)]/40 mt-1">Sélectionnez un ou plusieurs EMS, y compris ceux ayant aussi la fonction pompier.</p></div>
             <div className="flex gap-2"><Button size="sm" variant="ghost" aria-expanded={showRecipients} disabled={busy || !canEdit} onClick={() => setShowRecipients(v => !v)}><Users size={14}/>{recipients.length ? `${recipients.length} EMS sélectionné(s)` : 'Choisir les EMS'}</Button><Button size="sm" variant="outline" disabled={!ready || busy || !canEdit || !recipients.length} onClick={() => void run(() => save('transferred'))}><Send size={14}/>Enregistrer et transmettre</Button></div>
           </div>
-          {showRecipients && <div className="mt-3 rounded-xl border border-[var(--ink)]/10 bg-[var(--ink)]/[0.025] p-3"><Input type="search" aria-label="Rechercher un destinataire EMS" placeholder="Rechercher un EMS…" value={recipientSearch} onChange={e => setRecipientSearch(e.target.value)} /><div className="grid sm:grid-cols-2 gap-1 max-h-36 overflow-y-auto mt-2">{visiblePeople.map(p => <label key={p.id} className="flex items-center gap-2 rounded-lg px-2 py-2 hover:bg-[var(--ink)]/5 text-sm cursor-pointer"><input type="checkbox" className="accent-red" checked={recipients.includes(p.id)} disabled={busy || !canEdit} onChange={e => setRecipients(ids => e.target.checked ? [...ids,p.id] : ids.filter(id => id !== p.id))}/>{p.full_name}</label>)}{!visiblePeople.length && <p className="text-xs p-2 text-[var(--ink)]/45">Aucun destinataire EMS trouvé.</p>}</div></div>}
+          {showRecipients && <div className="mt-3 rounded-xl border border-[var(--ink)]/10 bg-[var(--ink)]/[0.025] p-3"><Input type="search" aria-label="Rechercher un destinataire EMS" placeholder="Rechercher un EMS…" value={recipientSearch} onChange={e => setRecipientSearch(e.target.value)} /><div className="flex justify-between items-center mt-2 text-xs text-[var(--ink)]/50"><span>{eligiblePeople.length} effectif(s) disponible(s)</span><Button size="sm" variant="ghost" disabled={busy} onClick={() => void run(refresh)}>Actualiser les effectifs</Button></div><div className="grid sm:grid-cols-2 gap-1 max-h-36 overflow-y-auto mt-2">{visiblePeople.map(p => <label key={p.id} className="flex items-center gap-2 rounded-lg px-2 py-2 hover:bg-[var(--ink)]/5 text-sm cursor-pointer"><input type="checkbox" className="accent-red" checked={recipients.includes(p.id)} disabled={busy || !canEdit} onChange={e => setRecipients(ids => e.target.checked ? [...ids,p.id] : ids.filter(id => id !== p.id))}/>{p.full_name}</label>)}{!visiblePeople.length && <p className="text-xs p-2 text-[var(--ink)]/45">Aucun destinataire EMS trouvé.</p>}</div></div>}
           {!!recipients.length && <p className="mt-2 text-xs text-[var(--ink)]/60">Destinataires : {recipients.map(personName).join(', ')}</p>}
         </div>
         {current && <p className="mt-3 text-xs text-[var(--ink)]/45">Créé par {personName(current.created_by)} · Confié à {assignedPeople(current).map(personName).join(', ')}{!canEdit && ' · Consultation seule.'}</p>}
-        {!!current?.history.length && <details className="text-xs mt-2 text-[var(--ink)]/50"><summary className="cursor-pointer">Historique des reprises et transmissions</summary><ul className="mt-2 space-y-1">{current.history.map((h,i) => <li key={i}>{new Date(h.at).toLocaleString('fr-FR')} · {personName(h.actor)} · {h.action === 'transferred' ? 'Transmission à ' + assignedPeople(h).map(personName).join(', ') : h.action === 'completed' ? 'Dossier terminé' : 'Enregistrement'}</li>)}</ul></details>}
+        {!!current?.history.length && <details className="text-xs mt-2 text-[var(--ink)]/50"><summary className="cursor-pointer">Historique des reprises et transmissions</summary><ul className="mt-2 space-y-1">{current.history.map((h,i) => <li key={i}>{new Date(h.at).toLocaleString('fr-FR')} · {personName(h.actor)} · {h.action === 'transferred' ? 'Transmission à ' + assignedPeople(h).map(personName).join(', ') : h.action === 'completed' ? 'Dossier terminé' : h.action === 'deleted' ? 'Mise à la corbeille' : h.action === 'restored' ? 'Restauration' : 'Enregistrement'}</li>)}</ul></details>}
         {error && <p role="alert" className="rounded-lg bg-red/10 text-red p-3 mt-3 text-sm">{error}</p>}
         {notice && <p role="status" className="rounded-lg bg-green/10 text-[var(--ink)] p-3 mt-3 text-sm">{notice}</p>}
       </Card>

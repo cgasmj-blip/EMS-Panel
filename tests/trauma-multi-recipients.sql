@@ -24,13 +24,13 @@ begin
   update public.trauma_handoffs set status='completed' where id=doc and version=3;
   get diagnostics n=row_count; if n<>1 then raise exception 'Second EMS cannot complete'; end if;
   begin
-    update public.trauma_handoffs set assigned_staff=array[firefighter],status='transferred' where id=doc;
-    raise exception 'Firefighter recipient accepted';
+    update public.trauma_handoffs set assigned_staff=array[gen_random_uuid()],status='transferred' where id=doc;
+    raise exception 'Invalid recipient accepted';
   exception when check_violation then null;
   end;
   perform set_config('request.jwt.claim.sub',ids[3]::text,true);
   if exists(select 1 from public.trauma_handoffs where id=doc) then raise exception 'Unselected EMS can read'; end if;
   reset role;
 end $$;
-select 'PASS: firefighter creates, multiple EMS receive/edit/complete, stale save denied, non-EMS destination denied, outsider denied' as verification;
+select 'PASS: firefighter creates, multiple EMS receive/edit/complete, stale save denied, invalid destination denied, outsider denied' as verification;
 rollback;

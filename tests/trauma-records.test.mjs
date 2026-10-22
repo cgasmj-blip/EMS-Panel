@@ -18,3 +18,5 @@ assert.equal(receivedTraumaNotifications([shared],'receiver').length,1);
 assert.equal(receivedTraumaNotifications([shared],'receiver2').length,1);
 assert.equal(receivedTraumaNotifications([shared],'outsider').length,0);
 console.log('PASS: both selected EMS receive the shared dossier notification; unselected staff do not.');
+
+assert.equal(receivedTraumaNotifications([{...shared,deleted_at:'2026-10-23T10:00:00Z'}],'receiver').length,0);
