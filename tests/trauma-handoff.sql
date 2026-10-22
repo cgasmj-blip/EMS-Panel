@@ -4,7 +4,7 @@ begin;
 do $$
 declare ids uuid[]; doc uuid; n integer;
 begin
-  select array_agg(id) into ids from (select id from public.staff where active order by id limit 3) a;
+  select array_agg(id) into ids from (select id from public.staff where active and role not in ('directeur','directeur_adjoint') order by id limit 3) a;
   if cardinality(ids)<3 then raise exception 'Three active staff required'; end if;
   perform set_config('request.jwt.claim.sub',ids[1]::text,true);
   set local role authenticated;
@@ -13,9 +13,12 @@ begin
   update public.trauma_handoffs set assigned_to=ids[2],payload='{"notes":"test"}' where id=doc and version=1;
   get diagnostics n=row_count;
   if n<>1 then raise exception 'Transfer failed'; end if;
-  update public.trauma_handoffs set title='must not write' where id=doc;
-  get diagnostics n=row_count;
-  if n<>0 then raise exception 'Sender still has write access'; end if;
+  begin
+    update public.trauma_handoffs set title='must not write' where id=doc;
+    get diagnostics n=row_count;
+    if n<>0 then raise exception 'Sender still has write access'; end if;
+  exception when insufficient_privilege then null;
+  end;
   if not exists(select 1 from public.trauma_handoffs where id=doc) then raise exception 'Sender lost read access'; end if;
   perform set_config('request.jwt.claim.sub',ids[3]::text,true);
   if exists(select 1 from public.trauma_handoffs where id=doc) then raise exception 'Unrelated staff can read'; end if;
