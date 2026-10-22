@@ -1,0 +1,11 @@
+import fs from 'node:fs';
+import vm from 'node:vm';
+import assert from 'node:assert/strict';
+const source=fs.readFileSync(new URL('../src/components/ui/HomeTiles.tsx',import.meta.url),'utf8');
+const handler=source.match(/function openSection\(key: TabKey\) \{([\s\S]*?)\n  \}/);
+assert.ok(handler,'Medical tile navigation handler exists');
+const selected=[],external=[];
+vm.runInNewContext(`function openSection(key){${handler[1]}\n} openSection('dossier_medical');`,{onSelect:key=>selected.push(key),window:{open:(...args)=>external.push(args)}});
+assert.deepEqual(selected,['dossier_medical']);assert.equal(external.length,0);
+assert.ok(!source.includes('ljlife.online/admin/pages/ambulance/ems.php'));
+console.log('PASS: the home medical tile opens the internal medical folder and never opens the obsolete external page.');

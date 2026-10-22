@@ -1,0 +1,20 @@
+/* The embedded editor follows the host panel's theme tokens. */
+:root { --panel-bg:#191c22; --panel-ink:#fff; --panel-surface:#262b34; --panel-soft:#20242c; --panel-accent:#ef4444; }
+html,body { color:var(--panel-ink); background:var(--panel-bg); font-family:Inter,ui-sans-serif,system-ui,sans-serif; }
+.shell { padding:16px 20px 40px; }
+.top { border-color:color-mix(in srgb,var(--panel-ink) 8%,transparent); padding:0 0 16px; }
+.top h1 { font-size:1.2rem; letter-spacing:0; }
+.logo { width:48px; height:48px; }
+.card,.scan-card { background:var(--panel-surface); border-color:color-mix(in srgb,var(--panel-ink) 8%,transparent); border-radius:16px; box-shadow:none; }
+.card-head { border-color:color-mix(in srgb,var(--panel-ink) 8%,transparent); }
+.kicker,.sub,.intro p,.progress,.muted,.label,.notice,.scan-caption,.diag-empty { color:color-mix(in srgb,var(--panel-ink) 50%,transparent); }
+.num { color:var(--panel-accent); background:color-mix(in srgb,var(--panel-accent) 10%,transparent); }
+.chip,.ghost,.outline,.scan-card-head button { background:color-mix(in srgb,var(--panel-ink) 5%,transparent); border:1px solid color-mix(in srgb,var(--panel-ink) 12%,transparent); color:var(--panel-ink); border-radius:8px; box-shadow:none; }
+.chip:hover,.ghost:hover,.outline:hover { background:color-mix(in srgb,var(--panel-ink) 10%,transparent); }
+.chip.selected,.primary { background:var(--panel-accent); border-color:var(--panel-accent); color:#fff; box-shadow:none; border-radius:8px; }
+.input { color:var(--panel-ink); background:color-mix(in srgb,var(--panel-ink) 5%,transparent); border-color:color-mix(in srgb,var(--panel-ink) 12%,transparent); border-radius:8px; }
+.input:focus { outline:2px solid color-mix(in srgb,var(--panel-accent) 50%,transparent); }
+.diagnosis,.scan-selection,.summary-item,.timeline li { background:var(--panel-soft); color:var(--panel-ink); border-color:color-mix(in srgb,var(--panel-ink) 10%,transparent); }
+.scan-card-head,.map-legend strong { color:var(--panel-ink); }
+.timeline b { background:color-mix(in srgb,var(--panel-accent) 10%,transparent); color:var(--panel-accent); }
+@media(max-width:620px){.shell{padding:12px}.top{gap:10px}.logo{width:36px;height:36px}}

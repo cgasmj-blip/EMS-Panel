@@ -13,3 +13,8 @@ const retransferred=receivedTraumaNotifications([{...record,history:[transfer,{.
 assert.notEqual(retransferred.id,original.id);
 assert.equal(receivedTraumaNotifications([{...record,history:[]}],'receiver').length,0);
 console.log('PASS: accent-insensitive patient/reference search, direct dossier target, recipient isolation and stable transfer notification IDs.');
+const shared={...record,assigned_staff:['receiver','receiver2'],history:[{...transfer,assigned_staff:['receiver','receiver2']}]};
+assert.equal(receivedTraumaNotifications([shared],'receiver').length,1);
+assert.equal(receivedTraumaNotifications([shared],'receiver2').length,1);
+assert.equal(receivedTraumaNotifications([shared],'outsider').length,0);
+console.log('PASS: both selected EMS receive the shared dossier notification; unselected staff do not.');

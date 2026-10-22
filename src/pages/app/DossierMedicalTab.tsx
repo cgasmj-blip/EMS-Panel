@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Card } from '@/components/ui/Card'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/auth/AuthContext'
-import { matchesPatient, patientName, TRAUMA_FIELDS, type TraumaRecord } from '@/lib/traumaRecords'
+import { matchesPatient, patientName, isAssigned, TRAUMA_FIELDS, type TraumaRecord } from '@/lib/traumaRecords'
 import { DossierTraumatoTab } from './DossierTraumatoTab'
 
 export function DossierMedicalTab({ recordId, onRecordChange }: { recordId?: string; onRecordChange?: (id?: string) => void } = {}) {
@@ -55,8 +55,8 @@ export function DossierMedicalTab({ recordId, onRecordChange }: { recordId?: str
     <div className="flex-1 min-h-0 overflow-y-auto grid content-start gap-3">
       {loading ? <p>Chargement des dossiers…</p> : !visible.length ? <p className="p-4 text-[var(--ink)]/60">{query ? 'Aucun dossier correspondant dans ce classement.' : 'Aucun dossier dans ce classement.'}</p> : visible.map(record => <Card key={record.id} className="p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div><h3 className="font-semibold">{patientName(record) || 'Patient non renseigné'}</h3><p className="text-sm text-[var(--ink)]/60">{record.title}</p><p className="text-xs text-[var(--ink)]/50 mt-1">{record.assigned_to === staff?.id ? 'À compléter par vous' : 'Confié à un collègue'} · {new Date(record.updated_at).toLocaleString('fr-FR')}</p></div>
-          <button className="rounded-xl bg-red text-white px-4 py-2 text-sm" onClick={() => { setLocalRecordId(record.id); onRecordChange?.(record.id) }}>{record.status === 'completed' ? 'Ouvrir le dossier' : record.assigned_to === staff?.id ? 'Ouvrir et continuer' : 'Consulter'}</button>
+          <div><h3 className="font-semibold">{patientName(record) || 'Patient non renseigné'}</h3><p className="text-sm text-[var(--ink)]/60">{record.title}</p><p className="text-xs text-[var(--ink)]/50 mt-1">{isAssigned(record, staff?.id) ? 'À compléter par vous' : 'Confié à un collègue'} · {new Date(record.updated_at).toLocaleString('fr-FR')}</p></div>
+          <button className="rounded-xl bg-red text-white px-4 py-2 text-sm" onClick={() => { setLocalRecordId(record.id); onRecordChange?.(record.id) }}>{record.status === 'completed' ? 'Ouvrir le dossier' : isAssigned(record, staff?.id) ? 'Ouvrir et continuer' : 'Consulter'}</button>
         </div>
       </Card>)}
     </div>

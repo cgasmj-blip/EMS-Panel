@@ -46,6 +46,7 @@
   window.addEventListener('message',event=>{
     if(event.source!==window.parent || event.origin!==location.origin || !event.data || event.data.channel!=='ems-trauma-v1') return;
     const {action,requestId,payload}=event.data;
+    if(action==='theme') { for(const key of ['bg','ink','surface','soft','accent']) { const value=event.data.colors?.[key]; if(typeof value==='string' && value.length<100 && CSS.supports('color',value)) document.documentElement.style.setProperty('--panel-'+key,value); } return; }
     if(action==='patientIdentity') { s.patientFirstName=text(event.data.firstName,100); s.patientLastName=text(event.data.lastName,100); return; }
     if(action==='readonly') { document.querySelector('.layout').inert=!!event.data.value; document.querySelector('.top').inert=!!event.data.value; document.querySelector('.intro').inert=!!event.data.value; return; }
     if(!['snapshot','load','reset'].includes(action)) return;

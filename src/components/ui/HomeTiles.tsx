@@ -345,10 +345,6 @@ export function HomeTiles({
   }
 
   function openSection(key: TabKey) {
-    if (key === 'dossier_medical') {
-      window.open('https://ljlife.online/admin/pages/ambulance/ems.php', '_blank', 'noopener,noreferrer')
-      return
-    }
     onSelect(key)
   }
 

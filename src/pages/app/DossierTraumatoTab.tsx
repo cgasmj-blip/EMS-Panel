@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { ArrowLeft, CheckCheck, FileHeart, Plus, Save, Send, Users } from 'lucide-react'
+import { Button } from '@/components/ui/Button'
+import { Input } from '@/components/ui/Input'
 import { Card } from '@/components/ui/Card'
 import { useAuth } from '@/auth/AuthContext'
 import { supabase } from '@/lib/supabase'
-import { TRAUMA_FIELDS, type TraumaRecord } from '@/lib/traumaRecords'
+import { TRAUMA_FIELDS, assignedPeople, isAssigned, normalizeSearch, type TraumaRecord } from '@/lib/traumaRecords'
 
 type Draft = TraumaRecord
 type Person = { id: string; full_name: string; staff_affiliations: { affiliation_id: string }[] }
@@ -15,19 +18,19 @@ export function DossierTraumatoTab({ initialRecordId, onClose, onSaved }: { init
   const { staff } = useAuth()
   const iframe = useRef<HTMLIFrameElement>(null)
   const [ready, setReady] = useState(false)
-  const [drafts, setDrafts] = useState<Draft[]>([])
   const [people, setPeople] = useState<Person[]>([])
   const [current, setCurrent] = useState<Draft | null>(null)
-  const [title, setTitle] = useState('')
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
-  const [recipient, setRecipient] = useState('')
+  const [recipients, setRecipients] = useState<string[]>([])
+  const [recipientSearch, setRecipientSearch] = useState('')
+  const [showRecipients, setShowRecipients] = useState(false)
   const [busy, setBusy] = useState(false)
   const [dirty, setDirty] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const pending = useRef(new Map<string, { resolve: (value: Payload) => void; reject: (error: Error) => void; timer: ReturnType<typeof setTimeout> }>())
-  const canEdit = !!staff?.active && (!current || current.assigned_to === staff.id)
+  const canEdit = !!staff?.active && (!current || isAssigned(current, staff.id))
   const personName = (id: string) => people.find(p => p.id === id)?.full_name || 'Collègue'
 
   useEffect(() => {
@@ -55,13 +58,9 @@ export function DossierTraumatoTab({ initialRecordId, onClose, onSaved }: { init
   }), [])
 
   const refresh = useCallback(async () => {
-    const [rows, roster] = await Promise.all([
-      supabase.from('trauma_handoffs').select(fields).order('updated_at', { ascending: false }).limit(100),
-      supabase.from('staff').select('id,full_name,staff_affiliations(affiliation_id)').eq('active', true).order('full_name'),
-    ])
-    if (rows.error) throw new Error('Chargement des dossiers impossible : ' + rows.error.message)
+    const roster = await supabase.from('staff').select('id,full_name,staff_affiliations(affiliation_id)').eq('active', true).order('full_name')
     if (roster.error) throw new Error('Chargement des destinataires impossible')
-    setDrafts((rows.data || []) as Draft[]); setPeople((roster.data || []) as Person[])
+    setPeople((roster.data || []) as Person[])
   }, [])
 
   useEffect(() => {
@@ -86,17 +85,18 @@ export function DossierTraumatoTab({ initialRecordId, onClose, onSaved }: { init
 
   async function save(mode: 'draft' | 'transferred' | 'completed') {
     if (!staff || !canEdit) throw new Error('Ce dossier est confié à un autre collègue.')
-    if (mode === 'transferred' && (!recipient || recipient === staff.id)) throw new Error('Choisissez un destinataire.')
+    if (mode === 'transferred' && !recipients.length) throw new Error('Choisissez au moins un destinataire EMS.')
     const snapshot = await request('snapshot')
     const payload = { ...snapshot, patientFirstName: firstName.trim(), patientLastName: lastName.trim() }
-    const record = { title: title.trim() || 'Dossier sans nom', payload, status: mode, assigned_to: mode === 'transferred' ? recipient : staff.id }
+    const assigned = mode === 'transferred' ? recipients : current ? assignedPeople(current) : [staff.id]
+    const record = { title: [lastName.trim(), firstName.trim()].filter(Boolean).join(' ').slice(0,160) || 'Dossier patient', payload, status: mode, assigned_to: assigned[0], assigned_staff: assigned }
     const result = current
       ? await supabase.from('trauma_handoffs').update(record).eq('id', current.id).eq('version', current.version).select(fields).maybeSingle()
       : await supabase.from('trauma_handoffs').insert({ ...record, created_by: staff.id }).select(fields).single()
     if (result.error) throw new Error('Enregistrement impossible : ' + result.error.message)
     if (!result.data) throw new Error('Ce dossier a changé ou a été transmis. Rechargez-le avant de continuer ; votre saisie est conservée à l’écran.')
-    setCurrent(result.data as Draft); setTitle(result.data.title); setDirty(false)
-    setNotice(mode === 'transferred' ? 'Dossier transmis. Le destinataire peut le reprendre dans cet onglet.' : mode === 'completed' ? 'Dossier marqué terminé.' : 'Brouillon enregistré.')
+    setCurrent(result.data as Draft); setDirty(false)
+    setNotice(mode === 'transferred' ? `Dossier transmis à ${recipients.length} destinataire(s) EMS. Chacun le retrouve dans ses dossiers en cours.` : mode === 'completed' ? 'Dossier marqué terminé.' : 'Brouillon enregistré.')
     await refresh()
     onSaved?.()
   }
@@ -106,7 +106,7 @@ export function DossierTraumatoTab({ initialRecordId, onClose, onSaved }: { init
     const { data, error: err } = await supabase.from('trauma_handoffs').select(fields + ',payload').eq('id', id).single<TraumaRecord & { payload: Payload }>()
     if (err) throw new Error('Impossible d’ouvrir ce dossier')
     await request('load', data.payload)
-    setCurrent(data as Draft); setTitle(data.title); setFirstName(data.patient_first_name || ''); setLastName(data.patient_last_name || ''); setRecipient(''); setDirty(false)
+    setCurrent(data as Draft); setFirstName(data.patient_first_name || ''); setLastName(data.patient_last_name || ''); setRecipients([]); setDirty(false)
   }, [dirty, request])
 
   const initialOpened = useRef(false)
@@ -120,48 +120,52 @@ export function DossierTraumatoTab({ initialRecordId, onClose, onSaved }: { init
     iframe.current?.contentWindow?.postMessage({ channel: 'ems-trauma-v1', action: 'patientIdentity', firstName, lastName }, location.origin)
   }, [ready, firstName, lastName])
 
+  useEffect(() => {
+    if (!ready) return
+    const syncTheme = () => {
+      const styles = getComputedStyle(document.documentElement)
+      const colors = { bg: styles.getPropertyValue('--bg').trim(), ink: styles.getPropertyValue('--ink').trim(), surface: styles.getPropertyValue('--surface').trim(), soft: styles.getPropertyValue('--surface-soft').trim(), accent: '#ef4444' }
+      iframe.current?.contentWindow?.postMessage({ channel: 'ems-trauma-v1', action: 'theme', colors }, location.origin)
+    }
+    syncTheme()
+    const observer = new MutationObserver(syncTheme)
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme','style'] })
+    return () => observer.disconnect()
+  }, [ready])
+
+  const eligiblePeople = people.filter(p => p.id !== staff?.id && !p.staff_affiliations.some(a => a.affiliation_id === 'pompier'))
+  const visiblePeople = eligiblePeople.filter(p => normalizeSearch(p.full_name).includes(normalizeSearch(recipientSearch)))
   return (
-    <div className="flex flex-col flex-1 min-h-0 gap-2">
-      <Card className="p-3 shrink-0 max-h-[36dvh] overflow-y-auto">
-        <div className="flex flex-wrap items-center gap-2 text-sm">
-          {onClose && <button className="rounded-lg border border-[var(--ink)]/20 px-3 py-2" disabled={busy} onClick={() => { if (!dirty || window.confirm('Quitter sans enregistrer les modifications ?')) onClose() }}>Retour aux dossiers patients</button>}
-          <label className="flex flex-col gap-1 flex-1 min-w-36">Nom du patient
-            <input className="rounded-lg border border-[var(--ink)]/20 bg-[var(--bg)] px-2 py-1.5" autoComplete="off" maxLength={100} value={lastName} disabled={busy || !canEdit} onChange={e => { setLastName(e.target.value); setDirty(true) }} />
-          </label>
-          <label className="flex flex-col gap-1 flex-1 min-w-36">Prénom du patient
-            <input className="rounded-lg border border-[var(--ink)]/20 bg-[var(--bg)] px-2 py-1.5" autoComplete="off" maxLength={100} value={firstName} disabled={busy || !canEdit} onChange={e => { setFirstName(e.target.value); setDirty(true) }} />
-          </label>
-          <label className="flex flex-col gap-1 flex-1 min-w-44">Nom / référence du dossier
-            <input className="rounded-lg border border-[var(--ink)]/20 bg-[var(--bg)] px-2 py-1.5" maxLength={160} value={title} disabled={busy || !canEdit} placeholder="Patient ou référence d’intervention" onChange={e => { setTitle(e.target.value); setDirty(true) }} />
-          </label>
-          <button className="rounded-lg bg-red text-white px-3 py-2 disabled:opacity-40" disabled={!ready || busy || !canEdit} onClick={() => void run(() => save('draft'))}>Enregistrer</button>
-          <button className="rounded-lg border border-[var(--ink)]/20 px-3 py-2 disabled:opacity-40" disabled={!ready || busy} onClick={() => void run(async () => {
-            if (dirty && !window.confirm('Créer un nouveau dossier et abandonner les modifications non enregistrées ?')) return
-            await request('reset'); setCurrent(null); setTitle(''); setFirstName(''); setLastName(''); setRecipient(''); setDirty(false)
-          })}>Nouveau</button>
-          <label className="flex flex-col gap-1 flex-1 min-w-44">Transmettre à un collègue EMS / pompier
-            <select className="rounded-lg border border-[var(--ink)]/20 bg-[var(--bg)] px-2 py-1.5" value={recipient} disabled={busy || !canEdit} onChange={e => setRecipient(e.target.value)}>
-              <option value="">Choisir le destinataire</option>
-              {people.filter(p => p.id !== staff?.id).map(p => <option key={p.id} value={p.id}>{p.full_name}{p.staff_affiliations.some(a => a.affiliation_id === 'pompier') ? ' · Pompier' : ' · EMS'}</option>)}
-            </select>
-          </label>
-          <button className="rounded-lg bg-red text-white px-3 py-2 disabled:opacity-40" disabled={!ready || busy || !canEdit || !recipient} onClick={() => void run(() => save('transferred'))}>Enregistrer et transmettre</button>
-          <button className="rounded-lg border border-[var(--ink)]/20 px-3 py-2 disabled:opacity-40" disabled={!ready || busy || !canEdit} onClick={() => void run(() => save('completed'))}>Terminer</button>
+    <div className="flex flex-col flex-1 min-h-0 gap-3">
+      <Card className="p-4 shrink-0 max-h-[42dvh] overflow-y-auto">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div className="flex items-center gap-3"><span className="w-10 h-10 rounded-xl bg-red/10 text-red flex items-center justify-center"><FileHeart size={20}/></span><div><h2 className="font-bold text-sm">Dossier patient</h2><p className="text-xs text-[var(--ink)]/45" aria-live="polite">{busy ? 'Enregistrement…' : dirty ? 'Modifications non enregistrées' : current ? statusLabel(current.status) : 'Nouvelle évaluation'}</p></div></div>
+          <div className="flex flex-wrap gap-2">
+            {onClose && <Button size="sm" variant="ghost" disabled={busy} onClick={() => { if (!dirty || window.confirm('Quitter sans enregistrer les modifications ?')) onClose() }}><ArrowLeft size={14}/>Dossiers médicaux</Button>}
+            <Button size="sm" variant="ghost" disabled={!ready || busy} onClick={() => void run(async () => {
+              if (dirty && !window.confirm('Créer un nouveau dossier et abandonner les modifications non enregistrées ?')) return
+              await request('reset'); setCurrent(null); setFirstName(''); setLastName(''); setRecipients([]); setShowRecipients(false); setDirty(false)
+            })}><Plus size={14}/>Nouveau</Button>
+            <Button size="sm" disabled={!ready || busy || !canEdit} onClick={() => void run(() => save('draft'))}><Save size={14}/>Enregistrer</Button>
+            <Button size="sm" variant="green" disabled={!ready || busy || !canEdit} onClick={() => void run(() => save('completed'))}><CheckCheck size={14}/>Terminer</Button>
+          </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2 mt-2 text-xs">
-          <label className="flex items-center gap-2 flex-1 min-w-0">Mes dossiers / dossiers reçus
-            <select className="rounded-lg border border-[var(--ink)]/20 bg-[var(--bg)] p-1.5 min-w-0 flex-1" aria-label="Ouvrir un dossier enregistré" value={current?.id || ''} disabled={!ready || busy} onChange={e => { if (e.target.value) void run(() => open(e.target.value)) }}>
-              <option value="">Sélectionner un dossier</option>
-              {drafts.map(d => <option key={d.id} value={d.id}>{d.assigned_to === staff?.id ? 'À moi' : 'Transmis'} · {d.title} · {statusLabel(d.status)} · {new Date(d.updated_at).toLocaleString('fr-FR')}</option>)}
-            </select>
-          </label>
-          <button disabled={busy} onClick={() => void run(refresh)}>Actualiser</button>
-          <span aria-live="polite">{busy ? 'En cours…' : dirty ? 'Modifications non enregistrées' : current ? statusLabel(current.status) : 'Nouveau dossier'}</span>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <label><span className="text-xs uppercase tracking-wider text-[var(--ink)]/40 font-semibold mb-1.5 block">Nom du patient</span><Input autoComplete="off" maxLength={100} value={lastName} disabled={busy || !canEdit} onChange={e => { setLastName(e.target.value); setDirty(true) }} /></label>
+          <label><span className="text-xs uppercase tracking-wider text-[var(--ink)]/40 font-semibold mb-1.5 block">Prénom du patient</span><Input autoComplete="off" maxLength={100} value={firstName} disabled={busy || !canEdit} onChange={e => { setFirstName(e.target.value); setDirty(true) }} /></label>
         </div>
-        {current && <p className="mt-2 text-xs text-[var(--ink)]/60">Créé par {personName(current.created_by)} · Confié à {personName(current.assigned_to)}{!canEdit && ' · Consultation seule : le destinataire poursuit la saisie.'}</p>}
-        {!!current?.history.length && <details className="text-xs mt-1"><summary>Historique des reprises et transmissions</summary><ul>{current.history.map((h, i) => <li key={i}>{new Date(h.at).toLocaleString('fr-FR')} · {personName(h.actor)} · {h.action === 'transferred' ? 'Transmission à ' + personName(h.assigned_to) : h.action === 'completed' ? 'Dossier terminé' : 'Enregistrement'}</li>)}</ul></details>}
-        {error && <p role="alert" className="text-red mt-2 text-sm">{error}</p>}
-        {notice && <p role="status" className="mt-2 text-sm">{notice}</p>}
+        <div className="border-t border-[var(--ink)]/8 mt-4 pt-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div><p className="text-xs font-semibold text-[var(--ink)]/70">Transmettre aux EMS</p><p className="text-xs text-[var(--ink)]/40 mt-1">Sélectionnez un ou plusieurs destinataires.</p></div>
+            <div className="flex gap-2"><Button size="sm" variant="ghost" aria-expanded={showRecipients} disabled={busy || !canEdit} onClick={() => setShowRecipients(v => !v)}><Users size={14}/>{recipients.length ? `${recipients.length} EMS sélectionné(s)` : 'Choisir les EMS'}</Button><Button size="sm" variant="outline" disabled={!ready || busy || !canEdit || !recipients.length} onClick={() => void run(() => save('transferred'))}><Send size={14}/>Enregistrer et transmettre</Button></div>
+          </div>
+          {showRecipients && <div className="mt-3 rounded-xl border border-[var(--ink)]/10 bg-[var(--ink)]/[0.025] p-3"><Input type="search" aria-label="Rechercher un destinataire EMS" placeholder="Rechercher un EMS…" value={recipientSearch} onChange={e => setRecipientSearch(e.target.value)} /><div className="grid sm:grid-cols-2 gap-1 max-h-36 overflow-y-auto mt-2">{visiblePeople.map(p => <label key={p.id} className="flex items-center gap-2 rounded-lg px-2 py-2 hover:bg-[var(--ink)]/5 text-sm cursor-pointer"><input type="checkbox" className="accent-red" checked={recipients.includes(p.id)} disabled={busy || !canEdit} onChange={e => setRecipients(ids => e.target.checked ? [...ids,p.id] : ids.filter(id => id !== p.id))}/>{p.full_name}</label>)}{!visiblePeople.length && <p className="text-xs p-2 text-[var(--ink)]/45">Aucun destinataire EMS trouvé.</p>}</div></div>}
+          {!!recipients.length && <p className="mt-2 text-xs text-[var(--ink)]/60">Destinataires : {recipients.map(personName).join(', ')}</p>}
+        </div>
+        {current && <p className="mt-3 text-xs text-[var(--ink)]/45">Créé par {personName(current.created_by)} · Confié à {assignedPeople(current).map(personName).join(', ')}{!canEdit && ' · Consultation seule.'}</p>}
+        {!!current?.history.length && <details className="text-xs mt-2 text-[var(--ink)]/50"><summary className="cursor-pointer">Historique des reprises et transmissions</summary><ul className="mt-2 space-y-1">{current.history.map((h,i) => <li key={i}>{new Date(h.at).toLocaleString('fr-FR')} · {personName(h.actor)} · {h.action === 'transferred' ? 'Transmission à ' + assignedPeople(h).map(personName).join(', ') : h.action === 'completed' ? 'Dossier terminé' : 'Enregistrement'}</li>)}</ul></details>}
+        {error && <p role="alert" className="rounded-lg bg-red/10 text-red p-3 mt-3 text-sm">{error}</p>}
+        {notice && <p role="status" className="rounded-lg bg-green/10 text-[var(--ink)] p-3 mt-3 text-sm">{notice}</p>}
       </Card>
       <Card className="flex flex-1 min-h-0 min-w-0 overflow-hidden p-0">
         <iframe ref={iframe} onLoad={() => setReady(true)} src={DOSSIER_URL} title="Dossier traumatologique EMS Los Santos" className="block h-full w-full min-h-0 flex-1 border-0" />

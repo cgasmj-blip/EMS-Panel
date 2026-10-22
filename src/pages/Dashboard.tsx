@@ -275,7 +275,7 @@ export function Dashboard() {
         .select('id,item_key,quantity_remaining,note,created_at')
         .order('created_at', { ascending: false })
         .limit(8),
-      supabase.from('trauma_handoffs').select(TRAUMA_FIELDS).eq('assigned_to', userId).order('updated_at', { ascending: false }).limit(100),
+      supabase.from('trauma_handoffs').select(TRAUMA_FIELDS).or(`assigned_to.eq.${userId},assigned_staff.cs.{${userId}}`).order('updated_at', { ascending: false }).limit(100),
     ])
 
     const trauma = (traumaRows || []) as TraumaRecord[]
