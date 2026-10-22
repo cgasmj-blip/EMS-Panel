@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "test:trauma": "node tests/trauma-handoff.test.mjs"
+    "test:trauma": "node tests/trauma-handoff.test.mjs && node --experimental-strip-types tests/trauma-records.test.mjs"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.23",

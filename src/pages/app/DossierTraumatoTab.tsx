@@ -2,15 +2,16 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Card } from '@/components/ui/Card'
 import { useAuth } from '@/auth/AuthContext'
 import { supabase } from '@/lib/supabase'
+import { TRAUMA_FIELDS, type TraumaRecord } from '@/lib/traumaRecords'
 
-type Draft = { id: string; title: string; created_by: string; assigned_to: string; status: string; version: number; updated_at: string; history: { actor: string; assigned_to: string; at: string; action: string }[] }
+type Draft = TraumaRecord
 type Person = { id: string; full_name: string; staff_affiliations: { affiliation_id: string }[] }
 type Payload = Record<string, unknown>
 const DOSSIER_URL = `${import.meta.env.BASE_URL}traumatologie/index.html`
-const fields = 'id,title,created_by,assigned_to,status,version,updated_at,history'
+const fields = TRAUMA_FIELDS
 const statusLabel = (s: string) => s === 'completed' ? 'Terminé' : s === 'transferred' ? 'Transmis' : 'Brouillon'
 
-export function DossierTraumatoTab() {
+export function DossierTraumatoTab({ initialRecordId, onClose, onSaved }: { initialRecordId?: string; onClose?: () => void; onSaved?: () => void } = {}) {
   const { staff } = useAuth()
   const iframe = useRef<HTMLIFrameElement>(null)
   const [ready, setReady] = useState(false)
@@ -18,6 +19,8 @@ export function DossierTraumatoTab() {
   const [people, setPeople] = useState<Person[]>([])
   const [current, setCurrent] = useState<Draft | null>(null)
   const [title, setTitle] = useState('')
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
   const [recipient, setRecipient] = useState('')
   const [busy, setBusy] = useState(false)
   const [dirty, setDirty] = useState(false)
@@ -76,15 +79,16 @@ export function DossierTraumatoTab() {
     iframe.current?.contentWindow?.postMessage({ channel: 'ems-trauma-v1', action: 'readonly', value: busy || !canEdit }, location.origin)
   }, [ready, busy, canEdit])
 
-  async function run(action: () => Promise<void>) {
+  const run = useCallback(async (action: () => Promise<void>) => {
     setBusy(true); setError(''); setNotice('')
     try { await action() } catch (e) { setError(e instanceof Error ? e.message : 'Opération impossible') } finally { setBusy(false) }
-  }
+  }, [])
 
   async function save(mode: 'draft' | 'transferred' | 'completed') {
     if (!staff || !canEdit) throw new Error('Ce dossier est confié à un autre collègue.')
     if (mode === 'transferred' && (!recipient || recipient === staff.id)) throw new Error('Choisissez un destinataire.')
-    const payload = await request('snapshot')
+    const snapshot = await request('snapshot')
+    const payload = { ...snapshot, patientFirstName: firstName.trim(), patientLastName: lastName.trim() }
     const record = { title: title.trim() || 'Dossier sans nom', payload, status: mode, assigned_to: mode === 'transferred' ? recipient : staff.id }
     const result = current
       ? await supabase.from('trauma_handoffs').update(record).eq('id', current.id).eq('version', current.version).select(fields).maybeSingle()
@@ -94,27 +98,46 @@ export function DossierTraumatoTab() {
     setCurrent(result.data as Draft); setTitle(result.data.title); setDirty(false)
     setNotice(mode === 'transferred' ? 'Dossier transmis. Le destinataire peut le reprendre dans cet onglet.' : mode === 'completed' ? 'Dossier marqué terminé.' : 'Brouillon enregistré.')
     await refresh()
+    onSaved?.()
   }
 
-  async function open(id: string) {
+  const open = useCallback(async (id: string) => {
     if (dirty && !window.confirm('Des modifications ne sont pas enregistrées. Ouvrir un autre dossier et les abandonner ?')) return
-    const { data, error: err } = await supabase.from('trauma_handoffs').select('*').eq('id', id).single()
+    const { data, error: err } = await supabase.from('trauma_handoffs').select(fields + ',payload').eq('id', id).single<TraumaRecord & { payload: Payload }>()
     if (err) throw new Error('Impossible d’ouvrir ce dossier')
     await request('load', data.payload)
-    setCurrent(data as Draft); setTitle(data.title); setRecipient(''); setDirty(false)
-  }
+    setCurrent(data as Draft); setTitle(data.title); setFirstName(data.patient_first_name || ''); setLastName(data.patient_last_name || ''); setRecipient(''); setDirty(false)
+  }, [dirty, request])
+
+  const initialOpened = useRef(false)
+  useEffect(() => {
+    if (!ready || !initialRecordId || initialOpened.current) return
+    initialOpened.current = true
+    void run(() => open(initialRecordId))
+  }, [ready, initialRecordId, open, run])
+  useEffect(() => {
+    if (!ready) return
+    iframe.current?.contentWindow?.postMessage({ channel: 'ems-trauma-v1', action: 'patientIdentity', firstName, lastName }, location.origin)
+  }, [ready, firstName, lastName])
 
   return (
     <div className="flex flex-col flex-1 min-h-0 gap-2">
       <Card className="p-3 shrink-0 max-h-[36dvh] overflow-y-auto">
         <div className="flex flex-wrap items-center gap-2 text-sm">
+          {onClose && <button className="rounded-lg border border-[var(--ink)]/20 px-3 py-2" disabled={busy} onClick={() => { if (!dirty || window.confirm('Quitter sans enregistrer les modifications ?')) onClose() }}>Retour aux dossiers patients</button>}
+          <label className="flex flex-col gap-1 flex-1 min-w-36">Nom du patient
+            <input className="rounded-lg border border-[var(--ink)]/20 bg-[var(--bg)] px-2 py-1.5" autoComplete="off" maxLength={100} value={lastName} disabled={busy || !canEdit} onChange={e => { setLastName(e.target.value); setDirty(true) }} />
+          </label>
+          <label className="flex flex-col gap-1 flex-1 min-w-36">Prénom du patient
+            <input className="rounded-lg border border-[var(--ink)]/20 bg-[var(--bg)] px-2 py-1.5" autoComplete="off" maxLength={100} value={firstName} disabled={busy || !canEdit} onChange={e => { setFirstName(e.target.value); setDirty(true) }} />
+          </label>
           <label className="flex flex-col gap-1 flex-1 min-w-44">Nom / référence du dossier
             <input className="rounded-lg border border-[var(--ink)]/20 bg-[var(--bg)] px-2 py-1.5" maxLength={160} value={title} disabled={busy || !canEdit} placeholder="Patient ou référence d’intervention" onChange={e => { setTitle(e.target.value); setDirty(true) }} />
           </label>
           <button className="rounded-lg bg-red text-white px-3 py-2 disabled:opacity-40" disabled={!ready || busy || !canEdit} onClick={() => void run(() => save('draft'))}>Enregistrer</button>
           <button className="rounded-lg border border-[var(--ink)]/20 px-3 py-2 disabled:opacity-40" disabled={!ready || busy} onClick={() => void run(async () => {
             if (dirty && !window.confirm('Créer un nouveau dossier et abandonner les modifications non enregistrées ?')) return
-            await request('reset'); setCurrent(null); setTitle(''); setRecipient(''); setDirty(false)
+            await request('reset'); setCurrent(null); setTitle(''); setFirstName(''); setLastName(''); setRecipient(''); setDirty(false)
           })}>Nouveau</button>
           <label className="flex flex-col gap-1 flex-1 min-w-44">Transmettre à un collègue EMS / pompier
             <select className="rounded-lg border border-[var(--ink)]/20 bg-[var(--bg)] px-2 py-1.5" value={recipient} disabled={busy || !canEdit} onChange={e => setRecipient(e.target.value)}>

@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import { matchesPatient, patientName, receivedTraumaNotifications } from '../src/lib/traumaRecords.ts';
+const transfer={actor:'sender',assigned_to:'receiver',at:'2026-10-22T12:00:00Z',action:'transferred'};
+const record={id:'file1',title:'Intervention 42',patient_first_name:'Élodie',patient_last_name:'Dupont',created_by:'sender',assigned_to:'receiver',status:'draft',version:3,updated_at:'2026-10-22T12:01:00Z',history:[transfer]};
+assert.equal(patientName(record),'Dupont Élodie');
+assert.ok(matchesPatient(record,'elodie dupont'));assert.ok(matchesPatient(record,'Dupont Élo'));assert.ok(matchesPatient(record,'42'));assert.ok(!matchesPatient(record,'Martin'));
+assert.equal(receivedTraumaNotifications([record],'sender').length,0);
+const original=receivedTraumaNotifications([record],'receiver')[0];
+assert.equal(original.recordId,'file1');assert.equal(original.target,'dossier_medical');assert.equal(original.created_at,transfer.at);
+const saved=receivedTraumaNotifications([{...record,version:4,updated_at:'2026-10-22T13:00:00Z',history:[transfer,{...transfer,actor:'receiver',action:'draft',at:'2026-10-22T13:00:00Z'}]}],'receiver')[0];
+assert.equal(saved.id,original.id,'A save must not create another received notification');
+const retransferred=receivedTraumaNotifications([{...record,history:[transfer,{...transfer,at:'2026-10-22T14:00:00Z'}]}],'receiver')[0];
+assert.notEqual(retransferred.id,original.id);
+assert.equal(receivedTraumaNotifications([{...record,history:[]}],'receiver').length,0);
+console.log('PASS: accent-insensitive patient/reference search, direct dossier target, recipient isolation and stable transfer notification IDs.');

@@ -12,6 +12,7 @@
     next.operations = strings(input.operations);
     next.care = strings(input.care).filter(x => care.includes(x));
     next.prescription = strings(input.prescription);
+    next.patientFirstName=text(input.patientFirstName,100); next.patientLastName=text(input.patientLastName,100);
     next.doctor = text(input.doctor, 200); next.notes = text(input.notes);
     const wanted = Array.isArray(input.zones) ? input.zones : input.zone ? [input.zone] : [];
     next.zones = [];
@@ -32,7 +33,7 @@
     return next;
   }
   function snapshot() {
-    return {...s,doctor:$('doctor').value,notes:$('notes').value,draftInputs:{operation:$('customOperation').value,prescription:$('customPrescription').value}};
+    return {...s,patientFirstName:s.patientFirstName||'',patientLastName:s.patientLastName||'',doctor:$('doctor').value,notes:$('notes').value,draftInputs:{operation:$('customOperation').value,prescription:$('customPrescription').value}};
   }
   function load(payload) {
     s=normalize(payload); chosenScan=chosenRegion=null;
@@ -45,6 +46,7 @@
   window.addEventListener('message',event=>{
     if(event.source!==window.parent || event.origin!==location.origin || !event.data || event.data.channel!=='ems-trauma-v1') return;
     const {action,requestId,payload}=event.data;
+    if(action==='patientIdentity') { s.patientFirstName=text(event.data.firstName,100); s.patientLastName=text(event.data.lastName,100); return; }
     if(action==='readonly') { document.querySelector('.layout').inert=!!event.data.value; document.querySelector('.top').inert=!!event.data.value; document.querySelector('.intro').inert=!!event.data.value; return; }
     if(!['snapshot','load','reset'].includes(action)) return;
     try {

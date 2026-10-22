@@ -15,6 +15,7 @@ import { CodeBlancAlertButton } from '@/components/ui/CodeBlancAlertButton'
 import { CodeRougeAlertButton } from '@/components/ui/CodeRougeAlertButton'
 import { CustomizationPanel } from '@/components/ui/CustomizationPanel'
 import { cn } from '@/lib/utils'
+import { receivedTraumaNotifications, TRAUMA_FIELDS, type TraumaRecord } from '@/lib/traumaRecords'
 import logo from '@/assets/logo.webp'
 import { ServicesTab } from './app/ServicesTab'
 import { AbsenceTab } from './app/AbsenceTab'
@@ -117,6 +118,9 @@ export function Dashboard() {
   const [resyncing, setResyncing] = useState(false)
   const [unreadMessages, setUnreadMessages] = useState(0)
   const [unreadMessageIds, setUnreadMessageIds] = useState<string[]>([])
+  const [medicalRecordId, setMedicalRecordId] = useState<string>()
+  const [receivedTrauma, setReceivedTrauma] = useState<TraumaRecord[]>([])
+  const previousTraumaRef = useRef<Set<string> | null>(null)
   const [showNotifications, setShowNotifications] = useState(false)
   const [showMobileMenu, setShowMobileMenu] = useState(false)
   const [notificationSeenAt, setNotificationSeenAt] = useState(() => window.localStorage.getItem('ems-notifications-seen-at') ?? '')
@@ -233,12 +237,14 @@ export function Dashboard() {
     if (!userId) {
       setUnreadMessages(0)
       setUnreadMessageIds([])
+      setReceivedTrauma([])
+      previousTraumaRef.current = null
       setLatestAnnouncements([])
       setNextAppointment(null)
       return
     }
 
-    const [{ data: unreadRows }, { data: announcements }, { data: appointment }, { data: messageRows }, { data: stockRows }] = await Promise.all([
+    const [{ data: unreadRows }, { data: announcements }, { data: appointment }, { data: messageRows }, { data: stockRows }, { data: traumaRows }] = await Promise.all([
       supabase
         .from('internal_messages')
         .select('id,sender_id')
@@ -269,7 +275,14 @@ export function Dashboard() {
         .select('id,item_key,quantity_remaining,note,created_at')
         .order('created_at', { ascending: false })
         .limit(8),
+      supabase.from('trauma_handoffs').select(TRAUMA_FIELDS).eq('assigned_to', userId).order('updated_at', { ascending: false }).limit(100),
     ])
+
+    const trauma = (traumaRows || []) as TraumaRecord[]
+    const traumaIds = new Set(receivedTraumaNotifications(trauma, userId).map(item => item.id))
+    if (previousTraumaRef.current && [...traumaIds].some(id => !previousTraumaRef.current!.has(id))) playTone('message')
+    previousTraumaRef.current = traumaIds
+    setReceivedTrauma(trauma)
 
     const senderIdsForUnread = [...new Set((unreadRows ?? []).map(row => row.sender_id))]
     const { data: activeSenders } = senderIdsForUnread.length
@@ -513,6 +526,7 @@ export function Dashboard() {
   }
 
   const allNotificationItems = [
+    ...receivedTraumaNotifications(receivedTrauma, session?.user.id || ''),
     ...recentLspdMessages.map((item) => ({ id: `lspd-direction-${item.id}`, kind: 'lspd' as const, title: 'Nouveau message — Direction LSPD', detail: item.body || 'Pièce jointe reçue du LSPD', created_at: item.created_at, target: 'lspd_transfer' as TabKey })),
     ...recentCriminalRecordReplies.map((item) => ({ id: `lspd-criminal-record-${item.id}`, kind: 'lspd' as const, title: `Casier judiciaire reçu${item.subject_last_name || item.subject_first_name ? ` — ${[item.subject_last_name, item.subject_first_name].filter(Boolean).join(' ')}` : ''}`, detail: 'Le LSPD a répondu à une demande de casier judiciaire.', created_at: item.created_at, target: 'lspd_transfer' as TabKey })),
     ...recentMessages.filter(item => unreadMessageIds.includes(String(item.id))).map((item) => ({ id: `message-${item.id}`, kind: 'message' as const, title: `Nouveau message — ${item.sender_name}`, detail: item.body || (item.media_type === 'image' ? 'Image reçue' : item.media_type === 'audio' ? 'Message vocal reçu' : 'Nouveau message'), created_at: item.created_at, target: 'messages' as TabKey })),
@@ -573,7 +587,7 @@ export function Dashboard() {
     <div
       className={cn(
         'bg-[var(--bg)]',
-        effectiveView === 'home' || ['messages','candidatures','professional_messages','lspd_transfer','gestion','dossier'].includes(effectiveView) ? 'h-[100dvh] overflow-hidden' : 'min-h-screen',
+        effectiveView === 'home' || ['messages','candidatures','professional_messages','lspd_transfer','gestion','dossier','dossier_medical'].includes(effectiveView) ? 'h-[100dvh] overflow-hidden' : 'min-h-screen',
         'w-full min-w-0',
       )}
       style={{
@@ -836,7 +850,7 @@ export function Dashboard() {
             ? sidebarHorizontal
               ? 'h-[calc(100vh-5rem)] overflow-hidden'
               : 'h-[100dvh] overflow-hidden'
-            : ['messages','candidatures','professional_messages','lspd_transfer','gestion','dossier'].includes(effectiveView)
+            : ['messages','candidatures','professional_messages','lspd_transfer','gestion','dossier','dossier_medical'].includes(effectiveView)
               ? sidebarHorizontal
                 ? 'h-[calc(100vh-5rem)] overflow-hidden'
                 : 'h-[100dvh] overflow-hidden'
@@ -915,8 +929,8 @@ export function Dashboard() {
               transition={{ duration: 0.25 }}
               className={cn(
                 'flex flex-col gap-4 sm:gap-6 w-full mx-auto min-w-0 flex-1',
-                effectiveView !== 'dossier' && 'max-w-5xl',
-                (effectiveView === 'messages' || effectiveView === 'candidatures' || effectiveView === 'professional_messages' || effectiveView === 'lspd_transfer' || effectiveView === 'gestion' || effectiveView === 'dossier') && 'h-full min-h-0 overflow-hidden gap-2 sm:gap-3',
+                effectiveView !== 'dossier' && effectiveView !== 'dossier_medical' && 'max-w-5xl',
+                (effectiveView === 'messages' || effectiveView === 'candidatures' || effectiveView === 'professional_messages' || effectiveView === 'lspd_transfer' || effectiveView === 'gestion' || effectiveView === 'dossier' || effectiveView === 'dossier_medical') && 'h-full min-h-0 overflow-hidden gap-2 sm:gap-3',
               )}
             >
               {activeSection && (
@@ -927,8 +941,8 @@ export function Dashboard() {
                   onBack={() => setView('home')}
                 />
               )}
-              <div className={cn('min-w-0', (effectiveView === 'messages' || effectiveView === 'candidatures' || effectiveView === 'professional_messages' || effectiveView === 'lspd_transfer' || effectiveView === 'gestion' || effectiveView === 'dossier') && 'flex flex-col flex-1 min-h-0 overflow-hidden')}>
-                {effectiveView === 'dossier' ? <DossierTraumatoTab /> : TAB_CONTENT[effectiveView]}
+              <div className={cn('min-w-0', (effectiveView === 'messages' || effectiveView === 'candidatures' || effectiveView === 'professional_messages' || effectiveView === 'lspd_transfer' || effectiveView === 'gestion' || effectiveView === 'dossier' || effectiveView === 'dossier_medical') && 'flex flex-col flex-1 min-h-0 overflow-hidden')}>
+                {effectiveView === 'dossier' ? <DossierTraumatoTab onClose={() => { setMedicalRecordId(undefined); setView('dossier_medical') }} /> : effectiveView === 'dossier_medical' ? <DossierMedicalTab recordId={medicalRecordId} onRecordChange={setMedicalRecordId} /> : TAB_CONTENT[effectiveView]}
               </div>
             </motion.div>
           )}
@@ -966,7 +980,7 @@ export function Dashboard() {
           <div className="absolute inset-0 bg-black/25 backdrop-blur-[2px]" />
           <section onClick={(event) => event.stopPropagation()} className="absolute right-3 top-3 bottom-3 w-[min(430px,calc(100vw-1.5rem))] overflow-hidden rounded-2xl border border-[var(--ink)]/10 bg-[var(--sidebar-bg)] shadow-2xl flex flex-col">
             <div className="flex items-center justify-between gap-3 border-b border-[var(--ink)]/10 p-4">
-              <div><h2 className="font-bold text-[var(--ink)]">Notifications</h2><p className="text-xs text-[var(--ink)]/45">Messages EMS/LSPD, annonces, rendez-vous et alertes stock</p></div>
+              <div><h2 className="font-bold text-[var(--ink)]">Notifications</h2><p className="text-xs text-[var(--ink)]/45">Dossiers patients, messages EMS/LSPD, annonces et alertes</p></div>
               <div className="flex items-center gap-2">
                 {notificationItems.length > 0 && <button type="button" onClick={markAllNotificationsRead} className="rounded-xl px-3 py-2 text-xs font-semibold bg-red/10 text-red hover:bg-red/15 flex items-center gap-1.5"><CheckCheck size={14}/>Tout marquer comme lu</button>}
                 <button type="button" onClick={() => setShowNotifications(false)} className="rounded-xl px-3 py-2 text-xs font-semibold bg-[var(--ink)]/5 hover:bg-[var(--ink)]/10">Fermer</button>
@@ -974,9 +988,9 @@ export function Dashboard() {
             </div>
             <div className="flex-1 overflow-y-auto p-3 space-y-2">
               {notificationItems.length === 0 ? <div className="h-full flex flex-col items-center justify-center text-center text-[var(--ink)]/40"><Bell size={30} className="mb-3"/><p className="font-semibold">Aucune notification</p></div> : notificationItems.map((item) => {
-                const Icon = item.kind === 'message' || item.kind === 'lspd' ? MessageCircle : item.kind === 'announcement' ? Megaphone : item.kind === 'appointment' ? CalendarClock : PackageOpen
+                const Icon = item.kind === 'trauma' ? ShieldCheck : item.kind === 'message' || item.kind === 'lspd' ? MessageCircle : item.kind === 'announcement' ? Megaphone : item.kind === 'appointment' ? CalendarClock : PackageOpen
                 return <div key={item.id} className="relative group" onTouchStart={(event) => { notificationTouchStart.current[item.id] = event.touches[0]?.clientX ?? 0 }} onTouchEnd={(event) => { const start = notificationTouchStart.current[item.id] ?? 0; const end = event.changedTouches[0]?.clientX ?? start; if (start - end > 70) dismissNotification(item.id) }}>
-                  <button type="button" onClick={() => { setShowNotifications(false); setView(item.target) }} className="w-full rounded-xl border border-[var(--ink)]/8 bg-[var(--ink)]/[0.035] p-3 pr-11 text-left hover:bg-[var(--ink)]/[0.07] transition-colors">
+                  <button type="button" onClick={() => { setShowNotifications(false); if ('recordId' in item) setMedicalRecordId(item.recordId); setView(item.target) }} className="w-full rounded-xl border border-[var(--ink)]/8 bg-[var(--ink)]/[0.035] p-3 pr-11 text-left hover:bg-[var(--ink)]/[0.07] transition-colors">
                   <div className="flex gap-3"><span className="mt-0.5 w-9 h-9 shrink-0 rounded-xl bg-red/10 text-red flex items-center justify-center"><Icon size={16}/></span><div className="min-w-0 flex-1"><div className="flex justify-between gap-2"><p className="text-sm font-semibold text-[var(--ink)] truncate">{item.title}</p><span className="text-[10px] text-[var(--ink)]/35 shrink-0">{new Date(item.created_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'})}</span></div><p className="mt-1 text-xs text-[var(--ink)]/55 line-clamp-2 whitespace-pre-wrap">{item.detail}</p></div></div>
                   </button>
                   {item.kind !== 'announcement' && <button type="button" onClick={() => dismissNotification(item.id)} className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-lg flex items-center justify-center text-[var(--ink)]/35 hover:bg-red/10 hover:text-red opacity-60 group-hover:opacity-100 transition" title="Supprimer la notification" aria-label="Supprimer la notification"><Trash2 size={15}/></button>}

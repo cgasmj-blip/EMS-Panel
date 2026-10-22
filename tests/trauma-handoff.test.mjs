@@ -19,6 +19,7 @@ click('IRM');click('Abdomen');click("Ajouter l'examen");click('Contusion abdomin
 click('Blessure par balle');click('Sévère');click('Désinfection de la zone');
 window.document.getElementById('doctor').value='Dr Test';window.document.getElementById('notes').value='Transmission pompier vers EMS';
 window.document.getElementById('customOperation').value='Action encore en saisie';
+run("s.patientFirstName='Élodie';s.patientLastName='Dupont'");
 const draft=get();window.TraumaDraft.load({});window.TraumaDraft.load(JSON.parse(JSON.stringify(draft)));
 assert.deepEqual(get(),draft);
 assert.match(window.document.getElementById('diagnosis').textContent,/thorax.*tête/i);
@@ -32,6 +33,6 @@ const labels=[],arcs=[];
 const ctx=new Proxy({measureText:t=>({width:String(t).length*8}),fillText:t=>labels.push(t),ellipse:(...a)=>arcs.push(a)},{get:(o,k)=>o[k]||(()=>{})});
 window.HTMLCanvasElement.prototype.getContext=()=>ctx;window.HTMLCanvasElement.prototype.toDataURL=()=> 'data:image/png;base64,TEST';window.HTMLAnchorElement.prototype.click=()=>{};
 Object.defineProperty(window.document.getElementById('bodyImg'),'naturalWidth',{value:1312});Object.defineProperty(window.document.getElementById('bodyImg'),'naturalHeight',{value:1199});
-await run('exportPremiumPNG()');assert.equal(arcs.length,2);assert.ok(labels.includes('Thorax · Face'));assert.ok(labels.includes('Tête · Face'));
+await run('exportPremiumPNG()');assert.equal(arcs.length,2);assert.ok(labels.includes('Thorax · Face'));assert.ok(labels.includes('Tête · Face'));assert.ok(labels.includes('Dupont Élodie'));
 console.log('PASS: multi-zone add/remove, complete draft roundtrip with imaging and pending input, legacy loading, invalid data filtering, PNG highlights and labels for both zones.');
 await window.happyDOM.close();

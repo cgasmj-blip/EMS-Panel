@@ -20,6 +20,7 @@ async function exportPremiumPNG(){
   };
   const blocks=[];
   function addText(title,values,feature=false){const lines=values.filter(Boolean).flatMap(v=>textLines(v));if(lines.length)blocks.push({type:'text',title,lines,feature,height:94+lines.length*30})}
+  addText('Patient',[[s.patientLastName,s.patientFirstName].filter(Boolean).join(' ')]);
   const zones=s.zones||[];
   if(zones.length)blocks.push({type:'body',title:'Localisations',height:Math.max(455,140+zones.length*35)});
   addText('Blessure',[s.injury,...s.detail]);
