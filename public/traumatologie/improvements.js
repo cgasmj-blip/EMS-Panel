@@ -20,7 +20,7 @@ document.querySelectorAll('.hotspot').forEach(button=>{
   const w=/Thorax|dos|Abdomen/.test(name)?Math.min(ow,15):/Bassin/.test(name)?15:ow;
   const h=oh;
   button.style.left=(x-w/2)+'%';button.style.top=(y-h/2)+'%';button.style.width=w+'%';button.style.height=h+'%';
-  button.onclick=()=>{s.zone=s.zone?.name===name&&s.zone?.view===view?null:{name,view,x,y,w,h};render()};
+  button.onclick=()=>{s.zones??=[];const exists=s.zones.some(z=>z.name===name&&z.view===view);s.zones=exists?s.zones.filter(z=>z.name!==name||z.view!==view):[...s.zones,{name,view,x,y,w,h}];s.zone=s.zones[0]||null;render()};
 });
 const scanCard=document.createElement('section');scanCard.className='card';scanCard.innerHTML=`<div class="card-head"><h3>Imagerie</h3><span class="muted">Illustrations fictives</span></div><div class="card-body"><div class="group"><span class="label">Examen</span><div class="choices" id="scanModalities"></div></div><div class="group"><span class="label">Région à documenter</span><div class="scan-grid" id="scanRegions"></div></div><div class="scan-selection" id="scanSelection">Sélectionnez un examen et une région.</div><button class="ghost" id="addScan" disabled>Ajouter l'examen</button><div class="scan-cards" id="scanCards"></div><p class="notice">Images illustratives fictives, sans interprétation médicale.</p></div>`;
 document.querySelector('.layout > .column:first-child').append(scanCard);

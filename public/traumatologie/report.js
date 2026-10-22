@@ -20,7 +20,8 @@ async function exportPremiumPNG(){
   };
   const blocks=[];
   function addText(title,values,feature=false){const lines=values.filter(Boolean).flatMap(v=>textLines(v));if(lines.length)blocks.push({type:'text',title,lines,feature,height:94+lines.length*30})}
-  if(s.zone)blocks.push({type:'body',title:'Localisation',height:455});
+  const zones=s.zones||[];
+  if(zones.length)blocks.push({type:'body',title:'Localisations',height:Math.max(455,140+zones.length*35)});
   addText('Blessure',[s.injury,...s.detail]);
   addText('Gravité',[s.severity]);
   addText('État du patient',Object.entries(s.patient).map(([key,v])=>`${key} : ${v==='Aucun'?'Absence de saignement':v==='Aucune'?'Absence de douleur':v}`));
@@ -59,11 +60,11 @@ async function exportPremiumPNG(){
       rounded(P+28,y+83,405,335,12,colors.navy);
       const img=$('bodyImg'),iw=358,ih=iw*img.naturalHeight/img.naturalWidth,dx=P+52,dy=y+83+(335-ih)/2;
       ctx.drawImage(img,dx,dy,iw,ih);
-      const z=s.zone;ctx.fillStyle='#ee345a8c';ctx.strokeStyle='#ffced6';ctx.lineWidth=3;
-      ctx.beginPath();ctx.ellipse(dx+iw*z.x/100,dy+ih*z.y/100,iw*z.w/200,ih*z.h/200,0,0,Math.PI*2);ctx.fill();ctx.stroke();
-      ctx.fillStyle=colors.muted;ctx.font='bold 14px system-ui';ctx.fillText('ZONE SÉLECTIONNÉE',P+475,y+138);
-      ctx.fillStyle=colors.ink;ctx.font='bold 23px system-ui';ctx.fillText(s.zone.name,P+475,y+177);
-      rounded(P+475,y+197,105,32,8,'#e9f2f8');ctx.fillStyle=colors.navy2;ctx.font='bold 14px system-ui';ctx.fillText(s.zone.view,P+493,y+219)
+      zones.forEach(z=>{ctx.fillStyle='#ee345a8c';ctx.strokeStyle='#ffced6';ctx.lineWidth=3;
+        ctx.beginPath();ctx.ellipse(dx+iw*z.x/100,dy+ih*z.y/100,iw*z.w/200,ih*z.h/200,0,0,Math.PI*2);ctx.fill();ctx.stroke();});
+      ctx.fillStyle=colors.muted;ctx.font='bold 14px system-ui';ctx.fillText('ZONES SÉLECTIONNÉES',P+475,y+110);
+      ctx.fillStyle=colors.ink;ctx.font='17px system-ui';
+      zones.forEach((z,i)=>ctx.fillText(z.name+' · '+z.view,P+475,y+147+i*35));
     }
     if(block.type==='timeline'){
       let rowY=y+91;
