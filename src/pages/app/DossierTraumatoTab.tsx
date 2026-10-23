@@ -94,6 +94,7 @@ export function DossierTraumatoTab({ initialRecordId, onClose, onSaved }: { init
   }, [])
 
   async function save(mode: 'draft' | 'transferred' | 'completed') {
+    if(conflict) throw new Error('Résolvez la mise à jour du collègue avant d’enregistrer.')
     if (!staff || !canEdit) throw new Error('Ce dossier est confié à un autre collègue.')
     if (mode === 'transferred' && !recipients.length) throw new Error('Choisissez au moins un destinataire EMS.')
     const snapshot = await request('snapshot')
@@ -163,7 +164,7 @@ export function DossierTraumatoTab({ initialRecordId, onClose, onSaved }: { init
         const merged=mergeDraft(basePayload.current||row.payload,local,row.payload)
         if(merged.conflicts.length){setConflict({row,remote:row.payload,merged:merged.payload,fields:merged.conflicts});return}
         if(dirty&&(!isAssigned(row,staff?.id)||row.deleted_at||row.status==='completed')){
-          setCurrent(row);setError('Le dossier a été clôturé, supprimé ou transmis. Votre saisie reste affichée ; elle n’a pas été écrasée.');return
+          setConflict({row,remote:row.payload,merged:merged.payload,fields:[]});setError('Le dossier a été clôturé, supprimé ou transmis. Votre saisie reste affichée ; elle n’a pas été écrasée.');return
         }
         if(row.version!==current.version){
           basePayload.current=row.payload
@@ -223,7 +224,7 @@ export function DossierTraumatoTab({ initialRecordId, onClose, onSaved }: { init
         {current && <p className="mt-3 text-xs text-[var(--ink)]/45">Créé par {personName(current.created_by)} · Confié à {assignedPeople(current).map(personName).join(', ')}{!canEdit && ' · Consultation seule.'}</p>}
         {!!current?.history.length && <details className="text-xs mt-2 text-[var(--ink)]/50"><summary className="cursor-pointer">Historique des reprises et transmissions</summary><ul className="mt-2 space-y-1">{current.history.map((h,i) => <li key={i}>{new Date(h.at).toLocaleString('fr-FR')} · {personName(h.actor)} · {h.action === 'transferred' ? 'Transmission à ' + assignedPeople(h).map(personName).join(', ') : h.action === 'completed' ? 'Dossier terminé' : h.action === 'deleted' ? 'Mise à la corbeille' : h.action === 'restored' ? 'Restauration' : 'Enregistrement'}</li>)}</ul></details>}
         {current&&assignedPeople(current).length>1&&<p className="mt-2 text-xs text-[var(--ink)]/45">Dossier partagé · modifications synchronisées automatiquement.</p>}
-        {conflict&&<div role="alert" className="rounded-xl border border-orange-500/30 bg-orange-500/10 p-3 mt-3 text-sm"><p>Deux EMS ont modifié le même champ. Votre saisie est conservée. Choisissez la version à utiliser.</p><div className="flex gap-2 mt-2"><Button size="sm" variant="ghost" onClick={()=>void run(async()=>{basePayload.current=conflict.remote;await applyLive(conflict.row,conflict.remote,false);setConflict(null)})}>Charger la version du collègue</Button><Button size="sm" disabled={!isAssigned(conflict.row,staff?.id)||!!conflict.row.deleted_at} onClick={()=>void run(async()=>{basePayload.current=conflict.remote;await applyLive(conflict.row,conflict.merged,true);setConflict(null);markDirty()})}>Conserver ma saisie sur ces champs</Button></div></div>}
+        {conflict&&<div role="alert" className="rounded-xl border border-orange-500/30 bg-orange-500/10 p-3 mt-3 text-sm"><p>Un collègue a modifié le dossier pendant votre saisie. Vos modifications sont conservées. Choisissez la version à utiliser.</p><div className="flex gap-2 mt-2"><Button size="sm" variant="ghost" onClick={()=>void run(async()=>{basePayload.current=conflict.remote;await applyLive(conflict.row,conflict.remote,false);setConflict(null)})}>Charger la version du collègue</Button><Button size="sm" disabled={!isAssigned(conflict.row,staff?.id)||!!conflict.row.deleted_at||conflict.row.status==='completed'} onClick={()=>void run(async()=>{basePayload.current=conflict.remote;await applyLive(conflict.row,conflict.merged,true);setConflict(null);markDirty()})}>Conserver ma saisie sur ces champs</Button></div></div>}
         {error && <p role="alert" className="rounded-lg bg-red/10 text-red p-3 mt-3 text-sm">{error}</p>}
         {notice && <p role="status" className="rounded-lg bg-green/10 text-[var(--ink)] p-3 mt-3 text-sm">{notice}</p>}
       </Card>
