@@ -1,0 +1,156 @@
+[
+  {
+    "title": "A. Connaissances et préparation",
+    "items": [
+      {
+        "id": "a1",
+        "label": "Identifie et respecte l’exclusion de la face nord du Mont Chiliad."
+      },
+      {
+        "id": "a2",
+        "label": "Vérifie l’état général du Caracara."
+      },
+      {
+        "id": "a3",
+        "label": "Vérifie la présence du matériel médical."
+      },
+      {
+        "id": "a4",
+        "label": "Recueille la localisation et prévoit un accès principal ainsi qu’une solution de repli."
+      },
+      {
+        "id": "a5",
+        "label": "Annonce son départ et sa destination."
+      }
+    ]
+  },
+  {
+    "title": "B. Conduite et lecture du terrain",
+    "items": [
+      {
+        "id": "b1",
+        "label": "Adapte sa vitesse au relief et à la visibilité."
+      },
+      {
+        "id": "b2",
+        "label": "Conserve une conduite progressive et maîtrisée."
+      },
+      {
+        "id": "b3",
+        "label": "Repère les dévers, obstacles et ruptures de pente."
+      },
+      {
+        "id": "b4",
+        "label": "Évalue un passage incertain et immobilise le véhicule en sécurité avant une reconnaissance à pied."
+      },
+      {
+        "id": "b5",
+        "label": "Réalise les montées et descentes en gardant la maîtrise."
+      },
+      {
+        "id": "b6",
+        "label": "Réalise ses manœuvres sans exposer le véhicule à une chute."
+      },
+      {
+        "id": "b7",
+        "label": "Préserve une possibilité de retour ou de demi-tour."
+      },
+      {
+        "id": "b8",
+        "label": "Renonce à un passage dangereux, l’annonce et propose une autre solution."
+      }
+    ]
+  },
+  {
+    "title": "C. Intervention seul",
+    "items": [
+      {
+        "id": "c1",
+        "label": "Précise qu’il intervient seul, conserve sa radio et transmet sa position en cas de difficulté ou de progression à pied."
+      },
+      {
+        "id": "c2",
+        "label": "Prépare le matériel nécessaire avant de s’éloigner du véhicule."
+      },
+      {
+        "id": "c3",
+        "label": "Identifie les limites de ses moyens et demande les renforts avant une opération qu’il ne peut pas gérer seul."
+      },
+      {
+        "id": "c4",
+        "label": "Choisit un autre accès ou attend un renfort lorsque la situation l’exige."
+      }
+    ]
+  },
+  {
+    "title": "D. Arrivée et prise en charge",
+    "items": [
+      {
+        "id": "d1",
+        "label": "Évalue les dangers avant de rejoindre le patient."
+      },
+      {
+        "id": "d2",
+        "label": "Stationne et immobilise le véhicule sur un emplacement stable, loin des ruptures de pente, en préservant l’accès des renforts."
+      },
+      {
+        "id": "d3",
+        "label": "Annonce son arrivée et décrit les conditions d’accès."
+      },
+      {
+        "id": "d4",
+        "label": "Réalise le bilan et la prise en charge selon les protocoles du service."
+      },
+      {
+        "id": "d5",
+        "label": "Transmet le bilan et les besoins supplémentaires à la régulation."
+      },
+      {
+        "id": "d6",
+        "label": "Protège le patient des dangers du terrain et des conditions extérieures."
+      }
+    ]
+  },
+  {
+    "title": "E. Évacuation et gestion des difficultés",
+    "items": [
+      {
+        "id": "e1",
+        "label": "Choisit un moyen d’évacuation compatible avec l’état du patient et vérifie que le Caracara permet une installation adaptée."
+      },
+      {
+        "id": "e2",
+        "label": "Demande une assistance lorsque le déplacement du patient nécessite plusieurs intervenants."
+      },
+      {
+        "id": "e3",
+        "label": "Identifie un point de transfert accessible aux renforts."
+      },
+      {
+        "id": "e4",
+        "label": "Face à un véhicule immobilisé, sécurise les lieux et transmet sa position."
+      }
+    ]
+  },
+  {
+    "title": "F. Fin d’intervention",
+    "items": [
+      {
+        "id": "f1",
+        "label": "Annonce la fin d’intervention et son statut à la régulation."
+      },
+      {
+        "id": "f2",
+        "label": "Contrôle le véhicule et signale les dommages éventuels."
+      },
+      {
+        "id": "f3",
+        "label": "Nettoie, désinfecte et réapprovisionne le matériel utilisé."
+      },
+      {
+        "id": "f4",
+        "label": "Effectue un compte rendu des difficultés rencontrées."
+      }
+    ]
+  }
+]

@@ -18,6 +18,7 @@ import { RdvSection } from './gestion/RdvSection'
 import { VehiclesSection } from './gestion/VehiclesSection'
 import { HistoriqueSection } from './gestion/HistoriqueSection'
 import { HierarchySection } from './gestion/HierarchySection'
+import { TrainingFollowupAccessSection } from './gestion/TrainingFollowupAccessSection'
 import { TrainingFoldersSection } from './gestion/TrainingFoldersSection'
 import { ChecklistsSection } from './gestion/ChecklistsSection'
 import { SiteManagementSection } from './gestion/SiteManagementSection'
@@ -39,6 +40,7 @@ const SECTION_CONTENT: Record<GestionKey, ReactNode> = {
   historique: <HistoriqueSection />,
   hierarchy: <HierarchySection />,
   training: <TrainingFoldersSection />,
+  training_followup_access: <TrainingFollowupAccessSection />,
   checklists: <ChecklistsSection />,
   site: <SiteManagementSection />,
   visitor_access: <VisitorAccessSection />,
@@ -64,6 +66,7 @@ const HOSPITAL_KEYS: GestionKey[] = [
   'vehicles',
   'aide',
   'training',
+  'training_followup_access',
   'checklists',
   'recruitment_archive_access',
   'visitor_access',

@@ -1,6 +1,6 @@
 import { Siren, UserX, Receipt, CalendarClock, BriefcaseBusiness, HelpCircle, History, ShieldCheck, Stethoscope, FileHeart, FolderOpen, Search, MessageCircle, UserRoundCheck, Send, type LucideIcon } from 'lucide-react'
 
-export type TabKey = 'services' | 'absence' | 'prestations' | 'agenda' | 'dossier' | 'dossier_medical' | 'formations' | 'recherche' | 'messages' | 'aide' | 'historique' | 'gestion' | 'visitor_rdv' | 'candidatures' | 'professional_messages' | 'lspd_transfer'
+export type TabKey = 'services' | 'absence' | 'prestations' | 'agenda' | 'dossier' | 'dossier_medical' | 'formations' | 'training_followup' | 'recherche' | 'messages' | 'aide' | 'historique' | 'gestion' | 'visitor_rdv' | 'candidatures' | 'professional_messages' | 'lspd_transfer'
 
 export interface TileSection {
   key: TabKey
@@ -18,6 +18,7 @@ export const TILE_SECTIONS: TileSection[] = [
   { key: 'agenda', label: 'Agenda', icon: CalendarClock, color: 'var(--tile-agenda)' },
   { key: 'dossier', label: 'Dossier traumatologique', icon: Stethoscope, color: 'var(--tile-services)' },
   { key: 'dossier_medical', label: 'Dossier médical', icon: FileHeart, color: 'var(--tile-dossier)' },
+  { key: 'training_followup', label: 'Suivi formation', icon: Stethoscope, color: 'var(--tile-hierarchy)' },
   { key: 'formations', label: 'Documents', icon: FolderOpen, color: 'var(--tile-hierarchy)' },
   { key: 'recherche', label: 'Recherche', icon: Search, color: 'var(--tile-aide)' },
   { key: 'messages', label: 'Messages', icon: MessageCircle, color: 'var(--tile-absence)' },

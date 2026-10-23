@@ -33,6 +33,7 @@ export type GestionKey =
   | 'historique'
   | 'hierarchy'
   | 'training'
+  | 'training_followup_access'
   | 'checklists'
   | 'site'
   | 'visitor_access'
@@ -63,6 +64,7 @@ export const GESTION_SECTIONS: GestionSection[] = [
   { key: 'vehicles', label: 'Véhicules', icon: Car, color: 'var(--tile-vehicles)', directionOnly: true },
   { key: 'historique', label: 'Historique', icon: History, color: 'var(--tile-historique)' },
   { key: 'hierarchy', label: 'Habilitations & Affiliations', icon: Network, color: 'var(--tile-hierarchy)', directionOnly: true },
+  { key: 'training_followup_access', label: 'Accès suivi formation', icon: ListChecks, color: 'var(--tile-hierarchy)', directionOnly: true },
   { key: 'training', label: 'Documents', icon: FolderCog, color: 'var(--tile-hierarchy)', directionOnly: true },
   { key: 'checklists', label: 'Checklists service', icon: ListChecks, color: 'var(--tile-services)', directionOnly: true },
   { key: 'site', label: 'Gestion site', icon: Globe2, color: '#16a34a', directionOnly: true },
