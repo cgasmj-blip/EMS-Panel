@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+import { mergeDraft } from '../src/lib/mergeDraft.ts';
+const base={doctor:'A',notes:'initial',patient:{pain:'low'},zones:[]};
+let result=mergeDraft(base,{...base,notes:'local'},{...base,doctor:'B'});
+assert.deepEqual(result.conflicts,[]);assert.equal(result.payload.notes,'local');assert.equal(result.payload.doctor,'B');
+result=mergeDraft(base,{...base,notes:'one'},{...base,notes:'two'});assert.deepEqual(result.conflicts,['notes']);assert.equal(result.payload.notes,'one');
+result=mergeDraft(base,{...base,zones:['head']},{...base,zones:['thorax']});assert.deepEqual(result.conflicts,['zones']);
+result=mergeDraft(base,base,{...base,notes:'remote'});assert.equal(result.payload.notes,'remote');assert.deepEqual(result.conflicts,[]);
+result=mergeDraft({patient:{pain:'low',bleeding:'none'}},{patient:{pain:'high',bleeding:'none'}},{patient:{pain:'low',bleeding:'high'}});assert.deepEqual(result.payload,{patient:{pain:'high',bleeding:'high'}});
+result=mergeDraft({a:1},{},{a:1,b:2});assert.deepEqual(result.payload,{b:2});
+console.log('PASS: live three-way merge combines disjoint edits and detects same-field/array conflicts without discarding local input.');

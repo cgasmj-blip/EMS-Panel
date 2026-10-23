@@ -5,7 +5,7 @@ declare trainer uuid; other_trainer uuid; outsider uuid; director uuid; doc uuid
 begin
  select s.id into trainer from public.staff s join public.staff_affiliations a on a.staff_id=s.id where s.active and a.affiliation_id='formateur' and s.role not in ('directeur','directeur_adjoint') limit 1;
  select s.id into other_trainer from public.staff s join public.staff_affiliations a on a.staff_id=s.id where s.active and a.affiliation_id='formateur' and s.id<>trainer limit 1;
- select s.id into outsider from public.staff s where s.active and s.id not in (trainer,other_trainer) and s.role not in ('directeur','directeur_adjoint') limit 1;
+ select s.id into outsider from public.staff s where s.active and s.id not in (trainer,other_trainer) and s.role not in ('directeur','directeur_adjoint') and not exists(select 1 from public.staff_sous_grades g where g.staff_id=s.id and g.sous_grade_id='mu') and not exists(select 1 from public.training_access a where a.staff_id=s.id and a.checklist_key='mu') limit 1;
  select id into director from public.staff where active and role in ('directeur','directeur_adjoint') limit 1;
  if trainer is null or other_trainer is null or outsider is null or director is null then raise exception 'Test identities unavailable'; end if;
  insert into public.training_access(checklist_key,staff_id) values('mu',trainer) on conflict do nothing;
@@ -44,7 +44,7 @@ begin
  perform set_config('request.jwt.claim.sub',outsider::text,true);
  if exists(select 1 from public.training_evaluations where id=newdoc) then raise exception 'Non-authorized staff sees training'; end if;
  perform set_config('request.jwt.claim.sub',other_trainer::text,true);
- if exists(select 1 from public.training_evaluations where id=newdoc) then raise exception 'Formateur without named grant sees checklist'; end if;
+ if not exists(select 1 from public.staff_sous_grades g where g.staff_id=other_trainer and g.sous_grade_id='mu') and not exists(select 1 from public.training_access a where a.staff_id=other_trainer and a.checklist_key='mu') and exists(select 1 from public.training_evaluations where id=newdoc) then raise exception 'Formateur without named grant or habilitation sees checklist'; end if;
  reset role;
  insert into public.training_access(checklist_key,staff_id) values('mu',other_trainer) on conflict do nothing;
  perform set_config('request.jwt.claim.sub',other_trainer::text,true); set local role authenticated;

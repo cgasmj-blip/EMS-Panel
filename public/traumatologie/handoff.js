@@ -1,5 +1,6 @@
 /* Versioned, same-origin bridge. Authentication stays in the parent panel. */
 (() => {
+  let applyingRemote=false;
   const text = (v, max = 12000) => typeof v === 'string' ? v.slice(0, max) : '';
   const strings = v => Array.isArray(v) ? v.slice(0, 300).map(x => text(x, 1000)).filter(Boolean) : [];
   function normalize(input) {
@@ -36,11 +37,13 @@
     return {...s,patientFirstName:s.patientFirstName||'',patientLastName:s.patientLastName||'',doctor:$('doctor').value,notes:$('notes').value,draftInputs:{operation:$('customOperation').value,prescription:$('customPrescription').value}};
   }
   function load(payload) {
+    const focused=document.activeElement;const start=focused?.selectionStart,end=focused?.selectionEnd;
     s=normalize(payload); chosenScan=chosenRegion=null;
     $('doctor').value=s.doctor; $('notes').value=s.notes;
     $('customOperation').value=text(payload.draftInputs?.operation,180);
     $('customPrescription').value=text(payload.draftInputs?.prescription,180);
-    render();
+    applyingRemote=true;try { render(); } finally { applyingRemote=false; }
+    if(focused?.id&&typeof start==='number'&&typeof end==='number'){const field=$(focused.id);if(field){field.focus();field.setSelectionRange(start,end);}}
   }
   window.TraumaDraft={snapshot,load,normalize};
   window.addEventListener('message',event=>{
@@ -58,7 +61,7 @@
   });
   document.addEventListener('input',()=>{if(window.parent!==window) window.parent.postMessage({channel:'ems-trauma-v1',action:'changed'},location.origin);});
   const previousRender=render;
-  render=function(){previousRender();if(window.parent!==window) window.parent.postMessage({channel:'ems-trauma-v1',action:'changed'},location.origin);};
+  render=function(){previousRender();if(!applyingRemote&&window.parent!==window) window.parent.postMessage({channel:'ems-trauma-v1',action:'changed'},location.origin);};
   // The panel owns the saved-record identity: reset must go through its toolbar.
   if(window.parent!==window) $('new').hidden=true;
 })();

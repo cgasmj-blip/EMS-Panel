@@ -181,7 +181,7 @@ export function Dashboard() {
 
   const visibleTabs = TILE_SECTIONS
     .filter((section) => {
-      if (section.key === 'training_followup') return staff?.active === true && staff.affiliation_ids.includes('formateur')
+      if (section.key === 'training_followup') return staff?.active === true && (staff.affiliation_ids.includes('formateur') || staff.sous_grade_ids.includes('mu'))
       if (section.key === 'lspd_transfer') return lspdAllowed.length > 0 || (staff?.active === true && staff.role === 'directeur')
       if (section.key === 'candidatures') return canHandleRecruitment
       if (section.key === 'visitor_rdv' || section.key === 'professional_messages') return canHandleVisitorRdv

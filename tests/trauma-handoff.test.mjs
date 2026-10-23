@@ -35,4 +35,11 @@ window.HTMLCanvasElement.prototype.getContext=()=>ctx;window.HTMLCanvasElement.p
 Object.defineProperty(window.document.getElementById('bodyImg'),'naturalWidth',{value:1312});Object.defineProperty(window.document.getElementById('bodyImg'),'naturalHeight',{value:1199});
 await run('exportPremiumPNG()');assert.equal(arcs.length,2);assert.ok(labels.includes('Thorax · Face'));assert.ok(labels.includes('Tête · Face'));assert.ok(labels.includes('Dupont Élodie'));
 console.log('PASS: multi-zone add/remove, complete draft roundtrip with imaging and pending input, legacy loading, invalid data filtering, PNG highlights and labels for both zones.');
+const sent=[];const originalParent=window.parent;
+Object.defineProperty(window,'parent',{configurable:true,value:{postMessage:m=>sent.push(m)}});
+const notes=window.document.getElementById('notes');notes.focus();notes.setSelectionRange(3,7);
+window.TraumaDraft.load(get());assert.equal(sent.filter(m=>m.action==='changed').length,0);assert.equal(notes.selectionStart,3);assert.equal(notes.selectionEnd,7);
+run('render()');assert.equal(sent.filter(m=>m.action==='changed').length,1);
+Object.defineProperty(window,'parent',{configurable:true,value:originalParent});
+console.log('PASS: remote refresh does not mark the document dirty and preserves the text selection.');
 await window.happyDOM.close();
